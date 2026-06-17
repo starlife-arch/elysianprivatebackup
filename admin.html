@@ -253,7 +253,7 @@
   <script type="module">
     import { requireAdmin, logout, db } from "./js/auth.js";
     import { showConfirm, showPrompt, showAlert, showSuccess, showError } from "./js/dialog.js";
-    import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport } from "./js/admin.js";
+    import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, assignPlan, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport } from "./js/admin.js";
     import { collection, getDocs, doc, addDoc, updateDoc, query, where, orderBy, limit, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAdminSettings, setAdminGlobalSetting, setMemberOverride } from "./js/location.js";
 
@@ -815,21 +815,9 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
       const originalText = btn?.textContent || 'Assign Plan';
       if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
       try {
-        const ref = doc(db, 'users', assignPlanUID);
-        await updateDoc(ref, {
-          'subscription.plan': plan,
-          'subscription.status': 'active',
-          'subscription.adminAssigned': true,
-          'subscription.assignedAt': serverTimestamp(),
-          'subscription.assignedBy': 'admin',
-          ...(expiry ? { 'subscription.expiresAt': expiry, accessExpiry: expiry } : {}),
-          plan: plan,
-          hasPaid: true,
-          paid: true,
-          stage: plan,
-          status: 'active_member',
-        });
-        showToast(`Plan assigned: ${plan.toUpperCase()} ✓`);
+        const result = await assignPlan(assignPlanUID, plan, expiry);
+        if (result?.notices?.length) showToast(`Plan assigned, notification warning: ${result.notices.join(' · ')}`);
+        else showToast(`Plan assigned: ${plan.toUpperCase()} ✓ Notifications sent`);
         closeAssignPlan();
         allUsers = await fetchAllUsers();
         renderPending(); filterMembers(); renderOverview();
