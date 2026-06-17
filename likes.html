@@ -58,12 +58,14 @@
     import { hasPlan, getSubscription, planLabel, vaultBadge } from "./js/subscription.js";
     import { recordSwipe } from "./js/swipe.js";
     import { collection, getDocs, getDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAdminSettings, resolveVisibility } from "./js/location.js";
 
-    let myUser, myProfile;
+    let myUser, myProfile, adminSettings = {};
 
     async function init() {
       const { user, profile } = await requireMember();
       myUser = user; myProfile = profile;
+      adminSettings = await getAdminSettings();
       updateExploreNavLock();
       document.getElementById('loader').classList.add('hidden');
       if (hasPlan(myProfile, 'elite')) await loadLikes(); else showLockedLikes();
@@ -141,14 +143,17 @@
     function renderTile(grid, uid, profile, isMatch) {
       const photo = profile.photos && profile.photos[0] ? profile.photos[0] : '';
       const age = profile.dob ? Math.floor((Date.now() - new Date(profile.dob)) / 31557600000) : '';
+      const vis = resolveVisibility(profile, myProfile, adminSettings);
+      const ageDisplay = vis.showAge && age ? `, ${age}` : '';
+      const locationDisplay = vis.showLocation ? (profile.city || profile.country || '') : '';
       const tile = document.createElement('div');
       tile.className = 'profile-tile';
       tile.innerHTML = `
         ${photo ? `<img src="${photo}" alt="${profile.displayName}" loading="lazy"/>` : `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:2rem;">👤</div>`}
         ${isMatch ? '<div class="match-badge">MATCH</div>' : ''}
         <div class="tile-info">
-          <div class="tile-name">${profile.displayName || profile.name || 'Member'}${age ? ', '+age : ''} ${vaultBadge(profile)}</div>
-          <div class="tile-meta">${profile.city || profile.country || ''}</div>
+          <div class="tile-name">${profile.displayName || profile.name || 'Member'}${ageDisplay} ${vaultBadge(profile)}</div>
+          <div class="tile-meta">${locationDisplay}</div>
           ${isMatch ? '<div style="font-size:11px;color:var(--gold);margin-top:4px;">Tap to chat</div>' : `
             <div style="display:flex;gap:0.4rem;margin-top:0.5rem;">
               <button class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:var(--muted);padding:0.35rem 0.65rem;font-size:11px;" onclick="respondToLike('${uid}','nope',event)">Pass</button>

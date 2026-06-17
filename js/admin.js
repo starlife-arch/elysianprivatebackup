@@ -287,6 +287,34 @@ export async function revokeAccess(uid) {
   return { notices };
 }
 
+export async function assignPlan(uid, plan, expiry = null) {
+  const updates = {
+    'subscription.plan': plan,
+    'subscription.status': 'active',
+    'subscription.adminAssigned': true,
+    'subscription.assignedAt': serverTimestamp(),
+    'subscription.assignedBy': 'admin',
+    plan,
+    hasPaid: true,
+    paid: true,
+    stage: plan,
+    status: 'active_member'
+  };
+  if (expiry) {
+    updates['subscription.expiresAt'] = expiry;
+    updates.accessExpiry = expiry;
+  }
+
+  await updateDoc(doc(db, "users", uid), updates);
+  const snap = await getDoc(doc(db, "users", uid));
+  const user = snap.exists() ? snap.data() : {};
+  const assignedPlanLabel = String(plan || "standard").charAt(0).toUpperCase() + String(plan || "standard").slice(1);
+  const notices = [];
+  try { await sendMemberNotification("plan_assigned", user, { plan: assignedPlanLabel }); } catch(e) { notices.push(`Email failed: ${e.message}`); }
+  try { await notifyTelegram("plan_assigned", uid, user, { plan: assignedPlanLabel }); } catch(e) { notices.push(`Telegram failed: ${e.message}`); }
+  return { notices };
+}
+
 export async function setExpiry(uid, expiryDate) {
   await updateDoc(doc(db, "users", uid), { accessExpiry: expiryDate });
 }

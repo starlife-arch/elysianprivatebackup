@@ -13,6 +13,12 @@ function copyFor(type, data, appUrl) {
       body: `Your DateVault member access is active${data.days ? ` for ${escapeHTML(data.days)} days` : ""}. You can now return to the member dashboard.`,
       cta: "Open Dashboard", url: `${appUrl}/dashboard.html`
     },
+    plan_assigned: {
+      subject: `${plan} plan assigned — DateVault`,
+      title: `Your ${plan} plan has been assigned.`,
+      body: `An admin has assigned your DateVault account to the ${plan} plan. Your plan benefits are available immediately.`,
+      cta: "Open Dashboard", url: `${appUrl}/dashboard.html`
+    },
     access_revoked: {
       subject: "DateVault access revoked",
       title: "Your access has been revoked.",
@@ -80,7 +86,7 @@ exports.handler = async function(event) {
 
   const BREVO_API_KEY = process.env.BREVO_API_KEY;
   const paymentTypes = new Set(["subscription_expired", "subscription_renewed", "payment_received", "priority_support_requested"]);
-  const adminTypes = new Set(["access_granted", "access_revoked", "user_banned", "user_unbanned", "reapply_allowed"]);
+  const adminTypes = new Set(["access_granted", "access_revoked", "plan_assigned", "user_banned", "user_unbanned", "reapply_allowed"]);
   const FROM_EMAIL = paymentTypes.has(data.type)
     ? (process.env.EMAIL_PAYMENT || process.env.FROM_EMAIL || "noreply@datevault.com")
     : adminTypes.has(data.type)
