@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Discover — DateVault</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
+  <div class="app-shell">
+    <div class="topbar">
+      <div class="topbar-title">Discover</div>
+      <div style="display:flex;gap:0.75rem;align-items:center;">
+        <span id="memberBadge" class="status-badge status-gold" style="font-size:11px;"></span>
+        <button onclick="openFilter()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div id="stageBanner"></div>
+    <div id="subscriptionBanner"></div>
+    <div id="subscriptionPanel" class="glass-card subscription-panel"></div>
+    <div class="swipe-stage">
+      <div class="swipe-deck" id="swipeDeck"></div>
+    </div>
+    <div class="action-btns">
+      <button class="action-btn rewind" onclick="rewindCard()" title="Undo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
+      </button>
+      <button class="action-btn nope" onclick="swipeAction('left')" title="Pass">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <button class="action-btn like" id="likeActionBtn" onclick="swipeAction('right')" title="Like">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      </button>
+      <button class="action-btn super" onclick="swipeAction('superlike')" title="Super Like">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
+      </button>
+    </div>
+    <div id="likeLimitNotice" class="glass-card" style="display:none;margin:0 1rem 5rem;text-align:center;font-size:13px;color:var(--muted);"></div>
+  </div>
+
+  <!-- Match Popup -->
+  <div class="match-popup" id="matchPopup">
+    <div class="match-popup-title">It's a Match!</div>
+    <div class="match-avatars">
+      <img id="matchMyAvatar" src="" alt=""/>
+      <img id="matchTheirAvatar" src="" alt=""/>
+    </div>
+    <p class="muted" style="text-align:center;">You and <span id="matchName"></span> liked each other</p>
+    <button class="btn btn-gold" onclick="goToChat()">Send a Message</button>
+    <button class="btn btn-outline btn-sm" onclick="closeMatch()">Keep Swiping</button>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-item active" href="dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+      Discover
+    </a>
+    <a class="nav-item" id="exploreNavItem" href="explore.html">
+      <span id="exploreNavLock" style="display:none;position:absolute;top:2px;right:10px;color:var(--gold);font-size:12px;line-height:1;">◇</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Explore
+    </a>
+    <a class="nav-item" href="likes.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      Likes
+    </a>
+    <a class="nav-item" href="chat.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Chat
+      <span class="badge" id="chatBadge" style="display:none;"></span>
+    </a>
+    <a class="nav-item" href="profile.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </a>
+  </nav>
+
+  <div id="toast" class="toast"></div>
+  <div id="filterPanel" class="filter-panel">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+      <h3>Advanced Filters</h3><button class="btn btn-sm btn-outline" onclick="closeFilter()">Close</button>
+    </div>
+    <div id="filterLocked" class="locked-state" style="display:none;"><div class="lock-icon">◇</div><p>Advanced filters are available to Elite and Vault members.</p><button class="btn btn-gold btn-sm" onclick="location.href='pricing.html'">Renew to unlock</button></div>
+    <div id="filterControls" class="stack" style="display:none;">
+      <div class="grid-2"><div><label>Min Age</label><input id="minAge" type="number" min="18" placeholder="18"></div><div><label>Max Age</label><input id="maxAge" type="number" min="18" placeholder="60"></div></div>
+      <div><label>Location</label><input id="filterLocation" placeholder="City or country"></div>
+      <div><label>Relationship Goal</label><input id="filterGoal" placeholder="Long-term, marriage..."></div>
+      <button class="btn btn-gold btn-full" onclick="applyFilters()">Apply Filters</button>
+    </div>
+  </div>
+
+  <!-- Discover Photo Viewer -->
+  <div class="modal-overlay" id="photoViewer" onclick="closePhotoViewer()" style="align-items:center;">
+    <div onclick="event.stopPropagation()" style="position:relative;width:min(92vw,520px);height:min(78vh,760px);display:flex;align-items:center;justify-content:center;">
+      <button onclick="closePhotoViewer()" aria-label="Close" style="position:absolute;top:-42px;right:0;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;font-size:22px;cursor:pointer;z-index:3;">×</button>
+      <button onclick="viewerPhoto(-1)" aria-label="Previous photo" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.25);color:#fff;width:42px;height:42px;border-radius:50%;font-size:28px;cursor:pointer;z-index:2;">‹</button>
+      <img id="photoViewerImg" src="" alt="Member photo" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:18px;box-shadow:0 24px 80px rgba(0,0,0,0.75);"/>
+      <button onclick="viewerPhoto(1)" aria-label="Next photo" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.25);color:#fff;width:42px;height:42px;border-radius:50%;font-size:28px;cursor:pointer;z-index:2;">›</button>
+      <div id="photoViewerCount" style="position:absolute;bottom:-34px;left:50%;transform:translateX(-50%);color:var(--muted);font-size:13px;"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireMember } from "./js/auth.js";
+    import { fetchProfiles, recordSwipe } from "./js/swipe.js";
+    import { db } from "./js/auth.js";
+    import { getSubscription, hasPlan, isVault, planLabel, vaultBadge } from "./js/subscription.js";
+    import { collection, onSnapshot, query, where, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { haversineKm, formatDistance, getAdminSettings, resolveVisibility, requestAndSaveLocation } from "./js/location.js";
+
+    let profiles = [], allProfiles = [], currentIndex = 0, myProfile = null, myUser = null;
+    let matchedUID = null, isDragging = false, startX = 0, currentX = 0, viewerUID = null;
+    let myCoords = null, adminSettings = {};
+    const photoIndexByUID = {};
+    const SWIPE_THRESHOLD = 80;
+
+    async function init() {
+      const { user, profile } = await requireMember();
+      myUser = user; myProfile = profile;
+      document.getElementById('memberBadge').textContent = profile.memberId || '';
+      renderStageState();
+      updateExploreNavLock();
+      renderSubscriptionPanel();
+      updateLikeButtonState();
+      document.getElementById('loader').classList.add('hidden');
+      // Capture location & admin settings silently
+      myCoords = profile._location || null;
+      requestAndSaveLocation(user.uid).then(c => { if (c) myCoords = c; });
+      adminSettings = await getAdminSettings();
+      if (isDiscoverUnlocked()) await loadProfiles(); else renderLockedDeck(stageMessage());
+      if (isChatUnlocked()) listenUnreadChats();
+      maybeShowLocationPrompt();
+    }
+
+    function currentPlan() { return myProfile.plan || myProfile.subscription?.plan || 'none'; }
+    function isPaidStage() { return ['paid','elite','vault'].includes(myProfile.stage) || myProfile.hasPaid || myProfile.paid; }
+    function isPremium() { return ['elite','vault'].includes(currentPlan()) || ['elite','vault'].includes(myProfile.stage); }
+
+    function isStandardPlan() { return isPaidStage() && currentPlan() === 'standard'; }
+    function updateExploreNavLock() {
+      const nav = document.getElementById('exploreNavItem');
+      const lock = document.getElementById('exploreNavLock');
+      if (!nav || !lock || !isStandardPlan()) return;
+      lock.style.display = 'block';
+      nav.onclick = (event) => {
+        event.preventDefault();
+        showToast('Explore requires Elite or Vault. Upgrade to unlock.');
+      };
+    }
+    function isDiscoverUnlocked() { return isPaidStage(); }
+    function isChatUnlocked() { return isPaidStage(); }
+    function membershipPaymentUrl() { return `payment.html?token=${encodeURIComponent(myProfile.inviteToken || myProfile.inviteCode || '')}`; }
+    function stageMessage() {
+      if (myProfile.stage === 'signedUp') return 'Complete your profile to get started';
+      if (myProfile.stage === 'profileComplete') return 'Your profile is ready. Next step: identity verification.';
+      if (myProfile.stage === 'verificationSubmitted') return "Your application is under review. We'll notify you by email once approved. This usually takes 24–48 hours.";
+      if (myProfile.stage === 'adminApproved') return "You're approved! Complete your membership to unlock DateVault.";
+      return '';
+    }
+    function updateLikeButtonState() {
+      const btn = document.getElementById('likeActionBtn');
+      if (!btn) return;
+      const locked = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? 2) <= 0;
+      btn.title = locked ? `You've used your daily likes. Likes reset in ${likesResetText()}` : 'Like';
+      btn.style.opacity = locked ? '0.45' : '';
+      btn.style.boxShadow = locked ? 'none' : '';
+    }
+
+    function renderStageState() {
+      const banner = document.getElementById('stageBanner');
+      const msg = stageMessage();
+      if (!msg) { banner.innerHTML = ''; return; }
+      const action = myProfile.stage === 'signedUp'
+        ? `<button class="btn btn-gold btn-sm" onclick="location.href='profile.html'">Complete Profile</button>`
+        : myProfile.stage === 'profileComplete'
+          ? `<button class="btn btn-gold btn-sm" onclick="location.href='verification.html'">Start Verification</button>`
+          : myProfile.stage === 'adminApproved'
+            ? `<button class="btn btn-gold btn-sm" onclick="location.href='${membershipPaymentUrl()}'">Pay Now</button>`
+            : '';
+      const color = myProfile.stage === 'verificationSubmitted' ? 'var(--text)' : 'var(--gold)';
+      banner.innerHTML = `<div class="glass-card subscription-panel"><div style="font-weight:600;color:${color};">${msg}</div>${action}</div>`;
+    }
+    function renderLockedDeck(message) {
+      document.getElementById('swipeDeck').innerHTML = `<div class="glass-card locked-state" style="width:100%;min-height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;"><div class="lock-icon">◇</div><p style="font-weight:700;color:var(--text);">${message}</p><p class="muted">Discover, Likes, Matches and Chat unlock as your membership progresses.</p></div>`;
+      document.querySelector('.action-btns').style.opacity = '0.35';
+      document.querySelector('.action-btns').style.pointerEvents = 'none';
+    }
+
+    async function loadProfiles() {
+      allProfiles = await fetchProfiles(myUser, myProfile);
+      profiles = [...allProfiles];
+      currentIndex = 0;
+      renderDeck();
+    }
+
+    function renderDeck() {
+      const deck = document.getElementById('swipeDeck');
+      deck.innerHTML = '';
+      if (profiles.length === 0) {
+        deck.innerHTML = `
+          <div class="empty-state">
+            <div style="color:var(--gold);font-size:2.5rem;">◈</div>
+            <p style="font-weight:600;">You've seen everyone</p>
+            <p class="muted">Check back later for new members</p>
+          </div>`;
+        return;
+      }
+      const visible = profiles.slice(currentIndex, currentIndex + 3).reverse();
+      visible.forEach((p, i) => deck.appendChild(createCard(p, i === visible.length - 1)));
+    }
+
+    function createCard(prof, isTop) {
+      const card = document.createElement('div');
+      card.className = 'swipe-card';
+      card.dataset.uid = prof.id;
+      card.onclick = e => { if (!isDragging && e.target === card) window.location.href = `member.html?uid=${prof.id}`; };
+      const photos = (prof.photos && prof.photos.length) ? prof.photos : ['https://placehold.co/400x600/131929/6b7a99?text=No+Photo'];
+      const photoIdx = photoIndexByUID[prof.id] || 0;
+      const photo = photos[photoIdx] || photos[0];
+      const age = prof.dob ? Math.floor((Date.now() - new Date(prof.dob)) / 31557600000) : '';
+      const vis = resolveVisibility(prof, myProfile, adminSettings);
+      const ageDisplay = vis.showAge && age ? `, ${age}` : '';
+      const locationDisplay = vis.showLocation
+        ? `${prof.city || ''}${prof.city && prof.country ? ', ' : ''}${prof.country || ''}`
+        : '';
+      let distanceBadge = '';
+      if (vis.showDistance && myCoords && prof._location) {
+        const km = haversineKm(myCoords.lat, myCoords.lng, prof._location.lat, prof._location.lng);
+        distanceBadge = `<div style="position:absolute;top:12px;right:12px;z-index:6;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);color:#E8C96A;font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;border:1px solid rgba(201,168,76,0.35);">📍 ${formatDistance(km)}</div>`;
+      }
+      card.innerHTML = `
+        <img class="swipe-photo" src="${photo}" alt="${prof.displayName || 'Member'}" loading="lazy" onclick="openPhotoViewer('${prof.id}')" style="pointer-events:auto;cursor:zoom-in;"/>
+        ${photos.length>1?`<button type="button" onclick="changeCardPhoto('${prof.id}',-1,event)" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);z-index:5;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;font-size:22px;cursor:pointer;">‹</button>
+        <button type="button" onclick="changeCardPhoto('${prof.id}',1,event)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);z-index:5;width:34px;height:34px;border-radius:50%;border:1px solid rgba(255,255,255,0.25);background:rgba(0,0,0,0.35);color:#fff;font-size:22px;cursor:pointer;">›</button>
+        <div style="position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:4;background:rgba(0,0,0,0.45);color:#fff;border-radius:999px;padding:4px 10px;font-size:11px;">${photoIdx+1}/${photos.length}</div>`:''}
+        ${distanceBadge}
+        <div class="swipe-indicator indicator-like">LIKE</div>
+        <div class="swipe-indicator indicator-nope">PASS</div>
+        <div class="card-overlay">
+          <div class="card-name">${prof.displayName || prof.name || 'Member'}${ageDisplay} ${vaultBadge(prof)}</div>
+          <div class="card-sub">${locationDisplay}</div>
+          ${prof.relationshipGoal ? `<div class="card-badge">${prof.relationshipGoal}</div>` : ''}
+        </div>`;
+      if (isTop) setupDrag(card, prof);
+      return card;
+    }
+
+    function setupDrag(card, prof) {
+      const onStart = e => {
+        if (e.target.closest?.('.swipe-photo') || e.target.tagName === 'BUTTON') return;
+        isDragging = true;
+        const t = e.touches ? e.touches[0] : e;
+        startX = t.clientX;
+        card.style.transition = 'none';
+      };
+      const onMove = e => {
+        if (!isDragging) return;
+        const t = e.touches ? e.touches[0] : e;
+        currentX = t.clientX - startX;
+        card.style.transform = `translateX(${currentX}px) rotate(${currentX * 0.08}deg)`;
+        card.classList.toggle('dragging-right', currentX > 20);
+        card.classList.toggle('dragging-left', currentX < -20);
+      };
+      const onEnd = async () => {
+        if (!isDragging) return;
+        isDragging = false;
+        card.style.transition = 'transform 0.3s ease';
+        if (currentX > SWIPE_THRESHOLD) await animateSwipe(card, 'right', prof);
+        else if (currentX < -SWIPE_THRESHOLD) await animateSwipe(card, 'left', prof);
+        else { card.style.transform = ''; card.classList.remove('dragging-right','dragging-left'); }
+        currentX = 0;
+      };
+      card.addEventListener('mousedown', onStart);
+      card.addEventListener('mousemove', onMove);
+      card.addEventListener('mouseup', onEnd);
+      card.addEventListener('touchstart', onStart, { passive: true });
+      card.addEventListener('touchmove', onMove, { passive: true });
+      card.addEventListener('touchend', onEnd);
+    }
+
+    function likesResetText() {
+      const reset = myProfile.likesResetAt?.toDate ? myProfile.likesResetAt.toDate() : (myProfile.likesResetAt ? new Date(myProfile.likesResetAt) : null);
+      if (!reset) return '24h 0m';
+      const ms = Math.max(0, reset.getTime() - Date.now());
+      return `${Math.floor(ms / 3600000)}h ${Math.ceil((ms % 3600000) / 60000)}m`;
+    }
+    function isStandardMember() {
+      return myProfile.hasPaid === true && currentPlan() === 'standard';
+    }
+    function showLikeLimitNotice() {
+      const notice = document.getElementById('likeLimitNotice');
+      const msg = `You've used your daily likes. Likes reset in ${likesResetText()}`;
+      notice.innerHTML = `<div style="color:var(--gold);font-weight:600;margin-bottom:0.75rem;">${msg}</div><button class="btn btn-gold btn-sm" onclick="location.href='pricing.html'">Upgrade</button>`;
+      notice.style.display = 'block';
+      showToast(msg);
+    }
+    function hideLikeLimitNotice() {
+      const notice = document.getElementById('likeLimitNotice');
+      if (notice) notice.style.display = 'none';
+    }
+    async function getStandardLikeState() {
+      if (!isStandardMember()) return { allowed: true, shouldConsume: false };
+      const snap = await getDoc(doc(db, 'users', myUser.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        myProfile.likesRemaining = Number(data.likesRemaining ?? 2);
+        myProfile.likesResetAt = data.likesResetAt || null;
+      }
+      renderSubscriptionPanel();
+      updateLikeButtonState();
+      if (Number(myProfile.likesRemaining ?? 2) <= 0) {
+        showLikeLimitNotice();
+        return { allowed: false, shouldConsume: false };
+      }
+      hideLikeLimitNotice();
+      return { allowed: true, shouldConsume: true };
+    }
+    async function consumeStandardLike() {
+      const remaining = Number(myProfile.likesRemaining ?? 2);
+      const next = remaining - 1;
+      const resetAt = myProfile.likesResetAt || new Date(Date.now() + 24 * 60 * 60 * 1000);
+      await updateDoc(doc(db, 'users', myUser.uid), {
+        likesRemaining: next,
+        likesResetAt: resetAt,
+        lastLikeAt: serverTimestamp()
+      });
+      myProfile.likesRemaining = next;
+      myProfile.likesResetAt = resetAt;
+      renderSubscriptionPanel();
+      updateLikeButtonState();
+    }
+
+    async function animateSwipe(card, dir, prof) {
+      const likeState = dir === 'right' ? await getStandardLikeState() : { allowed: true, shouldConsume: false };
+      if (!likeState.allowed) return;
+      const x = dir === 'right' ? window.innerWidth + 200 : -(window.innerWidth + 200);
+      card.style.transform = `translateX(${x}px) rotate(${dir === 'right' ? 20 : -20}deg)`;
+      await new Promise(r => setTimeout(r, 300));
+      try {
+        const isMatch = await recordSwipe(myUser.uid, prof.id, dir === 'right' ? 'like' : 'nope');
+        if (likeState.shouldConsume) await consumeStandardLike();
+        card.remove();
+        currentIndex++;
+        if (currentIndex >= profiles.length) await loadProfiles();
+        else renderDeck();
+        if (isMatch) showMatch(prof);
+      } catch (e) {
+        card.style.transform = '';
+        showToast('Could not save swipe. Please try again.');
+        console.error(e);
+      }
+    }
+
+    window.swipeAction = async function(dir) {
+      const top = document.getElementById('swipeDeck').querySelector('.swipe-card:last-child');
+      if (!top) return;
+      const prof = profiles.find(p => p.id === top.dataset.uid);
+      if (!prof) return;
+      if (dir === 'superlike') {
+        if (!isPremium()) { showToast('Super Likes are available to Elite and Vault members. Upgrade to unlock.'); return; }
+        try {
+          const isMatch = await recordSwipe(myUser.uid, prof.id, 'superlike');
+          top.style.transition = 'transform 0.4s ease, opacity 0.4s';
+          top.style.transform = 'translateY(-120%) scale(0.8)';
+          top.style.opacity = '0';
+          setTimeout(() => { top.remove(); currentIndex++; if(currentIndex>=profiles.length) loadProfiles(); else renderDeck(); }, 400);
+          if (isMatch) showMatch(prof);
+        } catch (e) {
+          showToast('Could not save super like. Please try again.');
+          console.error(e);
+        }
+        return;
+      }
+      await animateSwipe(top, dir === 'left' ? 'left' : 'right', prof);
+    };
+
+
+    window.changeCardPhoto = function(uid, delta, event) {
+      event?.stopPropagation();
+      const prof = profiles.find(p => p.id === uid);
+      const photos = prof?.photos || [];
+      if (photos.length < 2) return;
+      photoIndexByUID[uid] = ((photoIndexByUID[uid] || 0) + delta + photos.length) % photos.length;
+      renderDeck();
+    };
+
+    window.openPhotoViewer = function(uid) {
+      viewerUID = uid;
+      const prof = profiles.find(p => p.id === uid);
+      if (!prof) return;
+      photoIndexByUID[uid] = photoIndexByUID[uid] || 0;
+      renderPhotoViewer();
+      document.getElementById('photoViewer').classList.add('open');
+    };
+
+    window.closePhotoViewer = function() {
+      document.getElementById('photoViewer').classList.remove('open');
+      viewerUID = null;
+    };
+
+    window.viewerPhoto = function(delta) {
+      const prof = profiles.find(p => p.id === viewerUID);
+      const photos = prof?.photos || [];
+      if (photos.length < 2) return;
+      photoIndexByUID[viewerUID] = ((photoIndexByUID[viewerUID] || 0) + delta + photos.length) % photos.length;
+      renderPhotoViewer();
+      renderDeck();
+    };
+
+    function renderPhotoViewer() {
+      const prof = profiles.find(p => p.id === viewerUID);
+      const photos = (prof?.photos && prof.photos.length) ? prof.photos : ['https://placehold.co/400x600/131929/6b7a99?text=No+Photo'];
+      const idx = photoIndexByUID[viewerUID] || 0;
+      document.getElementById('photoViewerImg').src = photos[idx] || photos[0];
+      document.getElementById('photoViewerCount').textContent = `${idx + 1} / ${photos.length}`;
+    }
+
+    window.rewindCard = function() {
+      if (currentIndex <= 0) { showToast('Nothing to undo'); return; }
+      currentIndex--; renderDeck();
+    };
+
+    function showMatch(prof) {
+      matchedUID = prof.id;
+      document.getElementById('matchMyAvatar').src = (myProfile.photos && myProfile.photos[0]) ? myProfile.photos[0] : '';
+      document.getElementById('matchTheirAvatar').src = (prof.photos && prof.photos[0]) ? prof.photos[0] : '';
+      document.getElementById('matchName').textContent = prof.displayName || 'them';
+      document.getElementById('matchPopup').classList.add('show');
+    }
+
+    window.closeMatch = () => document.getElementById('matchPopup').classList.remove('show');
+    window.goToChat = () => window.location.href = `chat.html?uid=${matchedUID}`;
+
+    function listenUnreadChats() {
+      // FIX: use bracket notation for dynamic field name
+      const q = query(collection(db, 'matches'), where('users', 'array-contains', myUser.uid));
+      onSnapshot(q, snap => {
+        const key = `hasUnread_${myUser.uid}`;
+        const hasUnread = snap.docs.some(d => d.data()[key] === true);
+        document.getElementById('chatBadge').style.display = hasUnread ? 'block' : 'none';
+      });
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+
+    function renderSubscriptionPanel() {
+      const sub = getSubscription(myProfile);
+      const previous = sub.previousPlan ? planLabel(sub.previousPlan) : planLabel(sub.plan);
+      const expired = sub.status === 'expired';
+      const planForDisplay = currentPlan() === 'none' ? 'standard' : currentPlan();
+      const likeText = isPremium() ? 'Unlimited likes' : `${Number(myProfile.likesRemaining ?? 2)} daily likes remaining`;
+      const lockText = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? 2) <= 0 ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your daily likes. Likes reset in ${likesResetText()}</div>` : '';
+      document.getElementById('subscriptionBanner').innerHTML = expired ? `<div class="expired-banner">Your ${previous} plan has expired — Renew to restore your benefits.</div>` : '';
+      const primaryHref = myProfile.stage === 'signedUp'
+        ? 'profile.html?edit=1'
+        : myProfile.stage === 'profileComplete'
+          ? 'verification.html'
+          : myProfile.stage === 'adminApproved'
+            ? membershipPaymentUrl()
+            : isPaidStage() ? 'pricing.html' : 'dashboard.html';
+      const primaryLabel = myProfile.stage === 'signedUp'
+        ? 'Complete Profile'
+        : myProfile.stage === 'profileComplete'
+          ? 'Start Verification'
+          : myProfile.stage === 'adminApproved'
+            ? 'Pay $29.99'
+            : expired ? 'Renew' : isPaidStage() ? 'Upgrade' : 'Await Review';
+      document.getElementById('subscriptionPanel').innerHTML = `
+        <div><div style="font-size:12px;color:var(--muted);">Current Plan</div><div style="font-weight:700;color:var(--gold);">${isPaidStage() ? planLabel(planForDisplay) : 'Locked'} ${isVault(myProfile) ? '<span class="vault-badge">VAULT</span>' : ''}</div><div style="font-size:12px;color:var(--muted);">${isPaidStage() ? likeText : 'Complete profile and verification before payment'}</div>${lockText}</div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-gold btn-sm" onclick="location.href='${primaryHref}'">${primaryLabel}</button>${isPaidStage() ? (isVault(myProfile) ? '<button class="btn btn-outline btn-sm" onclick="location.href=\'chat.html?tab=support\'">Schedule a Call</button>' : '<button class="btn btn-outline btn-sm" onclick="showToast(\'Vault members can schedule calls. Upgrade to unlock.\')">Call Locked</button><button class="btn btn-outline btn-sm" onclick="location.href=\'payment.html?purpose=priority_support\'">Priority Support</button>') : ''}</div>`;
+    }
+
+    window.openFilter = function() {
+      document.getElementById('filterPanel').classList.add('open');
+      const allowed = hasPlan(myProfile, 'elite');
+      document.getElementById('filterLocked').style.display = allowed ? 'none' : 'block';
+      document.getElementById('filterControls').style.display = allowed ? 'flex' : 'none';
+    };
+    window.closeFilter = () => document.getElementById('filterPanel').classList.remove('open');
+    window.applyFilters = function() {
+      const min = Number(document.getElementById('minAge').value || 0);
+      const max = Number(document.getElementById('maxAge').value || 200);
+      const loc = document.getElementById('filterLocation').value.toLowerCase().trim();
+      const goal = document.getElementById('filterGoal').value.toLowerCase().trim();
+      profiles = allProfiles.filter(p => {
+        const age = p.dob ? Math.floor((Date.now() - new Date(p.dob)) / 31557600000) : 0;
+        const locText = `${p.city || ''} ${p.country || ''}`.toLowerCase();
+        const goalText = (p.relationshipGoal || '').toLowerCase();
+        return (!min || age >= min) && (!max || age <= max) && (!loc || locText.includes(loc)) && (!goal || goalText.includes(goal));
+      });
+      currentIndex = 0; closeFilter(); renderDeck();
+    };
+
+    // ── Location prompt ───────────────────────────────────────────
+    function showLocationPrompt() {
+      document.getElementById('locationPromptModal').classList.add('open');
+    }
+    window.allowLocation = function() {
+      document.getElementById('locationPromptModal').classList.remove('open');
+      requestAndSaveLocation(myUser.uid).then(c => { if (c) myCoords = c; });
+    };
+    window.denyLocation = function() {
+      document.getElementById('locationPromptModal').classList.remove('open');
+      localStorage.setItem('dv_location_denied', '1');
+    };
+
+    // Show prompt if no location saved and not previously denied
+    function maybeShowLocationPrompt() {
+      const denied = localStorage.getItem('dv_location_denied');
+      if (!myCoords && !denied) {
+        setTimeout(showLocationPrompt, 1500);
+      }
+    }
+
+    init().catch(console.error);
+  </script>
+
+  <!-- Location Permission Prompt -->
+  <div class="modal-overlay" id="locationPromptModal" style="z-index:9999;">
+    <div class="modal-box" style="max-width:340px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:1rem;">📍</div>
+      <div class="modal-title" style="margin-bottom:0.5rem;">Enable Location</div>
+      <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:1.5rem;">
+        DateVault uses your location to show how far away other members are.<br><br>
+        <span style="color:rgba(255,255,255,0.7);">Your exact location is never shared — only the distance between you and other members.</span>
+      </p>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <button class="btn btn-gold btn-full" onclick="allowLocation()">
+          Allow Location Access ✦
+        </button>
+        <button class="btn btn-full" style="background:transparent;border:none;color:var(--muted);font-size:13px;" onclick="denyLocation()">
+          Not now
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

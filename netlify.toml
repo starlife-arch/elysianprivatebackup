@@ -1,0 +1,21 @@
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[functions."send-reminders"]
+  schedule = "0 */6 * * *"
+
+[functions."reset-likes"]
+  schedule = "0 * * * *"
+
+[functions."cleanup-otps"]
+  schedule = "0 2 * * *"
+[context.production.environment]
+  EMAIL_SUPPORT = "support@elysiandate.site"
+  EMAIL_SUPPORT_NAME = "Elysian Date Support"
+

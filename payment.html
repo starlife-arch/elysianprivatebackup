@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Membership Payment — DateVault</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+</head>
+<body>
+  <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
+  <div class="payment-page">
+    <div class="payment-card fade-up">
+      <div class="auth-logo" style="font-size:1.25rem;margin-bottom:0.25rem;">DateVault</div>
+      <p class="muted" id="paymentSubtitle" style="text-align:center;margin-bottom:1rem;font-size:13px;">Private Membership Access</p>
+      <div class="price-tag" id="paymentPrice">$29.99</div>
+      <p class="price-period" id="paymentPeriod">One-time access fee · Lifetime membership</p>
+      <div class="perks-list" id="perksList">
+        <div class="perk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg><span>Unlimited swipes &amp; matches</span></div>
+        <div class="perk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg><span>Global member access</span></div>
+        <div class="perk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg><span>Verified members only community</span></div>
+        <div class="perk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg><span>Encrypted messaging</span></div>
+      </div>
+      <div id="errorMsg" style="display:none;background:rgba(224,92,110,0.1);border:1px solid rgba(224,92,110,0.3);color:var(--danger);padding:0.75rem;border-radius:12px;font-size:13px;margin-bottom:1rem;"></div>
+      <div id="successMsg" style="display:none;background:rgba(76,175,125,0.1);border:1px solid rgba(76,175,125,0.3);color:var(--success);padding:0.75rem;border-radius:12px;font-size:13px;margin-bottom:1rem;text-align:center;"></div>
+
+      <p id="paymentMethodsLabel" style="font-size:13px;color:var(--muted);margin-bottom:0.75rem;">Select payment method:</p>
+
+      <button class="payment-option" id="pesapalOpt" onclick="selectMethod('pesapal')">
+        <div class="payment-icon">📱</div>
+        <div><div style="font-weight:600;font-size:14px;">M-Pesa / Mobile Money</div>
+        <div style="font-size:12px;color:var(--muted);">Kenya, Uganda, Tanzania via Pesapal</div></div>
+      </button>
+
+      <button class="payment-option" id="paystackOpt" onclick="selectMethod('paystack')">
+        <div class="payment-icon">💳</div>
+        <div><div style="font-weight:600;font-size:14px;">Card / Bank Transfer</div>
+        <div style="font-size:12px;color:var(--muted);">Visa, Mastercard, Bank via Paystack</div></div>
+      </button>
+
+      <!-- Pesapal Form -->
+      <div id="pesapalForm" style="display:none;margin-top:1rem;">
+        <div><label>Phone Number (M-Pesa registered)</label>
+          <input type="tel" id="pesapalPhone" placeholder="+254 700 000 000"/>
+        </div>
+        <p style="font-size:12px;color:var(--muted);margin:0.5rem 0;">You will receive an STK push on your phone to confirm.</p>
+        <button class="btn btn-gold btn-full" style="margin-top:0.5rem;" id="pesapalPayBtn" onclick="payPesapal()">Request M-Pesa Payment</button>
+      </div>
+
+      <!-- Paystack just uses popup -->
+      <div id="paystackForm" style="display:none;margin-top:1rem;">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:0.75rem;">Click below to pay securely with card or bank transfer.</p>
+        <button class="btn btn-gold btn-full" id="paystackPayBtn" onclick="payPaystack()">Pay with Paystack</button>
+      </div>
+
+      <p style="font-size:11px;color:var(--muted);text-align:center;margin-top:1.25rem;">Secure payment · Payment method shown at checkout based on your location.</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { auth, db, onAuthStateChanged } from "./js/auth.js";
+    import { PAYSTACK_PUBLIC_KEY, MEMBERSHIP_PRICE_USD, MEMBERSHIP_PRICE_KES } from "./js/firebase.js";
+    import { getDoc, doc, updateDoc, serverTimestamp, addDoc, collection, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { planLabel, nextBillingDate, paymentAmountUSD, paymentAmountKES } from "./js/subscription.js";
+
+    let currentUser = null, userEmail = '', userName = '', profile = {};
+    const params = new URLSearchParams(window.location.search);
+    const purpose = params.get('purpose') || 'entry';
+    let inviteToken = params.get('token') || '';
+    const plan = params.get('plan') || 'standard';
+    const billing = params.get('billing') || 'monthly';
+    const amountUSD = purpose === 'entry' ? MEMBERSHIP_PRICE_USD : paymentAmountUSD(purpose, plan, billing);
+    const amountKES = purpose === 'entry' ? MEMBERSHIP_PRICE_KES : paymentAmountKES(amountUSD);
+
+    function paymentTitle() {
+      if (purpose === 'subscription') return `${planLabel(plan)} ${billing === 'annual' ? 'Annual' : 'Monthly'} Plan`;
+      if (purpose === 'priority_support') return 'Priority Support Request';
+      return 'Private Membership Access';
+    }
+    function paymentPeriod() {
+      if (purpose === 'subscription') return billing === 'annual' ? 'Annual subscription · renews yearly' : 'Monthly subscription · renews monthly';
+      if (purpose === 'priority_support') return 'One-time support request · scheduled manually';
+      return 'One-time access fee · Lifetime membership';
+    }
+    function returnUrl() { return purpose === 'entry' ? 'dashboard.html' : (purpose === 'priority_support' ? 'chat.html?tab=support' : 'dashboard.html'); }
+    function setPaymentVisible(visible) {
+      ['paymentPrice','paymentPeriod','perksList','paymentMethodsLabel','pesapalOpt','paystackOpt','pesapalForm','paystackForm'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = visible ? '' : 'none';
+      });
+    }
+    function showInvalidInvite() {
+      setPaymentVisible(false);
+      showErr('This link is invalid or has expired. Please contact support.');
+      document.getElementById('loader').classList.add('hidden');
+    }
+    async function validateInviteToken() {
+      if (purpose !== 'entry') return true;
+      const res = await fetch('/api/validate-invite-token', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: inviteToken, uid: currentUser.uid })
+      });
+      const data = await res.json().catch(() => ({}));
+      return res.ok && data.valid === true;
+    }
+    async function markInviteTokenUsed() {
+      if (purpose !== 'entry') return;
+      await fetch('/api/validate-invite-token', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mark-used', token: inviteToken, uid: currentUser.uid })
+      });
+    }
+
+    onAuthStateChanged(auth, async user => {
+      if (!user) { window.location.href = 'login.html'; return; }
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      profile = snap.exists() ? snap.data() : {};
+      if (purpose === 'entry' && !inviteToken) inviteToken = profile.inviteToken || profile.inviteCode || '';
+      const isPesapalCallback = params.get('pesapal') === 'callback';
+      if (purpose === 'entry' && !isPesapalCallback && (!snap.exists() || !(profile.adminApproved || ['approved_pending_invite','approved_pending_payment'].includes(profile.status)))) {
+        const { routeUser } = await import('./js/auth.js');
+        routeUser(user); return;
+      }
+      if (purpose === 'entry' && !isPesapalCallback && !inviteToken) { showInvalidInvite(); return; }
+      if (purpose !== 'entry' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
+        const { routeUser } = await import('./js/auth.js');
+        routeUser(user); return;
+      }
+      currentUser = user;
+      if (!isPesapalCallback && !(await validateInviteToken())) { showInvalidInvite(); return; }
+      userEmail = user.email;
+      userName = profile.displayName || profile.firstName || profile.name || 'Member';
+      document.getElementById('paymentSubtitle').textContent = paymentTitle();
+      document.getElementById('paymentPrice').textContent = `$${amountUSD.toFixed(2)}`;
+      document.getElementById('paymentPeriod').textContent = paymentPeriod();
+      document.getElementById('loader').classList.add('hidden');
+      handlePesapalReturn();
+    });
+
+    window.selectMethod = function(m) {
+      ['pesapal','paystack'].forEach(x => {
+        document.getElementById(x+'Opt').classList.remove('selected');
+        document.getElementById(x+'Form').style.display='none';
+      });
+      document.getElementById(m+'Opt').classList.add('selected');
+      document.getElementById(m+'Form').style.display='block';
+      showErr('');
+    };
+
+    window.payPesapal = async function() {
+      const phone = document.getElementById('pesapalPhone').value.trim();
+      if (!phone) { showErr('Please enter your phone number.'); return; }
+      if (!phone.startsWith('+')) { showErr('Include country code e.g. +254 700 000 000'); return; }
+      const btn = document.getElementById('pesapalPayBtn');
+      btn.disabled=true; btn.textContent='Sending request...'; showErr('');
+      try {
+        const res = await fetch('/api/pesapal?action=initiate', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ phone: phone.replace(/\s/g,''), uid: currentUser.uid, email: userEmail, name: userName, amountKes, amountUSD, purpose, plan, billing, inviteToken })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Could not initiate payment.');
+        if (data.redirectUrl) {
+          localStorage.setItem('pesapalOrderTrackingId', data.orderTrackingId || '');
+          localStorage.setItem('pesapalMerchantReference', data.merchantReference || '');
+          localStorage.setItem('pesapalInviteToken', inviteToken || '');
+          window.location.href = data.redirectUrl;
+        } else throw new Error('Pesapal did not return a payment link.');
+      } catch(e) {
+        showErr(e.message || 'Backend not configured. Contact admin for manual access.');
+        btn.disabled=false; btn.textContent='Request M-Pesa Payment';
+      }
+    };
+
+    window.payPaystack = function() {
+      if (!PAYSTACK_PUBLIC_KEY || PAYSTACK_PUBLIC_KEY.includes('YOUR_')) { showErr('Paystack not configured yet. Use M-Pesa or contact admin.'); return; }
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY, email: userEmail, amount: Math.round(amountUSD * 100), currency: 'USD',
+        ref: `DV_${purpose}_${currentUser.uid}_${Date.now()}`,
+        metadata: { uid: currentUser.uid, name: userName, purpose, plan, billing, inviteToken },
+        callback: async function(response) {
+          try {
+            const res = await fetch('/api/verify-paystack', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reference: response.reference, uid: currentUser.uid, inviteToken }) });
+            const data = await res.json();
+            if (data.success) await activatePayment('paystack', response.reference);
+            else showErr('Payment verification failed. Contact support with ref: ' + response.reference);
+          } catch(e) { await activatePayment('paystack', response.reference); }
+        },
+        onClose: function() { showErr('Payment cancelled.'); }
+      });
+      handler.openIframe();
+    };
+
+    async function activatePayment(method, reference = '') {
+      if (purpose === 'subscription') {
+        const label = planLabel(plan);
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          subscription: { plan, billing, status: 'active', startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(billing), prioritySupportRequests: profile.subscription?.prioritySupportRequests || 0 },
+          vaultBadge: plan === 'vault', subscriptionExpirationEmailSentFor: null, lastSubscriptionPaymentAt: serverTimestamp(), lastSubscriptionPaymentMethod: method
+        });
+        await notify('subscription_payment_received', method, { plan, billing, amountUSD });
+        await email('subscription_renewed', { plan: label });
+      } else if (purpose === 'priority_support') {
+        await addDoc(collection(db, 'priority_support_requests'), { uid: currentUser.uid, email: userEmail, memberName: userName, memberId: profile.memberId || '', amountUSD: 100, status: 'paid_pending_admin_confirmation', paymentMethod: method, paymentReference: reference, createdAt: serverTimestamp() });
+        await updateDoc(doc(db, 'users', currentUser.uid), { 'subscription.prioritySupportRequests': increment(1) });
+        await notify('priority_support_requested', method, { amountUSD: 100 });
+        await email('priority_support_requested');
+      } else {
+        await updateDoc(doc(db, 'users', currentUser.uid), { paid: true, hasPaid: true, plan: 'standard', stage: 'paid', inviteTokenUsed: true, inviteUsed: true, paymentMethod: method, status: 'active_member', activatedAt: serverTimestamp(), reminderCount: 0, lastReminderSent: null, reminderType: null, subscription: { plan: 'standard', billing: 'included', status: 'active', startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 }, vaultBadge: false });
+        await markInviteTokenUsed();
+        await notify('payment_received', method);
+        await email('payment_received');
+      }
+      window.location.href = returnUrl();
+    }
+
+    async function notify(event, method, extra = {}) {
+      try { await fetch('/api/telegram-notify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ event, uid: currentUser.uid, memberId: profile.memberId, name: userName, email: userEmail, method, ...extra }) }); } catch(e) {}
+    }
+    async function email(type, extra = {}) {
+      try { await fetch('/api/send-member-notification-email', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ type, email: userEmail, name: userName, memberId: profile.memberId, ...extra }) }); } catch(e) {}
+    }
+
+    async function handlePesapalReturn() {
+      if (params.get('pesapal') !== 'callback') return;
+      showSuccess('Checking Pesapal payment status...');
+      const orderTrackingId = params.get('OrderTrackingId') || localStorage.getItem('pesapalOrderTrackingId');
+      const merchantReference = params.get('OrderMerchantReference') || localStorage.getItem('pesapalMerchantReference');
+      pollPesapalStatus(orderTrackingId, merchantReference);
+    }
+    function pollPesapalStatus(orderTrackingId, merchantReference) {
+      let n = 0;
+      const iv = setInterval(async () => {
+        n++;
+        try {
+          const res = await fetch('/api/pesapal?action=status', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ orderTrackingId, merchantReference }) });
+          const data = await res.json();
+          if (res.ok && data.completed) { clearInterval(iv); localStorage.removeItem('pesapalOrderTrackingId'); localStorage.removeItem('pesapalMerchantReference'); localStorage.removeItem('pesapalInviteToken'); window.location.href = returnUrl(); return; }
+        } catch(e) {}
+        if (n >= 24) { clearInterval(iv); showErr('Payment is still pending. If you paid, contact support with your Pesapal reference.'); }
+      }, 5000);
+    }
+    function showErr(msg) { const el = document.getElementById('errorMsg'); if (msg) { el.textContent=msg; el.style.display='block'; } else el.style.display='none'; }
+    function showSuccess(msg) { const el = document.getElementById('successMsg'); el.textContent=msg; el.style.display='block'; }
+  </script>
+</body>
+</html>

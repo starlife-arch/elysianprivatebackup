@@ -1,0 +1,21 @@
+User-agent: *
+Disallow: /dashboard.html
+Disallow: /admin.html
+Disallow: /payment.html
+Disallow: /profile.html
+Disallow: /signup.html
+Disallow: /login.html
+Disallow: /verification.html
+Disallow: /discover.html
+Disallow: /explore.html
+Disallow: /likes.html
+Disallow: /chat.html
+Disallow: /invite.html
+Disallow: /status.html
+Disallow: /pricing.html
+
+Allow: /
+Allow: /terms-and-conditions.html
+Allow: /privacy-policy.html
+
+Sitemap: https://elysiandate.site/sitemap.xml

@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Member Profile — DateVault</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
+  <div class="app-shell">
+    <div class="topbar">
+      <button onclick="history.back()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;">‹</button>
+      <div class="topbar-title">Member Profile</div>
+    </div>
+    <div class="profile-page" id="memberProfile"></div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-item" href="dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>Discover</a>
+    <a class="nav-item" href="explore.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Explore</a>
+    <a class="nav-item" href="likes.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>Likes</a>
+    <a class="nav-item" href="chat.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat</a>
+    <a class="nav-item" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</a>
+  </nav>
+
+  <script type="module">
+    import { requireActiveMember, db } from "./js/auth.js";
+    import { vaultBadge } from "./js/subscription.js";
+    import { recordSwipe } from "./js/swipe.js";
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const zodiacSigns = {'Aries':'♈','Taurus':'♉','Gemini':'♊','Cancer':'♋','Leo':'♌','Virgo':'♍','Libra':'♎','Scorpio':'♏','Sagittarius':'♐','Capricorn':'♑','Aquarius':'♒','Pisces':'♓'};
+    const params = new URLSearchParams(location.search);
+    let myUser = null;
+    let viewedUID = null;
+    let alreadyResponded = false;
+    let alreadyMatched = false;
+
+    async function init() {
+      const { user } = await requireActiveMember();
+      myUser = user;
+      const uid = params.get('uid');
+      if (!uid || uid === user.uid) { window.location.href = 'profile.html'; return; }
+      viewedUID = uid;
+      const [snap, swipeSnap, matchSnap] = await Promise.all([
+        getDoc(doc(db, 'users', uid)),
+        getDoc(doc(db, 'users', user.uid, 'swipes', uid)),
+        getDoc(doc(db, 'users', user.uid, 'matches', uid))
+      ]);
+      alreadyResponded = swipeSnap.exists();
+      alreadyMatched = matchSnap.exists();
+      document.getElementById('loader').classList.add('hidden');
+      if (!snap.exists() || snap.data().status !== 'active_member' || snap.data().banned) {
+        document.getElementById('memberProfile').innerHTML = '<div class="empty-state"><p>Member profile is not available.</p></div>';
+        return;
+      }
+      render(snap.data());
+    }
+
+    function render(p) {
+      const photo = p.photos?.[0] || '';
+      const age = p.dob ? Math.floor((Date.now()-new Date(p.dob))/31557600000) : '';
+      document.getElementById('memberProfile').innerHTML = `
+        <div class="profile-header">
+          ${photo?`<img src="${photo}" alt="${p.displayName||'Member'}"/>`:`<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:3rem;">👤</div>`}
+          <div class="overlay">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:4px;"><span class="status-badge status-gold" style="font-size:11px;">Verified Member</span>${vaultBadge(p)}${p.zodiac?`<span style="font-size:16px;">${zodiacSigns[p.zodiac]||''}</span>`:''}</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:1.75rem;">${p.displayName||p.name||'Member'}${age?', '+age:''}</div>
+            <div style="color:rgba(255,255,255,0.75);font-size:13px;">${p.city||''}${p.city&&p.country?', ':''}${p.country||''}</div>
+          </div>
+        </div>
+        ${p.photos&&p.photos.length>1?`<div class="photo-strip" style="margin-bottom:1rem;">${p.photos.map((url,i)=>`<img class="photo-thumb" src="${url}" alt="Photo ${i+1}"/>`).join('')}</div>`:''}
+        <div class="glass-card" id="profileActions" style="margin-bottom:0.75rem;">
+          ${renderActionState()}
+        </div>
+        <div class="glass-card" style="margin-bottom:0.75rem;"><div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.5rem;">ABOUT</div><p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.8);">${p.bio||'No bio added yet.'}</p></div>
+        ${p.interests&&p.interests.length?`<div class="glass-card" style="margin-bottom:0.75rem;"><div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">INTERESTS</div><div class="interests-wrap">${p.interests.map(i=>`<span class="interest-tag">${i}</span>`).join('')}</div></div>`:''}
+        <div class="glass-card"><div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">PUBLIC DETAILS</div><div style="display:flex;flex-direction:column;gap:0.5rem;font-size:14px;">
+          ${distanceRow}
+          ${p.gender?`<div class="row"><span class="muted" style="width:130px;">Gender</span><span>${p.gender}</span></div>`:''}
+          ${p.interestedIn?`<div class="row"><span class="muted" style="width:130px;">Interested in</span><span>${p.interestedIn}</span></div>`:''}
+          ${p.relationshipGoal?`<div class="row"><span class="muted" style="width:130px;">Looking for</span><span>${p.relationshipGoal}</span></div>`:''}
+          ${p.zodiac?`<div class="row"><span class="muted" style="width:130px;">Zodiac</span><span>${zodiacSigns[p.zodiac]||''} ${p.zodiac}</span></div>`:''}
+        </div></div>`;
+    }
+
+    function renderActionState() {
+      if (alreadyMatched) {
+        return `
+          <div style="text-align:center;">
+            <div class="status-badge status-gold" style="margin-bottom:0.75rem;">MATCH</div>
+            <p style="color:var(--muted);font-size:13px;margin-bottom:0.75rem;">You matched with this member.</p>
+            <button class="btn btn-gold btn-full" onclick="window.location.href='chat.html?uid=${viewedUID}'">Send Message</button>
+          </div>`;
+      }
+      if (alreadyResponded) {
+        return '<div style="text-align:center;color:var(--muted);font-size:13px;">You already responded to this member.</div>';
+      }
+      return `
+        <div style="display:flex;gap:0.75rem;">
+          <button class="btn btn-outline btn-full" onclick="respondToProfile('nope')">Pass</button>
+          <button class="btn btn-gold btn-full" onclick="respondToProfile('like')">Like</button>
+        </div>
+        <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:0.75rem;">If they like you back, you will match and can chat.</div>`;
+    }
+
+    window.respondToProfile = async function(direction) {
+      if (!myUser || !viewedUID || alreadyResponded) return;
+      const actions = document.getElementById('profileActions');
+      actions.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;">Saving your response...</div>';
+      try {
+        const isMatch = await recordSwipe(myUser.uid, viewedUID, direction);
+        alreadyResponded = true;
+        if (isMatch) {
+          alreadyMatched = true;
+          actions.innerHTML = renderActionState();
+        } else if (direction === 'like') {
+          actions.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;">Like sent. They will see you in their Likes tab and can like back to match.</div>';
+        } else {
+          actions.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:13px;">Passed. This member will not appear in your Discover deck.</div>';
+        }
+      } catch (e) {
+        console.error(e);
+        alreadyResponded = false;
+        actions.innerHTML = renderActionState() + '<div style="text-align:center;color:var(--danger);font-size:12px;margin-top:0.75rem;">Could not save your response. Please try again.</div>';
+      }
+    };
+
+    init().catch(console.error);
+  </script>
+</body>
+</html>

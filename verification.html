@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Verification — DateVault</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
+  <div class="verification-page">
+    <div style="text-align:center;margin-bottom:1.5rem;">
+      <div class="auth-logo" style="font-size:1.5rem;">DateVault</div>
+      <p class="muted" style="margin-top:4px;font-size:13px;">Identity Verification</p>
+    </div>
+
+    <div class="glass-card stack">
+      <h2 style="font-size:1.6rem;">Submit verification</h2>
+      <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:12px;padding:1rem;font-size:13px;color:rgba(255,255,255,0.75);line-height:1.6;">
+        Your documents are reviewed only by our admin team and are never shared with other members.
+      </div>
+
+      <div>
+        <label>Government ID / Passport <span class="required-star">*</span></label>
+        <div class="upload-box" onclick="triggerCamera('idFileCam','idFile')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0"/></svg>
+          <p style="font-weight:600;color:var(--text);">📷 Tap to scan ID (back camera)</p>
+          <p class="muted" style="font-size:12px;">Government ID or passport image</p>
+          <img id="idPreview" alt="ID preview" style="display:none;width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-top:0.75rem;border:1px solid var(--border);"/>
+        </div>
+        <!-- ID: back camera primary, gallery fallback -->
+        <input type="file" id="idFileCam" accept="image/*" capture="environment" style="display:none;" onchange="handleIDFile(this)"/>
+        <input type="file" id="idFile" accept="image/*" style="display:none;" onchange="handleIDFile(this)"/>
+      </div>
+
+      <div>
+        <label>Selfie holding your ID <span class="required-star">*</span></label>
+        <div class="upload-box" onclick="triggerCamera('selfieFileCam','selfieFile')" style="cursor:pointer;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <p style="font-weight:600;color:var(--text);">📸 Tap to take selfie (front camera)</p>
+          <p class="muted" style="font-size:12px;">A clear selfie holding your ID</p>
+          <img id="selfiePreview" alt="Selfie preview" style="display:none;width:100%;max-height:220px;object-fit:cover;border-radius:12px;margin-top:0.75rem;border:1px solid var(--border);"/>
+        </div>
+        <!-- Selfie: front camera primary, gallery fallback -->
+        <input type="file" id="selfieFileCam" accept="image/*" capture="user" style="display:none;" onchange="handleSelfieFile(this)"/>
+        <input type="file" id="selfieFile" accept="image/*" style="display:none;" onchange="handleSelfieFile(this)"/>
+      </div>
+
+      <div>
+        <label>Availability for video verification call <span style="color:var(--muted);font-size:11px;">(optional)</span></label>
+        <input type="text" id="videoAvailability" placeholder="e.g. Weekdays after 6PM, Saturday mornings"/>
+      </div>
+
+      <div id="submitError" style="display:none;color:var(--danger);font-size:13px;padding:0.75rem;background:rgba(224,92,110,0.1);border-radius:10px;"></div>
+      <div id="uploadProgress" style="display:none;">
+        <div id="progressText" class="muted" style="font-size:13px;margin-bottom:0.5rem;">Uploading…</div>
+        <div style="height:8px;background:var(--surface2);border-radius:999px;overflow:hidden;"><div id="progressBar" style="height:100%;width:0%;background:var(--gold);border-radius:999px;transition:width 0.2s;"></div></div>
+      </div>
+      <button class="btn btn-gold btn-full" id="submitBtn" onclick="submitVerification()">Submit Verification</button>
+    </div>
+  </div>
+
+  <script type="module">
+    import { requireMember, db } from "./js/auth.js";
+    import { uploadToCloudinary } from "./js/verification.js";
+    import { doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    let currentUser, currentProfile;
+    const blockedStages = ['verificationSubmitted', 'adminApproved', 'paid', 'elite', 'vault'];
+
+    async function init() {
+      const { user, profile } = await requireMember();
+      currentUser = user;
+      currentProfile = profile;
+      if (profile.verificationSubmitted === true || blockedStages.includes(profile.stage) || profile.stage !== 'profileComplete') {
+        window.location.href = 'dashboard.html';
+        return;
+      }
+      setupPreview('idFile', 'idPreview');
+      setupPreview('selfieFileCam', 'selfiePreview');
+      setupPreview('selfieFile', 'selfiePreview');
+      setupPreview('idFileCam', 'idPreview');
+      setupPreview('idFile', 'idPreview');
+      document.getElementById('loader').classList.add('hidden');
+    }
+
+    function setupPreview(inputId, previewId) {
+      document.getElementById(inputId).addEventListener('change', event => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.getElementById(previewId);
+          img.src = e.target.result;
+          img.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function showError(message) {
+      const err = document.getElementById('submitError');
+      err.textContent = message;
+      err.style.display = 'block';
+    }
+
+    async function notifyAdmin() {
+      const displayName = currentProfile.displayName || currentProfile.name || currentUser.email || 'Member';
+      const memberId = currentProfile.memberId || '';
+      await fetch('/api/telegram-notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          event: 'verification_submitted',
+          uid: currentUser.uid,
+          memberId,
+          name: displayName,
+          email: currentProfile.email || currentUser.email || '',
+          message: `New verification submitted — ${displayName} (${memberId}). Review in admin panel.`
+        })
+      }).catch(() => {});
+    }
+
+    window.submitVerification = async function() {
+      const idFile = document.getElementById('idFileCam').files[0] || document.getElementById('idFile').files[0];
+      const selfieFile = document.getElementById('selfieFileCam').files[0] || document.getElementById('selfieFile').files[0];
+      const err = document.getElementById('submitError');
+      err.style.display = 'none';
+
+      if (!idFile) { showError('Please upload your government ID or passport.'); return; }
+      if (!selfieFile) { showError('Please upload a selfie holding your ID.'); return; }
+
+      const btn = document.getElementById('submitBtn');
+      const progress = document.getElementById('uploadProgress');
+      const progressText = document.getElementById('progressText');
+      const progressBar = document.getElementById('progressBar');
+      btn.disabled = true;
+      progress.style.display = 'block';
+
+      const setProgress = (text, pct) => {
+        progressText.textContent = text;
+        progressBar.style.width = pct + '%';
+      };
+
+      try {
+        setProgress('Uploading ID photo…', 20);
+        const idPhotoURL = await uploadToCloudinary(idFile, 'datevault/verification');
+        setProgress('Uploading selfie…', 55);
+        const selfieURL = await uploadToCloudinary(selfieFile, 'datevault/verification');
+        setProgress('Saving verification…', 85);
+        await updateDoc(doc(db, 'users', currentUser.uid), {
+          verificationSubmitted: true,
+          stage: 'verificationSubmitted',
+          status: 'pending_admin_review',
+          idPhotoURL,
+          selfieURL,
+          videoAvailability: document.getElementById('videoAvailability').value.trim(),
+          verificationSubmittedAt: serverTimestamp()
+        });
+        setProgress('Notifying admin…', 95);
+        await notifyAdmin();
+        setProgress('Complete', 100);
+        window.location.href = 'dashboard.html';
+      } catch(e) {
+        showError('Error: ' + e.message);
+        btn.disabled = false;
+        progress.style.display = 'none';
+      }
+    };
+
+    init().catch(error => {
+      showError(error.message);
+      document.getElementById('loader').classList.add('hidden');
+    });
+  </script>
+
+  <!-- Camera Fallback Modal -->
+  <div class="modal-overlay" id="cameraFallbackModal" onclick="if(event.target===this)this.classList.remove('open')">
+    <div class="modal-box" style="max-width:320px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:0.75rem;">📷</div>
+      <div class="modal-title" style="margin-bottom:0.5rem;">Camera Unavailable</div>
+      <p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:1.5rem;">
+        We couldn't access your camera. You can upload a photo from your gallery instead.
+      </p>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <button class="btn btn-gold btn-full" onclick="useFallbackGallery()">
+          🖼️ Choose from Gallery
+        </button>
+        <button class="btn btn-full" style="background:transparent;border:none;color:var(--muted);font-size:13px;" onclick="document.getElementById('cameraFallbackModal').classList.remove('open')">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
