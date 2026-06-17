@@ -118,6 +118,10 @@
       list.forEach(p => {
         const photo = p.photos && p.photos[0] ? p.photos[0] : '';
         const age = p.dob ? Math.floor((Date.now() - new Date(p.dob)) / 31557600000) : '';
+        const vis = resolveVisibility(p, myProfile, adminSettings);
+        const ageDisplay = vis.showAge && age ? `, ${age}` : '';
+        const locationDisplay = vis.showLocation ? `${p.city || ''}${p.city&&p.country?', ':''}${p.country||''}` : '';
+        const distanceDisplay = vis.showDistance && myCoords && p._location ? ` · ${formatDistance(haversineKm(myCoords.lat, myCoords.lng, p._location.lat, p._location.lng))}` : '';
         const tile = document.createElement('div');
         tile.className = 'profile-tile';
         tile.style.cursor = 'pointer';
@@ -125,8 +129,8 @@
         tile.innerHTML = `
           ${photo ? `<img src="${photo}" alt="${p.displayName}" loading="lazy"/>` : `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:2rem;">👤</div>`}
           <div class="tile-info">
-            <div class="tile-name">${p.displayName || 'Member'}${age ? ', '+age : ''} ${vaultBadge(p)}</div>
-            <div class="tile-meta">${p.city || ''}${p.city&&p.country?', ':''}${p.country||''}</div>
+            <div class="tile-name">${p.displayName || 'Member'}${ageDisplay} ${vaultBadge(p)}</div>
+            <div class="tile-meta">${locationDisplay}${distanceDisplay}</div>
           </div>
         `;
         grid.appendChild(tile);

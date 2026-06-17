@@ -253,7 +253,8 @@
   <script type="module">
     import { requireAdmin, logout, db } from "./js/auth.js";
     import { showConfirm, showPrompt, showAlert, showSuccess, showError } from "./js/dialog.js";
-    import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, assignPlan, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport } from "./js/admin.js";
+    import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport } from "./js/admin.js";
+    import * as adminApi from "./js/admin.js";
     import { collection, getDocs, doc, addDoc, updateDoc, query, where, orderBy, limit, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAdminSettings, setAdminGlobalSetting, setMemberOverride } from "./js/location.js";
 
@@ -815,7 +816,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
       const originalText = btn?.textContent || 'Assign Plan';
       if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
       try {
-        const result = await assignPlan(assignPlanUID, plan, expiry);
+        const result = await adminApi.assignPlan(assignPlanUID, plan, expiry);
         if (result?.notices?.length) showToast(`Plan assigned, notification warning: ${result.notices.join(' · ')}`);
         else showToast(`Plan assigned: ${plan.toUpperCase()} ✓ Notifications sent`);
         closeAssignPlan();
