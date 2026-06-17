@@ -30,19 +30,26 @@
   <script type="module">
     import { requireActiveMember, db } from "./js/auth.js";
     import { vaultBadge } from "./js/subscription.js";
+    import { haversineKm, formatDistance, getAdminSettings, resolveVisibility, requestAndSaveLocation } from "./js/location.js";
     import { recordSwipe } from "./js/swipe.js";
     import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const zodiacSigns = {'Aries':'♈','Taurus':'♉','Gemini':'♊','Cancer':'♋','Leo':'♌','Virgo':'♍','Libra':'♎','Scorpio':'♏','Sagittarius':'♐','Capricorn':'♑','Aquarius':'♒','Pisces':'♓'};
     const params = new URLSearchParams(location.search);
     let myUser = null;
+    let myProfile = null;
+    let myCoords = null;
+    let adminSettings = {};
     let viewedUID = null;
     let alreadyResponded = false;
     let alreadyMatched = false;
 
     async function init() {
-      const { user } = await requireActiveMember();
+      const { user, profile } = await requireActiveMember();
       myUser = user;
+      myProfile = profile;
+      myCoords = profile._location || await requestAndSaveLocation(user.uid);
+      adminSettings = await getAdminSettings();
       const uid = params.get('uid');
       if (!uid || uid === user.uid) { window.location.href = 'profile.html'; return; }
       viewedUID = uid;
@@ -64,13 +71,18 @@
     function render(p) {
       const photo = p.photos?.[0] || '';
       const age = p.dob ? Math.floor((Date.now()-new Date(p.dob))/31557600000) : '';
+      const vis = resolveVisibility(p, myProfile, adminSettings);
+      const ageDisplay = vis.showAge && age ? `, ${age}` : '';
+      const locationDisplay = vis.showLocation ? `${p.city||''}${p.city&&p.country?', ':''}${p.country||''}` : '';
+      const distanceRow = vis.showDistance && myCoords && p._location ? `<div class="row"><span class="muted" style="width:130px;">Distance</span><span>📍 ${formatDistance(haversineKm(myCoords.lat, myCoords.lng, p._location.lat, p._location.lng))}</span></div>` : '';
+      const locationRow = locationDisplay ? `<div class="row"><span class="muted" style="width:130px;">Location</span><span>${locationDisplay}</span></div>` : '';
       document.getElementById('memberProfile').innerHTML = `
         <div class="profile-header">
           ${photo?`<img src="${photo}" alt="${p.displayName||'Member'}"/>`:`<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:3rem;">👤</div>`}
           <div class="overlay">
             <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:4px;"><span class="status-badge status-gold" style="font-size:11px;">Verified Member</span>${vaultBadge(p)}${p.zodiac?`<span style="font-size:16px;">${zodiacSigns[p.zodiac]||''}</span>`:''}</div>
-            <div style="font-family:'Cormorant Garamond',serif;font-size:1.75rem;">${p.displayName||p.name||'Member'}${age?', '+age:''}</div>
-            <div style="color:rgba(255,255,255,0.75);font-size:13px;">${p.city||''}${p.city&&p.country?', ':''}${p.country||''}</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:1.75rem;">${p.displayName||p.name||'Member'}${ageDisplay}</div>
+            <div style="color:rgba(255,255,255,0.75);font-size:13px;">${locationDisplay}</div>
           </div>
         </div>
         ${p.photos&&p.photos.length>1?`<div class="photo-strip" style="margin-bottom:1rem;">${p.photos.map((url,i)=>`<img class="photo-thumb" src="${url}" alt="Photo ${i+1}"/>`).join('')}</div>`:''}
@@ -80,6 +92,7 @@
         <div class="glass-card" style="margin-bottom:0.75rem;"><div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.5rem;">ABOUT</div><p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.8);">${p.bio||'No bio added yet.'}</p></div>
         ${p.interests&&p.interests.length?`<div class="glass-card" style="margin-bottom:0.75rem;"><div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">INTERESTS</div><div class="interests-wrap">${p.interests.map(i=>`<span class="interest-tag">${i}</span>`).join('')}</div></div>`:''}
         <div class="glass-card"><div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">PUBLIC DETAILS</div><div style="display:flex;flex-direction:column;gap:0.5rem;font-size:14px;">
+          ${locationRow}
           ${distanceRow}
           ${p.gender?`<div class="row"><span class="muted" style="width:130px;">Gender</span><span>${p.gender}</span></div>`:''}
           ${p.interestedIn?`<div class="row"><span class="muted" style="width:130px;">Interested in</span><span>${p.interestedIn}</span></div>`:''}
