@@ -28,6 +28,7 @@ exports.handler = async function(event) {
     user_unbanned: `✅ User Unbanned\n👤 ${userLine}`,
     payment_received: `💰 Payment Received\n👤 ${userLine}\nMethod: ${method || "unknown"}`,
     access_granted: `🎟 Admin Access Granted\n👤 ${userLine}\nDuration: ${days || "lifetime"}`,
+    plan_assigned: `✨ Admin Plan Assigned\n👤 ${userLine}\nPlan: ${plan || "unknown"}${billing ? ` ${billing}` : ""}`,
     access_revoked: `⛔ Access Revoked\n👤 ${userLine}`,
     subscription_payment_received: `💳 Subscription Payment Received\n👤 ${userLine}\nPlan: ${plan || "unknown"} ${billing || ""}\nAmount: $${amountUSD || "—"}\nMethod: ${method || "unknown"}`,
     subscription_expired: `⌛ Subscription Expired\n👤 ${userLine}\nPlan: ${plan || "unknown"}`,

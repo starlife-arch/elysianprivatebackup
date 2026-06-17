@@ -83,6 +83,7 @@
     import { getSubscription, planLabel, isVault } from "./js/subscription.js";
     import { uploadToCloudinary } from "./js/verification.js";
     import { doc, updateDoc, getDocs, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { setMemberPrivacyPref } from "./js/location.js";
 
     const INTERESTS = ['Travel','Photography','Cooking','Music','Art','Fitness','Reading','Movies','Hiking','Fashion','Technology','Sports','Dancing','Yoga','Gaming','Wine','Food','Meditation','Pets','Nature'];
     const ZODIAC = [
@@ -143,6 +144,25 @@
       return `<div class="glass-card subscription-panel"><div><div style="font-size:12px;color:var(--muted);">Current Plan</div><div style="font-weight:700;color:var(--gold);">${planLabel(sub.plan)} ${isVault(p) ? '<span class="vault-badge">VAULT</span>' : ''}</div><div style="font-size:12px;color:var(--muted);">${expired ? 'Expired — renew to restore benefits' : (sub.nextBillingDate ? 'Next billing: '+sub.nextBillingDate : 'Standard benefits active')}</div></div><button class="btn btn-gold btn-sm" onclick="location.href='pricing.html'">${expired ? 'Renew' : 'Upgrade'}</button></div>`;
     }
 
+    function renderPrivacyControls(p) {
+      const sub = getSubscription(p);
+      if (sub.plan === 'none') return '';
+      const canEdit = ['elite','vault'].includes(sub.plan) || ['elite','vault'].includes(p.stage);
+      const prefs = p._privacyPrefs || {};
+      const helper = canEdit
+        ? 'Elite and Vault members can hide age, location and distance from other members unless admin overrides apply.'
+        : 'Standard members must keep age, location and distance visible. Upgrade to Elite or Vault to hide them.';
+      return `<div class="glass-card" style="margin-bottom:0.75rem;">
+        <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">PRIVACY SETTINGS</div>
+        <p class="muted" style="font-size:13px;margin-bottom:0.75rem;">${helper}</p>
+        ${['location','distance','age'].map(field => {
+          const checked = canEdit ? prefs[field] !== false : true;
+          const action = canEdit ? `updatePrivacyPref('${field}', this.checked)` : `lockedPrivacyClick(event, '${field}')`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-top:1px solid var(--border);"><span style="text-transform:capitalize;">${field}${!canEdit ? ' <span style="color:var(--gold);font-size:11px;">Locked</span>' : ''}</span><label class="dv-toggle" title="${canEdit ? 'Update privacy' : 'Upgrade to unlock'}"><input type="checkbox" ${checked ? 'checked' : ''} onchange="${action}"><span class="dv-toggle-slider"></span></label></div>`;
+        }).join('')}
+      </div>`;
+    }
+
     function renderProfile() {
       const p = myProfile;
       const photo = p.photos?.[0] || '';
@@ -172,6 +192,8 @@
         </div>
 
         ${renderSubscriptionCard(p)}
+
+        ${renderPrivacyControls(p)}
 
         <div class="stats-row">
           <div class="stat-card"><div class="stat-val" id="likesCount">—</div><div class="stat-label">Likes Given</div></div>
@@ -363,9 +385,16 @@
       setTimeout(()=>t.classList.remove('show'),2200);
     }
 
+    window.lockedPrivacyClick = function(event, field) {
+      event.preventDefault();
+      event.target.checked = true;
+      showToast(`${field} must stay visible on Standard. Upgrade to Elite or Vault to hide it.`);
+    };
+
     window.updatePrivacyPref = async function(field, value) {
       try {
         await setMemberPrivacyPref(myUser.uid, field, value);
+        myProfile._privacyPrefs = { ...(myProfile._privacyPrefs || {}), [field]: value };
         showToast(`${field} ${value ? 'now visible' : 'now hidden'}`);
       } catch(e) { showToast('Could not save preference'); }
     };

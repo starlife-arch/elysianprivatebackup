@@ -87,17 +87,45 @@
       document.getElementById('loader').classList.add('hidden');
     }
 
+    window.triggerCamera = function(cameraInputId, fallbackInputId) {
+      const cameraInput = document.getElementById(cameraInputId);
+      if (cameraInput) {
+        cameraInput.click();
+        window._verificationFallbackInput = fallbackInputId;
+        return;
+      }
+      document.getElementById(fallbackInputId)?.click();
+    };
+
+    window.useFallbackGallery = function() {
+      document.getElementById('cameraFallbackModal').classList.remove('open');
+      const fallback = window._verificationFallbackInput;
+      if (fallback) document.getElementById(fallback)?.click();
+    };
+
+    window.handleIDFile = function(input) {
+      if (input.files?.[0]) previewFile(input.files[0], 'idPreview');
+    };
+
+    window.handleSelfieFile = function(input) {
+      if (input.files?.[0]) previewFile(input.files[0], 'selfiePreview');
+    };
+
+    function previewFile(file, previewId) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const img = document.getElementById(previewId);
+        img.src = e.target.result;
+        img.style.display = 'block';
+      };
+      reader.readAsDataURL(file);
+    }
+
     function setupPreview(inputId, previewId) {
       document.getElementById(inputId).addEventListener('change', event => {
         const file = event.target.files[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = e => {
-          const img = document.getElementById(previewId);
-          img.src = e.target.result;
-          img.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+        previewFile(file, previewId);
       });
     }
 

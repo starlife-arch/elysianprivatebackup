@@ -14,7 +14,7 @@ exports.handler = async function(event) {
   if (options) return options;
   if (event.httpMethod !== "POST") return json(405, { error: "Method not allowed" });
 
-  const { email, memberName, ticketId, subject, message } = parseBody(event);
+  const { email, memberName, ticketId, subject, message, phone, priority, requestType } = parseBody(event);
   if (!email || !memberName || !ticketId || !subject || !message) return json(400, { error: "Missing fields" });
 
   const BREVO_API_KEY = process.env.BREVO_API_KEY;
@@ -24,6 +24,9 @@ exports.handler = async function(event) {
   const safeTicketId = escapeHTML(ticketId);
   const safeSubject = escapeHTML(subject);
   const safeMessage = escapeHTML(message);
+  const safePhone = escapeHTML(phone || "");
+  const isPriority = priority === true || requestType === "priority_support" || requestType === "vault_call";
+  const title = requestType === "vault_call" ? "Vault call request received." : (isPriority ? "Priority support request received." : "Support request received.");
   const htmlBody = `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/></head>
@@ -34,7 +37,7 @@ exports.handler = async function(event) {
       <div style="color:#6b7a99;font-size:13px;letter-spacing:0.1em;margin-top:8px;">PRIVATE MEMBERSHIP</div>
     </div>
     <div style="padding:40px;">
-      <h1 style="font-family:Georgia,serif;font-weight:400;color:#f0f2f8;">Support request received.</h1>
+      <h1 style="font-family:Georgia,serif;font-weight:400;color:#f0f2f8;">${title}</h1>
       <p style="color:rgba(240,242,248,0.75);font-size:15px;line-height:1.7;">Hi ${safeName},</p>
       <p style="color:rgba(240,242,248,0.75);font-size:15px;line-height:1.7;">Thank you for contacting DateVault Support.</p>
       <p style="color:rgba(240,242,248,0.75);font-size:15px;line-height:1.7;">We have received your request and our team will review it shortly.</p>
@@ -42,10 +45,10 @@ exports.handler = async function(event) {
         <div style="color:#c9a84c;font-size:13px;font-weight:bold;letter-spacing:0.08em;margin-bottom:14px;">TICKET DETAILS</div>
         <p style="color:rgba(240,242,248,0.8);font-size:15px;line-height:1.7;margin:0 0 10px;"><strong>Ticket ID:</strong> ${safeTicketId}</p>
         <p style="color:rgba(240,242,248,0.8);font-size:15px;line-height:1.7;margin:0 0 10px;"><strong>Subject:</strong> ${safeSubject}</p>
-        <p style="color:rgba(240,242,248,0.8);font-size:15px;line-height:1.7;margin:0;"><strong>Message:</strong> ${safeMessage}</p>
+        <p style="color:rgba(240,242,248,0.8);font-size:15px;line-height:1.7;margin:0 0 10px;"><strong>Message:</strong> ${safeMessage}</p>${safePhone ? `<p style="color:rgba(240,242,248,0.8);font-size:15px;line-height:1.7;margin:0;"><strong>Callback phone:</strong> ${safePhone}</p>` : ""}
       </div>
       <p style="color:#c9a84c;font-size:15px;font-weight:600;line-height:1.7;margin:0 0 10px;">What happens next?</p>
-      <p style="color:rgba(240,242,248,0.75);font-size:15px;line-height:1.7;">Our support team aims to respond within 2–5 business days.</p>
+      <p style="color:rgba(240,242,248,0.75);font-size:15px;line-height:1.7;">${isPriority ? "Your Vault priority request has been flagged for faster admin review." : "Our support team aims to respond within 2–5 business days."}</p>
       <p style="color:rgba(240,242,248,0.75);font-size:15px;line-height:1.7;">You can send follow-up questions or additional information by replying directly to this email. Please include your Ticket ID ${safeTicketId} in all correspondence.</p>
       <p style="color:#6b7a99;font-size:12px;line-height:1.6;">If you did not submit this request, please ignore this email. If you believe someone is attempting to access your account, contact us immediately by replying to this email.</p>
       <p style="color:rgba(240,242,248,0.75);font-size:15px;line-height:1.7;">— The DateVault Support Team<br/><a href="https://elysiandate.site" style="color:#c9a84c;text-decoration:none;">https://elysiandate.site</a></p>
@@ -72,7 +75,7 @@ exports.handler = async function(event) {
           email: process.env.EMAIL_SUPPORT,
           name: process.env.EMAIL_SUPPORT_NAME
         },
-        subject: `Your support request has been received — DateVault [${ticketId}]`,
+        subject: `${isPriority ? "Priority support" : "Support request"} received — DateVault [${ticketId}]`,
         htmlContent: htmlBody
       })
     });
