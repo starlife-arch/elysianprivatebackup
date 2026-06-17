@@ -461,6 +461,7 @@
       t.textContent = msg; t.classList.add('show');
       setTimeout(() => t.classList.remove('show'), 2200);
     }
+    window.showToast = showToast;
 
     function renderSubscriptionPanel() {
       const sub = getSubscription(myProfile);
@@ -486,7 +487,7 @@
             : expired ? 'Renew' : isPaidStage() ? 'Upgrade' : 'Await Review';
       document.getElementById('subscriptionPanel').innerHTML = `
         <div><div style="font-size:12px;color:var(--muted);">Current Plan</div><div style="font-weight:700;color:var(--gold);">${isPaidStage() ? planLabel(planForDisplay) : 'Locked'} ${isVault(myProfile) ? '<span class="vault-badge">VAULT</span>' : ''}</div><div style="font-size:12px;color:var(--muted);">${isPaidStage() ? likeText : 'Complete profile and verification before payment'}</div>${lockText}</div>
-        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-gold btn-sm" onclick="location.href='${primaryHref}'">${primaryLabel}</button>${isPaidStage() ? (isVault(myProfile) ? '<button class="btn btn-outline btn-sm" onclick="location.href=\'chat.html?tab=support\'">Schedule a Call</button>' : '<button class="btn btn-outline btn-sm" onclick="showToast(\'Vault members can schedule calls. Upgrade to unlock.\')">Call Locked</button><button class="btn btn-outline btn-sm" onclick="location.href=\'payment.html?purpose=priority_support\'">Priority Support</button>') : ''}</div>`;
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:flex-end;"><button class="btn btn-gold btn-sm" onclick="location.href='${primaryHref}'">${primaryLabel}</button>${isPaidStage() ? (isVault(myProfile) ? '<button class="btn btn-outline btn-sm" onclick="location.href=\'chat.html?tab=support&action=call\'">Schedule a Call</button>' : '<button class="btn btn-outline btn-sm" onclick="showToast(\'Schedule a Call is available on the Vault plan. Upgrade to access it.\')">Call Locked</button><button class="btn btn-outline btn-sm" onclick="showToast(\'Priority Support is available on the Vault plan. Upgrade to access it.\')">Priority Support</button>') : ''}</div>`;
     }
 
     window.openFilter = function() {

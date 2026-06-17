@@ -64,11 +64,14 @@
               <option value="match">Match or chat problem</option>
               <option value="report">Report a user</option>
               <option value="verification">Verification question</option>
+              <option value="vault_call">Vault call request</option>
+              <option value="priority_support">Priority support</option>
               <option value="other">Other</option>
             </select>
           </div>
+          <div><label>Phone / WhatsApp for callback <span style="color:var(--muted);font-size:11px;">(optional)</span></label><input type="tel" id="ticketPhone" placeholder="+1 555 000 0000"/></div>
           <div><label>Message</label><textarea id="ticketMessage" placeholder="Describe your issue..." style="min-height:90px;"></textarea></div>
-          <button class="btn btn-gold btn-full" id="ticketBtn" onclick="submitTicket()">Send to Support</button><button class="btn btn-outline btn-full" style="margin-top:0.5rem;" onclick="requestPrioritySupport()">Request Priority Support ($100)</button><button class="btn btn-outline btn-full" id="vaultCallBtn" style="margin-top:0.5rem;" onclick="scheduleVaultCall()">Schedule a Call</button>
+          <button class="btn btn-gold btn-full" id="ticketBtn" onclick="submitTicket()">Send to Support</button><button class="btn btn-outline btn-full" style="margin-top:0.5rem;" onclick="requestPrioritySupport()">Request Priority Support</button><button class="btn btn-outline btn-full" id="vaultCallBtn" style="margin-top:0.5rem;" onclick="scheduleVaultCall()">Schedule a Call</button>
           <div id="ticketSuccess" style="display:none;color:var(--success);font-size:13px;text-align:center;">Ticket submitted! We'll get back to you soon.</div>
         </div>
       </div>
@@ -255,6 +258,10 @@
         showConvList();
         await loadAll();
       }
+      if (params.get('tab') === 'support') {
+        setTab('support');
+        if (params.get('action') === 'call') scheduleVaultCall();
+      }
     }
 
     async function loadAll() {
@@ -383,10 +390,19 @@
       if (theirUID) window.location.href = `member.html?uid=${theirUID}`;
     };
 
-    window.requestPrioritySupport = () => { window.location.href = 'payment.html?purpose=priority_support'; };
+    window.requestPrioritySupport = () => {
+      if (!isVault(myProfile)) { showToast('Priority Support is available on the Vault plan. Upgrade to access it.'); return; }
+      setTab('support');
+      document.getElementById('ticketSubject').value='priority_support';
+      document.getElementById('ticketMessage').value='I need priority support with:';
+      document.getElementById('ticketMessage').focus();
+    };
     window.scheduleVaultCall = () => {
-      if (isVault(myProfile)) { showTab('support'); document.getElementById('ticketSubject').value='verification'; document.getElementById('ticketMessage').value='I would like to schedule a Vault video call with the admin team.'; }
-      else showToast('Schedule a Call is available to Vault members. Upgrade to unlock.');
+      if (!isVault(myProfile)) { showToast('Schedule a Call is available on the Vault plan. Upgrade to access it.'); return; }
+      setTab('support');
+      document.getElementById('ticketSubject').value='vault_call';
+      document.getElementById('ticketMessage').value='I would like to schedule a Vault video call with the admin team about:';
+      document.getElementById('ticketPhone').focus();
     };
 
     window.sendMsg = async function() {
@@ -650,6 +666,9 @@
     window.submitTicket = async function() {
       const subject = document.getElementById('ticketSubject').value;
       const message = document.getElementById('ticketMessage').value.trim();
+      const phone = document.getElementById('ticketPhone').value.trim();
+      const isVaultPriority = isVault(myProfile);
+      const isCallRequest = subject === 'vault_call';
       const btn = document.getElementById('ticketBtn');
       if (!subject) { showToast('Please select a topic.'); return; }
       if (!message) { showToast('Please describe your issue.'); return; }
@@ -661,7 +680,9 @@
           memberName: myProfile.displayName||myProfile.name||'Member',
           memberId: myProfile.memberId||'',
           ticketId,
-          subject, message,
+          subject, message, phone,
+          priority: isVaultPriority,
+          requestType: isCallRequest ? 'vault_call' : (isVaultPriority ? 'priority_support' : 'standard_support'),
           messages: [{ role:'user', senderUID:myUser.uid, senderName:'You', text:message, createdAt:new Date().toISOString() }],
           status:'open', userConfirmedHelped:false, createdAt:serverTimestamp(), updatedAt:serverTimestamp()
         });
@@ -674,17 +695,38 @@
               memberName: myProfile.displayName || myUser.email,
               ticketId: ticketId,
               subject: document.getElementById("ticketSubject").value,
-              message: document.getElementById("ticketMessage").value.trim()
+              message: document.getElementById("ticketMessage").value.trim(),
+              phone,
+              priority: isVaultPriority,
+              requestType: isCallRequest ? 'vault_call' : (isVaultPriority ? 'priority_support' : 'standard_support')
             })
           });
         } catch (err) {
           console.error("Ticket email failed:", err);
+        }
+        try {
+          await fetch('/api/telegram-notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              event: isVaultPriority ? 'priority_support_requested' : 'support_ticket_created',
+              uid: myUser.uid,
+              memberId: myProfile.memberId || '',
+              name: myProfile.displayName || myProfile.name || myUser.email,
+              email: myUser.email,
+              ticketId, subject, phone,
+              message: `${isVaultPriority ? '☎️ Priority Support Requested' : '🎫 Support Ticket Created'}\n👤 ${myProfile.displayName || myProfile.name || myUser.email}${myProfile.memberId ? ` (${myProfile.memberId})` : ''}\n📧 ${myUser.email}\nTicket: ${ticketId}\nSubject: ${subject}${phone ? `\nPhone: ${phone}` : ''}\n\n${message}`
+            })
+          });
+        } catch (err) {
+          console.error('Ticket telegram failed:', err);
         }
         const ticketSuccess = document.getElementById('ticketSuccess');
         ticketSuccess.textContent = `Ticket submitted! Your ticket ID is ${ticketId}. Check your email for confirmation.`;
         ticketSuccess.style.display='block';
         document.getElementById('ticketSubject').value='';
         document.getElementById('ticketMessage').value='';
+        document.getElementById('ticketPhone').value='';
         await loadMyTickets();
       } catch(e) { showToast('Error: '+e.message); }
       btn.disabled=false; btn.textContent='Send to Support';
@@ -852,7 +894,6 @@
       setTimeout(()=>t.classList.remove('show'),2400);
     }
 
-    if (new URLSearchParams(location.search).get('tab') === 'support') setTimeout(() => showTab('support'), 300);
     init().catch(console.error);
   </script>
 </body>
