@@ -255,6 +255,7 @@
     import { showConfirm, showPrompt, showAlert, showSuccess, showError } from "./js/dialog.js";
     import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport } from "./js/admin.js";
     import { collection, getDocs, doc, addDoc, updateDoc, query, where, orderBy, limit, serverTimestamp, arrayUnion } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAdminSettings, setAdminGlobalSetting, setMemberOverride } from "./js/location.js";
 
     let allUsers=[], allReports=[], allCalls=[], allTickets=[];
     let grantUID = null;
@@ -705,13 +706,21 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
     };
 
     window.showSection=function(name){
-      ['overview','pending','members','messages','announcements','support','reports','calls'].forEach(s=>{
+      ['overview','pending','members','messages','announcements','support','reports','calls','privacy'].forEach(s=>{
         document.getElementById('section-'+s).style.display=s===name?'block':'none';
         document.getElementById('nav-'+s).classList.toggle('active',s===name);
       });
     };
     window.doLogout=()=>logout();
 
+
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
 
     // ── Privacy Controls ──────────────────────────────────────────
     const _origShow = window.showSection;
@@ -802,8 +811,10 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
       if (!plan) { showToast('Please select a plan'); return; }
       const expiry = document.getElementById('assignPlanExpiry').value || null;
 
+      const btn = document.querySelector('#assignPlanModal .btn-gold');
+      const originalText = btn?.textContent || 'Assign Plan';
+      if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
       try {
-        const { doc, updateDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
         const ref = doc(db, 'users', assignPlanUID);
         await updateDoc(ref, {
           'subscription.plan': plan,
@@ -813,6 +824,10 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
           'subscription.assignedBy': 'admin',
           ...(expiry ? { 'subscription.expiresAt': expiry, accessExpiry: expiry } : {}),
           plan: plan,
+          hasPaid: true,
+          paid: true,
+          stage: plan,
+          status: 'active_member',
         });
         showToast(`Plan assigned: ${plan.toUpperCase()} ✓`);
         closeAssignPlan();
@@ -821,6 +836,8 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
       } catch(e) {
         console.error(e);
         showToast('Error assigning plan');
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = originalText; }
       }
     };
 
