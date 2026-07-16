@@ -63,7 +63,7 @@ export async function fetchConversations(myUID) {
     const data = d.data();
     const theirUID = data.users.find(u => u !== myUID);
     const blocks = await blockStatus(myUID, theirUID);
-    if (blocks.blockedByMe || blocks.blockedMe) continue;
+    if (blocks.blockedByMe) continue;
     const theirSnap = await getDoc(doc(db, "users", theirUID));
     const them = theirSnap.exists() ? theirSnap.data() : {};
     conversations.push({
@@ -73,7 +73,8 @@ export async function fetchConversations(myUID) {
       theirPhoto: them.photos && them.photos[0] ? them.photos[0] : null,
       lastMessage: data.lastMessage,
       lastMessageAt: data.lastMessageAt,
-      hasUnread: data[`hasUnread_${myUID}`] || false
+      hasUnread: data[`hasUnread_${myUID}`] || false,
+      unavailable: blocks.blockedMe
     });
   }
   return conversations;

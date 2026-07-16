@@ -124,6 +124,7 @@
       const { user, profile } = await requireMember();
       myUser = user; myProfile = profile;
       document.getElementById('memberBadge').textContent = profile.memberId || '';
+      if (!profile.phone) showToast('Please add your phone number in your profile.');
       renderStageState();
       updateExploreNavLock();
       renderSubscriptionPanel();

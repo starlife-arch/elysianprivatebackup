@@ -38,11 +38,27 @@ const MEMBERSHIP_PRICE_KES = 3999; // Kenya shillings
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth }       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore }  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc }  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+
+export async function getPricingConfig() {
+  const snap = await getDoc(doc(db, 'config', 'pricing')).catch(() => null);
+  const cfg = snap?.exists?.() ? snap.data() : {};
+  const entryUSD = cfg.entryPromoActive ? Number(cfg.entryPromoUSD ?? 10) : Number(cfg.entryUSD ?? MEMBERSHIP_PRICE_USD);
+  return {
+    entryUSD,
+    entryKES: Number(cfg.entryKES ?? MEMBERSHIP_PRICE_KES),
+    entryPromoActive: !!cfg.entryPromoActive,
+    entryPromoLabel: cfg.entryPromoLabel || '',
+    entryOriginalUSD: Number(cfg.entryUSD ?? MEMBERSHIP_PRICE_USD),
+    elite: { monthly: Number(cfg.elite?.monthly ?? 9.99), annual: Number(cfg.elite?.annual ?? 95.88) },
+    vault: { monthly: Number(cfg.vault?.monthly ?? 24.99), annual: Number(cfg.vault?.annual ?? 239.88) },
+    prioritySupportUSD: Number(cfg.prioritySupportUSD ?? 100)
+  };
+}
 
 export {
   auth, db,

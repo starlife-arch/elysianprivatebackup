@@ -58,6 +58,7 @@
           <li>See who liked you</li>
           <li>Advanced filters</li>
           <li>Read receipts in chat</li>
+          <li>Photo sharing in chat</li>
         </ul>
         <button class="btn btn-gold btn-full" onclick="checkout('elite')">Upgrade to Elite</button>
       </div>
@@ -89,11 +90,16 @@
 
   <script type="module">
     import { auth, db, onAuthStateChanged } from "./js/auth.js";
+    import { getPricingConfig } from "./js/firebase.js";
     import { getDoc, doc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let billing = 'monthly';
     let currentProfile = null;
-    const prices = { elite: { monthly: '$9.99<span>/mo</span>', annual: '$95.88<span>/yr</span>' }, vault: { monthly: '$24.99<span>/mo</span>', annual: '$239.88<span>/yr</span>' } };
+    const pricingCfg = await getPricingConfig();
+    const prices = { elite: { monthly: `$${pricingCfg.elite.monthly.toFixed(2)}<span>/mo</span>`, annual: `$${pricingCfg.elite.annual.toFixed(2)}<span>/yr</span>` }, vault: { monthly: `$${pricingCfg.vault.monthly.toFixed(2)}<span>/mo</span>`, annual: `$${pricingCfg.vault.annual.toFixed(2)}<span>/yr</span>` } };
+    document.querySelector('.pricing-card.recommended .plan-price').innerHTML = pricingCfg.entryPromoActive ? `<span style="text-decoration:line-through;color:var(--muted);font-size:1rem;margin-right:0.5rem;">$${pricingCfg.entryOriginalUSD.toFixed(2)}</span>$${pricingCfg.entryUSD.toFixed(2)}<div style="font-size:12px;color:var(--gold);margin-top:0.35rem;">${pricingCfg.entryPromoLabel || 'Promo active'}</div>` : `$${pricingCfg.entryUSD.toFixed(2)}`;
+    document.querySelector('.pricing-card:nth-child(2) .muted').textContent = `Included after $${pricingCfg.entryUSD.toFixed(2)} entry payment`;
+    document.querySelector('.priority-card .muted').textContent = `$${pricingCfg.prioritySupportUSD.toFixed(0)} one-time per request. Includes a direct scheduled video call with the DateVault admin team for account issues, verification disputes, or serious concerns.`;
     function isActivePaid(profile = currentProfile) { return profile?.status === 'active_member' && (profile?.hasPaid || profile?.paid || profile?.stage === 'paid'); }
     function entryUrl() {
       const token = currentProfile?.inviteToken || currentProfile?.inviteCode || '';
@@ -107,7 +113,7 @@
       if (currentProfile.stage === 'signedUp' || !currentProfile.profileComplete) { btn.textContent = 'Complete Profile'; btn.onclick = () => location.href = 'profile.html?edit=1'; return; }
       if (currentProfile.stage === 'profileComplete') { btn.textContent = 'Start Verification'; btn.onclick = () => location.href = 'verification.html'; return; }
       if (currentProfile.stage === 'verificationSubmitted' || currentProfile.status === 'pending_admin_review') { btn.textContent = 'Awaiting Approval'; btn.disabled = true; return; }
-      if (currentProfile.stage === 'adminApproved' || ['approved_pending_invite','approved_pending_payment'].includes(currentProfile.status)) { btn.textContent = 'Pay $29.99 Entry'; btn.onclick = () => location.href = entryUrl(); return; }
+      if (currentProfile.stage === 'adminApproved' || ['approved_pending_invite','approved_pending_payment'].includes(currentProfile.status)) { btn.textContent = `Pay $${pricingCfg.entryUSD.toFixed(2)} Entry`; btn.onclick = () => location.href = entryUrl(); return; }
       btn.textContent = 'Open Dashboard'; btn.onclick = () => location.href = 'dashboard.html';
     }
     onAuthStateChanged(auth, async user => {
@@ -116,6 +122,7 @@
         currentProfile = snap.exists() ? snap.data() : null;
       }
       refreshEntryButton();
+      setBilling(billing);
     });
     window.setBilling = function(mode) {
       billing = mode;
