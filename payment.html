@@ -161,7 +161,7 @@
       try {
         const res = await fetch('/api/pesapal?action=initiate', {
           method:'POST', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ phone: phone.replace(/\s/g,''), uid: currentUser.uid, email: userEmail, name: userName, amountKes, amountUSD, purpose, plan, billing, inviteToken })
+          body: JSON.stringify({ phone: phone.replace(/\s/g,''), uid: currentUser.uid, email: userEmail, name: userName, amountKes: amountKES, amountUSD, purpose, plan, billing, inviteToken })
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Could not initiate payment.');
