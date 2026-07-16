@@ -79,10 +79,13 @@ export function nextBillingDate(billing) {
   return d.toISOString().slice(0, 10);
 }
 
-export function paymentAmountUSD(purpose, plan = 'standard', billing = 'monthly') {
-  if (purpose === 'priority_support') return PRIORITY_SUPPORT_PRICE;
-  if (purpose === 'subscription') return Number(SUBSCRIPTION_PLANS[plan]?.[billing] || 0);
-  return 29.99;
+export function paymentAmountUSD(purpose, plan = 'standard', billing = 'monthly', pricingCfg = null) {
+  if (purpose === 'priority_support') return pricingCfg?.prioritySupportUSD ?? PRIORITY_SUPPORT_PRICE;
+  if (purpose === 'subscription') {
+    if (pricingCfg?.[plan]) return Number(pricingCfg[plan][billing] || 0);
+    return Number(SUBSCRIPTION_PLANS[plan]?.[billing] || 0);
+  }
+  return pricingCfg?.entryUSD ?? 29.99;
 }
 
 export function paymentAmountKES(usd) {

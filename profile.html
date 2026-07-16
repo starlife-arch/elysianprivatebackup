@@ -36,6 +36,7 @@
       <div class="stack" style="max-height:75vh;overflow-y:auto;padding-right:4px;">
         <div><label>Display Name</label><input type="text" id="editName"/></div>
         <div><label>Bio</label><textarea id="editBio" style="min-height:80px;"></textarea></div>
+        <div><label>Phone Number</label><input type="tel" id="editPhone" placeholder="+254 700 000 000"/><p class="muted" style="font-size:12px;">Include your country code.</p></div>
         <div><label>Date of Birth</label><input type="date" id="editDob"/></div>
         <div class="grid-2"><div><label>Gender</label><select id="editGender"><option value="">Select</option><option>Woman</option><option>Man</option><option>Non-binary</option><option>Other</option></select></div><div><label>Interested In</label><select id="editInterestedIn"><option value="">Select</option><option>Women</option><option>Men</option><option>Everyone</option></select></div></div>
         <div class="grid-2"><div><label>City</label><input type="text" id="editCity"/></div><div><label>Country</label><input type="text" id="editCountry"/></div></div>
@@ -243,6 +244,7 @@
       const p = myProfile;
       document.getElementById('editName').value = p.displayName||p.name||'';
       document.getElementById('editBio').value  = p.bio||'';
+      document.getElementById('editPhone').value = p.phone||'';
       document.getElementById('editDob').value = p.dob||'';
       document.getElementById('editGender').value = p.gender||'';
       document.getElementById('editInterestedIn').value = p.interestedIn||'';
@@ -339,6 +341,7 @@
         const updates = {
           displayName: document.getElementById('editName').value.trim(),
           bio:         document.getElementById('editBio').value.trim(),
+          phone:       document.getElementById('editPhone').value.trim().replace(/\s/g,''),
           dob:         document.getElementById('editDob').value,
           gender:      document.getElementById('editGender').value,
           interestedIn: document.getElementById('editInterestedIn').value,

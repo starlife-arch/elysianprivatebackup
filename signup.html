@@ -30,6 +30,11 @@
           <input type="email" id="email" placeholder="your@email.com"/>
         </div>
         <div>
+          <label>Phone Number</label>
+          <input type="tel" id="signupPhone" placeholder="+254 700 000 000" required/>
+          <p class="muted" style="font-size:12px;">Include your country code.</p>
+        </div>
+        <div>
           <label>Password</label>
           <div style="position:relative;">
             <input type="password" id="password" placeholder="Minimum 8 characters" style="padding-right:3rem;"/>
@@ -67,19 +72,22 @@
     window.doSignup = async function() {
       const fullName = document.getElementById('fullName').value.trim();
       const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('signupPhone').value.trim();
       const pw = document.getElementById('password').value;
       const btn = document.getElementById('signupBtn');
       const err = document.getElementById('errorMsg');
 
       err.style.display = 'none';
-      if (!fullName || !email || !pw) { showErr('Please fill in all fields.'); return; }
+      if (!fullName || !email || !phone || !pw) { showErr('Please fill in all fields.'); return; }
+      if (!phone.startsWith('+')) { showErr('Include country code e.g. +254 700 000 000'); return; }
+      if (!/^\+\d+$/.test(phone.replace(/\s/g,''))) { showErr('Phone number must start with + followed by digits.'); return; }
       if (pw.length < 8) { showErr('Password must be at least 8 characters.'); return; }
 
       btn.disabled = true; btn.textContent = 'Sending code...';
-      showOtpStep(fullName, email, pw);
+      showOtpStep(fullName, email, phone, pw);
     };
 
-    function showOtpStep(fullName, email, password) {
+    function showOtpStep(fullName, email, phone, password) {
       const signupForm = document.getElementById('signupForm');
       const otpContainer = document.getElementById('otpContainer');
       signupForm.style.display = 'none';
@@ -106,6 +114,7 @@
             await setDoc(doc(db, "users", user.uid), {
               displayName: fullName,
               email,
+              phone: phone.replace(/\s/g,''),
               emailVerified: true,
               status: "pending_verification",
               profileComplete: false,

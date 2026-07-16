@@ -62,7 +62,7 @@
 
   <script type="module">
     import { auth, db, onAuthStateChanged } from "./js/auth.js";
-    import { PAYSTACK_PUBLIC_KEY, MEMBERSHIP_PRICE_USD, MEMBERSHIP_PRICE_KES } from "./js/firebase.js";
+    import { PAYSTACK_PUBLIC_KEY, getPricingConfig } from "./js/firebase.js";
     import { getDoc, doc, updateDoc, serverTimestamp, addDoc, collection, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { planLabel, nextBillingDate, paymentAmountUSD, paymentAmountKES } from "./js/subscription.js";
 
@@ -72,8 +72,9 @@
     let inviteToken = params.get('token') || '';
     const plan = params.get('plan') || 'standard';
     const billing = params.get('billing') || 'monthly';
-    const amountUSD = purpose === 'entry' ? MEMBERSHIP_PRICE_USD : paymentAmountUSD(purpose, plan, billing);
-    const amountKES = purpose === 'entry' ? MEMBERSHIP_PRICE_KES : paymentAmountKES(amountUSD);
+    const pricingCfg = await getPricingConfig();
+    const amountUSD = purpose === 'entry' ? pricingCfg.entryUSD : paymentAmountUSD(purpose, plan, billing, pricingCfg);
+    const amountKES = purpose === 'entry' ? pricingCfg.entryKES : paymentAmountKES(amountUSD);
 
     function paymentTitle() {
       if (purpose === 'subscription') return `${planLabel(plan)} ${billing === 'annual' ? 'Annual' : 'Monthly'} Plan`;
@@ -134,7 +135,8 @@
       userEmail = user.email;
       userName = profile.displayName || profile.firstName || profile.name || 'Member';
       document.getElementById('paymentSubtitle').textContent = paymentTitle();
-      document.getElementById('paymentPrice').textContent = `$${amountUSD.toFixed(2)}`;
+      document.getElementById('paymentPrice').innerHTML = pricingCfg.entryPromoActive && purpose === 'entry' ? `<span style="text-decoration:line-through;color:var(--muted);font-size:1rem;margin-right:0.5rem;">$${pricingCfg.entryOriginalUSD.toFixed(2)}</span>$${amountUSD.toFixed(2)}<div style="font-size:12px;color:var(--gold);margin-top:0.35rem;">${pricingCfg.entryPromoLabel || 'Promo active'}</div>` : `$${amountUSD.toFixed(2)}`;
+      if (profile.phone) document.getElementById('pesapalPhone').value = profile.phone;
       document.getElementById('paymentPeriod').textContent = paymentPeriod();
       document.getElementById('loader').classList.add('hidden');
       handlePesapalReturn();

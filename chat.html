@@ -100,7 +100,7 @@
     </div>
     <div class="chat-messages" id="messages"></div>
     <div class="chat-input-bar">
-      <button onclick="document.getElementById('imgInput').click()" style="background:none;border:none;color:var(--muted);cursor:pointer;flex-shrink:0;">
+      <button class="attach-btn" onclick="document.getElementById('imgInput').click()" style="background:none;border:none;color:var(--muted);cursor:pointer;flex-shrink:0;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
       </button>
       <input type="file" id="imgInput" accept="image/*" style="display:none;" onchange="sendImage(this)"/>
@@ -288,6 +288,8 @@
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px;">${c.theirName}</div>
         </div>`;
+        btn.style.opacity = c.unavailable ? '0.55' : '1';
+        btn.title = c.unavailable ? 'No longer available' : '';
         btn.onclick = () => openChat(c.theirUID);
         strip.appendChild(btn);
 
@@ -296,12 +298,13 @@
           hasConvs = true;
           const item = document.createElement('div');
           item.className = 'chat-item';
+          if (c.unavailable) item.style.opacity = '0.6';
           const time = c.lastMessageAt ? formatTime(c.lastMessageAt.toDate ? c.lastMessageAt.toDate() : new Date()) : '';
           item.innerHTML = `
             ${c.theirPhoto?`<img class="chat-avatar" src="${c.theirPhoto}" alt="${c.theirName}"/>`:`<div class="chat-avatar-placeholder">👤</div>`}
             <div class="chat-info">
               <div class="chat-name">${c.theirName}</div>
-              <div class="chat-preview">${c.lastMessage}</div>
+              <div class="chat-preview">${c.unavailable?'<span style="color:var(--muted);font-size:12px;">No longer available</span>':c.lastMessage}</div>
             </div>
             <div class="chat-meta">
               <div class="chat-time">${time}</div>
@@ -349,12 +352,13 @@
       const text = document.getElementById('blockToggleText');
       if (text) text.textContent = blockedByMe ? 'Unblock User' : 'Block User';
       const blocked = blockedByMe || blockedMe;
+      const canSendPhotos = hasPlan(myProfile, 'elite');
       if (input) {
         input.disabled = blocked;
         input.placeholder = blockedByMe ? 'You blocked this member. Unblock to message again.' : (blockedMe ? 'You cannot message this member.' : 'Type a message...');
       }
       if (sendBtn) sendBtn.disabled = blocked;
-      if (uploadBtn) uploadBtn.disabled = blocked;
+      if (uploadBtn) { uploadBtn.disabled = blocked || !canSendPhotos; uploadBtn.title = canSendPhotos ? '' : 'Upgrade to Elite or Vault to send photos'; }
     }
 
     function renderMessages(msgs) {
@@ -421,6 +425,11 @@
     window.sendImage = async function(input) {
       const file = input.files[0];
       if (!file || !theirUID) return;
+      if (!hasPlan(myProfile, 'elite')) {
+        input.value = '';
+        showToast('Sending photos requires Elite or Vault. Upgrade to unlock this.');
+        return;
+      }
       await refreshBlockState(theirUID); applyBlockState();
       if (blockedByMe || blockedMe) { showToast('Messaging is blocked.'); input.value=''; return; }
       showToast('Uploading...');
