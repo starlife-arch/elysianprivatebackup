@@ -74,7 +74,7 @@
     const billing = params.get('billing') || 'monthly';
     const pricingCfg = await getPricingConfig();
     const amountUSD = purpose === 'entry' ? pricingCfg.entryUSD : paymentAmountUSD(purpose, plan, billing, pricingCfg);
-    const amountKES = purpose === 'entry' ? pricingCfg.entryKES : paymentAmountKES(amountUSD);
+    const amountKES = paymentAmountKES(amountUSD);
 
     function paymentTitle() {
       if (purpose === 'subscription') return `${planLabel(plan)} ${billing === 'annual' ? 'Annual' : 'Monthly'} Plan`;
