@@ -1,23 +1,24 @@
-[build]
-  publish = "."
-
-# Wildcard rewrites for nested sections
 [[redirects]]
-  from = "/auth/*"
-  to = "/auth/:splat/index.html"
-  status = 200
+  from = "/login.html"
+  to = "/auth/login"
+  status = 301
 
 [[redirects]]
-  from = "/app/*"
-  to = "/app/:splat/index.html"
-  status = 200
+  from = "/signup.html"
+  to = "/auth/signup"
+  status = 301
 
 [[redirects]]
-  from = "/account/*"
-  to = "/account/:splat/index.html"
-  status = 200
+  from = "/dashboard.html"
+  to = "/app/dashboard"
+  status = 301
 
 [[redirects]]
-  from = "/legal/*"
-  to = "/legal/:splat/index.html"
-  status = 200
+  from = "/terms-and-conditions.html"
+  to = "/legal/terms"
+  status = 301
+
+[[redirects]]
+  from = "/privacy-policy.html"
+  to = "/legal/privacy"
+  status = 301
