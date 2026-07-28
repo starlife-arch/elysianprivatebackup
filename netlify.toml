@@ -1,21 +1,23 @@
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
+[build]
+  publish = "."
 
+# Wildcard rewrites for nested sections
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
+  from = "/auth/*"
+  to = "/auth/:splat/index.html"
   status = 200
 
-[functions."send-reminders"]
-  schedule = "0 */6 * * *"
+[[redirects]]
+  from = "/app/*"
+  to = "/app/:splat/index.html"
+  status = 200
 
-[functions."reset-likes"]
-  schedule = "0 * * * *"
+[[redirects]]
+  from = "/account/*"
+  to = "/account/:splat/index.html"
+  status = 200
 
-[functions."cleanup-otps"]
-  schedule = "0 2 * * *"
-[context.production.environment]
-  EMAIL_SUPPORT = "support@elysiandate.site"
-  EMAIL_SUPPORT_NAME = "Elysian Date Support"
-
+[[redirects]]
+  from = "/legal/*"
+  to = "/legal/:splat/index.html"
+  status = 200
