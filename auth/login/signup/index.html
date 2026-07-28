@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Apply — DateVault</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
+  <div class="auth-shell">
+    <div class="auth-card fade-up">
+      <a href="index.html" style="display:flex;align-items:center;gap:6px;color:var(--muted);font-size:13px;margin-bottom:1.5rem;">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+        Back
+      </a>
+      <div class="auth-logo">DateVault</div>
+      <p class="auth-tagline">Create your account to begin your application</p>
+      <div id="errorMsg" style="display:none;background:rgba(224,92,110,0.1);border:1px solid rgba(224,92,110,0.3);color:var(--danger);padding:0.75rem 1rem;border-radius:12px;font-size:13px;margin-bottom:1rem;"></div>
+      <div class="field-group" id="signupForm">
+        <div>
+          <label>Full Name</label>
+          <input type="text" id="fullName" placeholder="Your full name"/>
+        </div>
+        <div>
+          <label>Email Address</label>
+          <input type="email" id="email" placeholder="your@email.com"/>
+        </div>
+        <div>
+          <label>Phone Number</label>
+          <input type="tel" id="signupPhone" placeholder="+254 700 000 000" required/>
+          <p class="muted" style="font-size:12px;">Include your country code.</p>
+        </div>
+        <div>
+          <label>Password</label>
+          <div style="position:relative;">
+            <input type="password" id="password" placeholder="Minimum 8 characters" style="padding-right:3rem;"/>
+            <button type="button" aria-label="Show password" onclick="togglePassword('password', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gold);cursor:pointer;font-size:16px;">👁</button>
+          </div>
+        </div>
+        <button class="btn btn-gold btn-full" id="signupBtn" onclick="doSignup()">Create Account</button>
+      </div>
+      <div id="otpContainer" style="display:none;"></div>
+      <p class="auth-footer" id="authFooter">Already have an account? <a href="login.html">Sign in</a></p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { signup, auth, onAuthStateChanged, routeUser, db } from "./js/auth.js";
+    import { createOtpVerification } from "./js/otp.js";
+    import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    let signupInProgress = false;
+
+    onAuthStateChanged(auth, user => {
+      if (user && !signupInProgress) routeUser(user);
+    });
+
+    document.getElementById('loader').classList.add('hidden');
+
+    window.togglePassword = function(inputId, btn) {
+      const input = document.getElementById(inputId);
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.textContent = showing ? '👁' : '🙈';
+      btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+    };
+
+    window.doSignup = async function() {
+      const fullName = document.getElementById('fullName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const phone = document.getElementById('signupPhone').value.trim();
+      const pw = document.getElementById('password').value;
+      const btn = document.getElementById('signupBtn');
+      const err = document.getElementById('errorMsg');
+
+      err.style.display = 'none';
+      if (!fullName || !email || !phone || !pw) { showErr('Please fill in all fields.'); return; }
+      if (!phone.startsWith('+')) { showErr('Include country code e.g. +254 700 000 000'); return; }
+      if (!/^\+\d+$/.test(phone.replace(/\s/g,''))) { showErr('Phone number must start with + followed by digits.'); return; }
+      if (pw.length < 8) { showErr('Password must be at least 8 characters.'); return; }
+
+      btn.disabled = true; btn.textContent = 'Sending code...';
+      showOtpStep(fullName, email, phone, pw);
+    };
+
+    function showOtpStep(fullName, email, phone, password) {
+      const signupForm = document.getElementById('signupForm');
+      const otpContainer = document.getElementById('otpContainer');
+      signupForm.style.display = 'none';
+      document.getElementById('authFooter').style.display = 'none';
+      document.getElementById('errorMsg').style.display = 'none';
+      otpContainer.style.display = 'block';
+
+      const otp = createOtpVerification({
+        container: otpContainer,
+        email,
+        purpose: 'signup',
+        onBack: () => {
+          otp.destroy();
+          otpContainer.style.display = 'none';
+          signupForm.style.display = 'flex';
+          document.getElementById('authFooter').style.display = 'block';
+          const btn = document.getElementById('signupBtn');
+          btn.disabled = false; btn.textContent = 'Create Account';
+        },
+        onVerified: async () => {
+          try {
+            signupInProgress = true;
+            const user = await signup(email, password, fullName);
+            await setDoc(doc(db, "users", user.uid), {
+              displayName: fullName,
+              email,
+              phone: phone.replace(/\s/g,''),
+              emailVerified: true,
+              status: "pending_verification",
+              profileComplete: false,
+              photosUploaded: false,
+              verificationSubmitted: false,
+              adminApproved: false,
+              paid: false,
+              hasPaid: false,
+              plan: "none",
+              stage: "signedUp",
+              subscription: { plan: "none", billing: null, status: "inactive", startDate: null, nextBillingDate: null, prioritySupportRequests: 0 },
+              likesRemaining: 2,
+              likesResetAt: null,
+              lastReminderSent: null,
+              reminderCount: 0,
+              reminderType: null,
+              createdAt: serverTimestamp()
+            }, { merge: true });
+            otpContainer.innerHTML = '<div style="background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.35);color:#4caf7d;padding:0.9rem 1rem;border-radius:12px;font-size:14px;text-align:center;">Account created! Complete your profile next.</div>';
+            setTimeout(() => { window.location.href = 'profile.html?edit=1'; }, 700);
+          } catch(e) {
+            signupInProgress = false;
+            otpContainer.style.display = 'none';
+            signupForm.style.display = 'flex';
+            document.getElementById('authFooter').style.display = 'block';
+            let msg = e.message;
+            if (e.code === 'auth/email-already-in-use') msg = 'This email is already registered.';
+            if (e.code === 'auth/invalid-email') msg = 'Please enter a valid email address.';
+            showErr(msg);
+            const btn = document.getElementById('signupBtn');
+            btn.disabled = false; btn.textContent = 'Create Account';
+          }
+        }
+      });
+      otp.start();
+    };
+
+
+    function showErr(msg) {
+      const err = document.getElementById('errorMsg');
+      err.textContent = msg; err.style.display = 'block';
+    }
+  </script>
+</body>
+</html>
