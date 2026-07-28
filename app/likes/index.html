@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Likes — DateVault</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
+  <div class="app-shell">
+    <div class="topbar">
+      <div class="topbar-title">Likes</div>
+    </div>
+    <div class="section-tabs">
+      <button class="tab-btn active" id="tabLikedMe" onclick="setTab('likedMe')">Liked You</button>
+      <button class="tab-btn" id="tabMatches" onclick="setTab('matches')">Matches</button>
+    </div>
+    <div id="likedMeGrid" class="profile-grid"></div>
+    <div id="matchesGrid" class="profile-grid" style="display:none;"></div>
+    <div id="emptyMsg" style="display:none;text-align:center;padding:3rem 1rem;color:var(--muted);">
+      <div style="font-size:2.5rem;margin-bottom:0.75rem;color:var(--gold);">◈</div>
+      <p id="emptyText">No likes yet. Keep swiping!</p>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-item" href="dashboard.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+      Discover
+    </a>
+    <a class="nav-item" id="exploreNavItem" href="explore.html">
+      <span id="exploreNavLock" style="display:none;position:absolute;top:2px;right:10px;color:var(--gold);font-size:12px;line-height:1;">◇</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Explore
+    </a>
+    <a class="nav-item active" href="likes.html">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
+      Likes
+    </a>
+    <a class="nav-item" href="chat.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+      Chat
+    </a>
+    <a class="nav-item" href="profile.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profile
+    </a>
+  </nav>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { requireMember, db } from "./js/auth.js";
+    import { hasPlan, getSubscription, planLabel, vaultBadge } from "./js/subscription.js";
+    import { recordSwipe } from "./js/swipe.js";
+    import { collection, getDocs, getDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAdminSettings, resolveVisibility } from "./js/location.js";
+
+    let myUser, myProfile, adminSettings = {};
+
+    async function init() {
+      const { user, profile } = await requireMember();
+      myUser = user; myProfile = profile;
+      adminSettings = await getAdminSettings();
+      updateExploreNavLock();
+      document.getElementById('loader').classList.add('hidden');
+      if (hasPlan(myProfile, 'elite')) await loadLikes(); else showLockedLikes();
+      await loadMatches();
+    }
+
+
+    function isStandardPlan() {
+      return (myProfile?.stage === 'paid' || myProfile?.hasPaid || myProfile?.paid) && (myProfile?.plan || myProfile?.subscription?.plan) === 'standard';
+    }
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2200);
+    }
+    function updateExploreNavLock() {
+      const nav = document.getElementById('exploreNavItem');
+      const lock = document.getElementById('exploreNavLock');
+      if (!nav || !lock || !isStandardPlan()) return;
+      lock.style.display = 'block';
+      nav.onclick = (event) => {
+        event.preventDefault();
+        showToast('Explore requires Elite or Vault. Upgrade to unlock.');
+      };
+    }
+
+    function showLockedLikes() {
+      const sub = getSubscription(myProfile);
+      const label = sub.status === 'expired' ? 'Renew to unlock' : 'Upgrade to unlock';
+      document.getElementById('likedMeGrid').innerHTML = `<div class="glass-card locked-state" style="grid-column:1/-1;"><div class="lock-icon">◇</div><p style="font-weight:700;color:var(--text);">Upgrade to Elite to see who liked you</p><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:1rem 0;filter:blur(3px);opacity:0.55;"><div style="height:120px;background:var(--surface2);border-radius:14px;"></div><div style="height:120px;background:var(--surface2);border-radius:14px;"></div><div style="height:120px;background:var(--surface2);border-radius:14px;"></div></div><p class="muted">${sub.status === 'expired' ? 'Your '+planLabel(sub.previousPlan || 'elite')+' plan expired.' : 'Standard members can browse Discover and chat with mutual matches. Upgrade to reveal incoming likes.'}</p><button class="btn btn-gold btn-sm" onclick="location.href='pricing.html'">${label}</button></div>`;
+    }
+
+    async function loadLikes() {
+      // People who liked me (swiped 'like'/'superlike' on my uid)
+      const grid = document.getElementById('likedMeGrid');
+      grid.innerHTML = '';
+      document.getElementById('emptyMsg').style.display = 'none';
+      // Query: find all users who have a swipe doc for myUser.uid with direction like/superlike
+      // Due to Firestore structure (subcollection), we query matches where I haven't swiped back
+      const matchSnap = await getDocs(collection(db, 'users', myUser.uid, 'matches'));
+      const matchedUIDs = new Set(matchSnap.docs.map(d => d.id));
+      const swipedSnap = await getDocs(collection(db, 'users', myUser.uid, 'swipes'));
+      const swipedUIDs = new Set(swipedSnap.docs.map(d => d.id));
+
+      // Get people who swiped me. Hide anyone I already matched with, liked back, or passed.
+      const likedMeSnap = await getDocs(query(collection(db, 'swipes_index'), where('theirUID', '==', myUser.uid), where('direction', 'in', ['like','superlike'])));
+      const likedMe = likedMeSnap.docs.filter(d => !matchedUIDs.has(d.data().myUID) && !swipedUIDs.has(d.data().myUID));
+
+      if (likedMe.length === 0) {
+        showEmpty('likedMe');
+      } else {
+        for (const d of likedMe) {
+          const uid = d.data().myUID;
+          const snap = await getDoc(doc(db, 'users', uid));
+          if (snap.exists()) renderTile(grid, uid, snap.data(), false);
+        }
+      }
+    }
+
+    async function loadMatches() {
+      const grid = document.getElementById('matchesGrid');
+      grid.innerHTML = '';
+      document.getElementById('emptyMsg').style.display = 'none';
+      const snap = await getDocs(collection(db, 'users', myUser.uid, 'matches'));
+      if (snap.empty) { return; }
+      for (const d of snap.docs) {
+        const uid = d.id;
+        const uSnap = await getDoc(doc(db, 'users', uid));
+        if (uSnap.exists()) renderTile(grid, uid, uSnap.data(), true);
+      }
+    }
+
+    function renderTile(grid, uid, profile, isMatch) {
+      const photo = profile.photos && profile.photos[0] ? profile.photos[0] : '';
+      const age = profile.dob ? Math.floor((Date.now() - new Date(profile.dob)) / 31557600000) : '';
+      const vis = resolveVisibility(profile, myProfile, adminSettings);
+      const ageDisplay = vis.showAge && age ? `, ${age}` : '';
+      const locationDisplay = vis.showLocation ? (profile.city || profile.country || '') : '';
+      const tile = document.createElement('div');
+      tile.className = 'profile-tile';
+      tile.innerHTML = `
+        ${photo ? `<img src="${photo}" alt="${profile.displayName}" loading="lazy"/>` : `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:2rem;">👤</div>`}
+        ${isMatch ? '<div class="match-badge">MATCH</div>' : ''}
+        <div class="tile-info">
+          <div class="tile-name">${profile.displayName || profile.name || 'Member'}${ageDisplay} ${vaultBadge(profile)}</div>
+          <div class="tile-meta">${locationDisplay}</div>
+          ${isMatch ? '<div style="font-size:11px;color:var(--gold);margin-top:4px;">Tap to chat</div>' : `
+            <div style="display:flex;gap:0.4rem;margin-top:0.5rem;">
+              <button class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:var(--muted);padding:0.35rem 0.65rem;font-size:11px;" onclick="respondToLike('${uid}','nope',event)">Pass</button>
+              <button class="btn btn-sm btn-gold" style="padding:0.35rem 0.65rem;font-size:11px;" onclick="respondToLike('${uid}','like',event)">Like Back</button>
+            </div>`}
+        </div>
+      `;
+      tile.onclick = () => {
+        if (isMatch) window.location.href = `chat.html?uid=${uid}`;
+        else window.location.href = `member.html?uid=${uid}`;
+      };
+      grid.appendChild(tile);
+    }
+
+    window.respondToLike = async function(uid, direction, event) {
+      event?.stopPropagation();
+      try {
+        const isMatch = await recordSwipe(myUser.uid, uid, direction);
+        await loadLikes();
+        await loadMatches();
+        if (isMatch) setTab('matches');
+        else showEmpty('likedMe');
+      } catch (e) {
+        console.error(e);
+        alert('Could not save your response. Please try again.');
+      }
+    };
+
+    function showEmpty(tab) {
+      const isEmpty = tab === 'likedMe' ? document.getElementById('likedMeGrid').children.length === 0 : document.getElementById('matchesGrid').children.length === 0;
+      if (isEmpty) {
+        document.getElementById('emptyMsg').style.display = 'block';
+        document.getElementById('emptyText').textContent = tab === 'likedMe' ? 'No likes yet. Keep swiping!' : 'No matches yet.';
+      }
+    }
+
+    window.setTab = function(tab) {
+      document.getElementById('tabLikedMe').classList.toggle('active', tab === 'likedMe');
+      document.getElementById('tabMatches').classList.toggle('active', tab === 'matches');
+      document.getElementById('likedMeGrid').style.display = tab === 'likedMe' ? 'grid' : 'none';
+      document.getElementById('matchesGrid').style.display = tab === 'matches' ? 'grid' : 'none';
+      document.getElementById('emptyMsg').style.display = 'none';
+      if (tab === 'likedMe' && document.getElementById('likedMeGrid').children.length === 0 && hasPlan(myProfile, 'elite')) showEmpty('likedMe');
+      if (tab === 'matches' && document.getElementById('matchesGrid').children.length === 0) showEmpty('matches');
+    };
+
+    init().catch(console.error);
+  </script>
+</body>
+</html>
