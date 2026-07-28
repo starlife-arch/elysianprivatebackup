@@ -1,21 +1,16 @@
 User-agent: *
-Disallow: /dashboard.html
-Disallow: /admin.html
-Disallow: /payment.html
-Disallow: /profile.html
-Disallow: /signup.html
-Disallow: /login.html
-Disallow: /verification.html
-Disallow: /discover.html
-Disallow: /explore.html
-Disallow: /likes.html
-Disallow: /chat.html
-Disallow: /invite.html
-Disallow: /status.html
-Disallow: /pricing.html
 
+# Block search engine crawlers from indexing private user routes & dashboards
+Disallow: /admin/
+Disallow: /app/
+Disallow: /account/
+Disallow: /auth/invite/
+
+# Allow crawling of public pages
 Allow: /
-Allow: /terms-and-conditions.html
-Allow: /privacy-policy.html
+Allow: /auth/login
+Allow: /auth/signup
+Allow: /legal/
 
+# Link to your production sitemap
 Sitemap: https://elysiandate.site/sitemap.xml
