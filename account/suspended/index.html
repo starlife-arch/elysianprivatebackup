@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Account Suspended — DateVault</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+  <div class="status-page">
+    <div class="auth-logo" style="font-size:1.25rem;margin-bottom:0.5rem;">DateVault</div>
+    <div style="color:var(--danger);font-size:3rem;margin-bottom:0.5rem;">◉</div>
+    <h2>Account Suspended</h2>
+    <p>Your account has been suspended for violating our community guidelines. If you believe this is an error, please contact our support team.</p>
+    <a class="btn btn-outline" href="mailto:elysianmatchdate@gmail.com">Contact Support</a>
+    <button class="btn btn-outline btn-sm" onclick="doLogout()">Sign Out</button>
+  </div>
+  <script type="module">
+    window.doLogout = async function() {
+      const { logout } = await import('./js/auth.js');
+      logout();
+    };
+  </script>
+</body>
+</html>
