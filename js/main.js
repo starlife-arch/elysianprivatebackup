@@ -1,35 +1,29 @@
-// /js/main.js
-(function () {
-  // 1. Shared core scripts loaded on EVERY page
-  const globalScripts = [
-    '/js/firebase.js'
-  ];
-
-  // 2. Map routes to their specific JS files
-  const routeMap = {
-    '/auth/login': ['/js/auth.js', '/js/otp.js'],
-    '/auth/signup': ['/js/auth.js', '/js/otp.js', '/js/location.js'],
-    '/app/chat': ['/js/chat.js', '/js/dialog.js'],
-    '/app/explore': ['/js/swipe.js', '/js/location.js'],
-    '/account/payment': ['/js/payment.js', '/js/subscription.js'],
-    '/account/verification': ['/js/verification.js', '/js/verification_calls.js'],
-    '/admin': ['/js/admin.js', '/js/reports.js']
+// Automatically rewrite legacy .html links to clean domain routes in real-time
+document.addEventListener('DOMContentLoaded', () => {
+  const linkMap = {
+    'login.html': '/auth/login',
+    'signup.html': '/auth/signup',
+    'invite.html': '/auth/invite',
+    'dashboard.html': '/app/dashboard',
+    'chat.html': '/app/chat',
+    'explore.html': '/app/explore',
+    'discover.html': '/app/discover',
+    'likes.html': '/app/likes',
+    'member.html': '/app/member',
+    'profile.html': '/app/profile',
+    'payment.html': '/account/payment',
+    'verification.html': '/account/verification',
+    'status.html': '/account/status',
+    'suspended.html': '/account/suspended',
+    'admin.html': '/admin',
+    'privacy-policy.html': '/legal/privacy',
+    'terms-and-conditions.html': '/legal/terms'
   };
 
-  // Helper to append script
-  function loadScript(src) {
-    const s = document.createElement('script');
-    s.src = src;
-    s.defer = true;
-    document.head.appendChild(s);
-  }
-
-  // Load global scripts first
-  globalScripts.forEach(loadScript);
-
-  // Load route-specific scripts based on current URL path
-  const currentPath = window.location.pathname.replace(/\/$/, ''); // strip trailing slash
-  if (routeMap[currentPath]) {
-    routeMap[currentPath].forEach(loadScript);
-  }
-})();
+  document.querySelectorAll('a[href]').forEach(a => {
+    const href = a.getAttribute('href');
+    if (linkMap[href]) {
+      a.setAttribute('href', linkMap[href]);
+    }
+  });
+});
