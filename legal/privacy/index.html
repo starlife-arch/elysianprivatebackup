@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Privacy Policy — DateVault</title>
+  <link rel="stylesheet" href="css/style.css"/>
+  <style>
+    .legal-shell {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+    }
+    .legal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1.25rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(6,8,16,0.95);
+      backdrop-filter: blur(20px);
+      z-index: 50;
+    }
+    .legal-badge {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--gold);
+      background: rgba(201,168,76,0.12);
+      border: 1px solid rgba(201,168,76,0.25);
+      padding: 4px 12px;
+      border-radius: 999px;
+    }
+    .legal-hero {
+      text-align: center;
+      padding: 3rem 0 2.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2.5rem;
+    }
+    .legal-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: clamp(2rem, 6vw, 3rem);
+      font-weight: 400;
+      letter-spacing: 0.06em;
+      color: var(--gold-light);
+      margin-bottom: 0.75rem;
+    }
+    .legal-meta {
+      display: flex;
+      gap: 1.25rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .toc-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2.5rem;
+    }
+    .toc-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1rem;
+      color: var(--gold);
+      margin-bottom: 1rem;
+      letter-spacing: 0.05em;
+    }
+    .toc-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.35rem 1.5rem;
+      list-style: none;
+      padding: 0;
+      counter-reset: toc;
+    }
+    @media (max-width: 500px) { .toc-grid { grid-template-columns: 1fr; } }
+    .toc-grid li {
+      counter-increment: toc;
+      font-size: 12.5px;
+    }
+    .toc-grid li::before {
+      content: counter(toc, decimal-leading-zero) ". ";
+      color: var(--gold);
+      font-weight: 600;
+      font-size: 11px;
+    }
+    .toc-grid a { color: var(--muted); text-decoration: none; }
+    .toc-grid a:hover { color: var(--gold-light); }
+    .legal-section {
+      margin-bottom: 2.5rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .legal-section:last-of-type { border-bottom: none; }
+    .section-num {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: 0.4rem;
+    }
+    .section-heading {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.45rem;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 1rem;
+      line-height: 1.2;
+    }
+    .legal-section p {
+      color: rgba(240,242,248,0.8);
+      font-size: 14px;
+      line-height: 1.75;
+      margin-bottom: 0.85rem;
+    }
+    .legal-section ul, .legal-section ol {
+      padding-left: 1.3rem;
+      margin-bottom: 0.85rem;
+    }
+    .legal-section li {
+      color: rgba(240,242,248,0.8);
+      font-size: 14px;
+      line-height: 1.75;
+      margin-bottom: 0.3rem;
+    }
+    .legal-section strong { color: var(--text); }
+    .callout-gold {
+      background: rgba(201,168,76,0.1);
+      border: 1px solid rgba(201,168,76,0.25);
+      color: rgba(232,203,122,0.9);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      font-size: 13.5px;
+      margin: 1.25rem 0;
+      line-height: 1.65;
+    }
+    .callout-surface {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: rgba(240,242,248,0.7);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      font-size: 13.5px;
+      margin: 1.25rem 0;
+      line-height: 1.65;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.25rem 0;
+      font-size: 13px;
+    }
+    .data-table th {
+      background: var(--surface2);
+      color: var(--gold);
+      font-weight: 600;
+      text-align: left;
+      padding: 0.65rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 11px;
+      letter-spacing: 0.04em;
+    }
+    .data-table td {
+      padding: 0.6rem 0.9rem;
+      border-bottom: 1px solid var(--border);
+      color: rgba(240,242,248,0.78);
+      vertical-align: top;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .legal-footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<div class="legal-header">
+  <div class="auth-logo" style="font-size:1.3rem;margin:0;">DateVault</div>
+  <span class="legal-badge">Privacy Policy</span>
+</div>
+
+<div class="legal-shell">
+
+  <div class="legal-hero">
+    <h1 class="legal-title">Privacy Policy</h1>
+    <div class="legal-meta">
+      <span>📅 Effective: June 2026</span>
+      <span>🔄 Last Updated: June 2026</span>
+      <span>📍 Governed by: Canadian / International Law</span>
+    </div>
+  </div>
+
+  <div class="toc-box">
+    <div class="toc-title">◈ Contents</div>
+    <ol class="toc-grid">
+      <li><a href="#p1">Who We Are</a></li>
+      <li><a href="#p2">Data We Collect</a></li>
+      <li><a href="#p3">How We Use Your Data</a></li>
+      <li><a href="#p4">Identity Verification Data</a></li>
+      <li><a href="#p5">Photos &amp; Media</a></li>
+      <li><a href="#p6">Payment Data</a></li>
+      <li><a href="#p7">Communications &amp; Messages</a></li>
+      <li><a href="#p8">Third-Party Services</a></li>
+      <li><a href="#p9">Data Sharing</a></li>
+      <li><a href="#p10">Data Retention</a></li>
+      <li><a href="#p11">Your Rights</a></li>
+      <li><a href="#p12">Security</a></li>
+      <li><a href="#p13">Changes to Policy</a></li>
+      <li><a href="#p14">Contact</a></li>
+    </ol>
+  </div>
+
+  <div class="legal-section" id="p1">
+    <div class="section-num">01</div>
+    <h2 class="section-heading">Who We Are</h2>
+    <p>DateVault operates a private, invite-only online dating membership platform. This Privacy Policy explains what personal data we collect, why we collect it, how we use it, and your rights regarding your information.</p>
+    <p>By applying for, paying for, or using a DateVault membership, you consent to the collection and processing of your personal data as described in this Policy.</p>
+    <div class="callout-gold">◈ &nbsp;We take privacy seriously. DateVault is a curated private community — your data is not sold to advertisers and your profile is only visible to other verified members.</div>
+  </div>
+
+  <div class="legal-section" id="p2">
+    <div class="section-num">02</div>
+    <h2 class="section-heading">Data We Collect</h2>
+    <p>We collect data in several categories depending on your stage of interaction with the Platform:</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>Category</th><th>Data Collected</th><th>When</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Account</strong></td><td>Email address, hashed password</td><td>Signup</td></tr>
+        <tr><td><strong>Profile</strong></td><td>First name, last name, date of birth, gender, sexual preference, relationship goal, location, bio, zodiac sign, interests, video availability</td><td>Verification form</td></tr>
+        <tr><td><strong>Photos</strong></td><td>Up to 6 profile photos uploaded by you</td><td>Verification form</td></tr>
+        <tr><td><strong>Identity Documents</strong></td><td>Government-issued ID photo, selfie holding ID</td><td>Verification (admin-only)</td></tr>
+        <tr><td><strong>Payment</strong></td><td>Transaction reference, payment method type, payment status, amount</td><td>Payment</td></tr>
+        <tr><td><strong>Activity</strong></td><td>Swipe history, matches, messages sent, last active timestamp</td><td>During use</td></tr>
+        <tr><td><strong>Reports</strong></td><td>Reports you submit about other members, including message snapshots</td><td>When you report</td></tr>
+        <tr><td><strong>Support</strong></td><td>Support ticket content, messages to/from our team</td><td>When you contact support</td></tr>
+        <tr><td><strong>Technical</strong></td><td>Unique account ID, account status, invite code, membership activation date</td><td>Automatically</td></tr>
+        <tr><td><strong>Subscription</strong></td><td>Current plan (Standard/Elite/Vault), billing cycle, subscription status, next billing date, payment history, priority support requests</td><td>On subscription &amp; renewal</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="legal-section" id="p3">
+    <div class="section-num">03</div>
+    <h2 class="section-heading">How We Use Your Data</h2>
+    <p>Your data is used exclusively to operate and improve the DateVault platform. Specifically:</p>
+    <ul>
+      <li><strong>To verify your identity</strong> and process your membership application.</li>
+      <li><strong>To display your profile</strong> to other verified members for matching purposes.</li>
+      <li><strong>To facilitate matching and messaging</strong> between members.</li>
+      <li><strong>To process and record your payment</strong> and activate your membership.</li>
+      <li><strong>To send you transactional emails</strong>, including application status notifications, invite codes, and payment confirmations.</li>
+      <li><strong>To send admin notifications</strong> via an internal messaging tool (internal operations only — not visible to members).</li>
+      <li><strong>To review reports</strong> of abusive or harmful behaviour and enforce our Terms.</li>
+      <li><strong>To provide customer support</strong> via in-app support tickets.</li>
+      <li><strong>To maintain platform security</strong> and prevent fraud, fake profiles, and abuse.</li>
+      <li><strong>To manage your subscription</strong>, including billing cycle tracking, plan enforcement, feature access gating, and sending renewal or expiry notifications.</li>
+      <li><strong>To process Priority Support requests</strong> and schedule video calls with the admin team upon payment confirmation.</li>
+    </ul>
+    <p>We do <strong>not</strong> use your data for advertising, behavioural profiling for commercial purposes, or sale to third parties.</p>
+  </div>
+
+  <div class="legal-section" id="p4">
+    <div class="section-num">04</div>
+    <h2 class="section-heading">Identity Verification Data</h2>
+    <p>During the application process, we require a government-issued photo ID and a selfie holding that ID. This is critical to our mission of maintaining a verified, authentic member community.</p>
+    <div class="callout-gold">◈ &nbsp;<strong>Your verification documents are never shared with other members.</strong> They are reviewed only by the DateVault admin team for the purpose of identity verification.</div>
+    <p>Verification documents are:</p>
+    <ul>
+      <li>Stored securely via our authorised media storage provider with restricted access.</li>
+      <li>Accessible only to authorised DateVault admin accounts.</li>
+      <li>Used solely to confirm that you are who you say you are.</li>
+      <li>Retained for as long as your account is active, and deleted upon account deletion.</li>
+    </ul>
+  </div>
+
+  <div class="legal-section" id="p5">
+    <div class="section-num">05</div>
+    <h2 class="section-heading">Photos &amp; Media</h2>
+    <p>Your profile photos are stored with a third-party cloud media storage provider and displayed to other verified members as part of your profile.</p>
+    <p>You may add, remove, or change your profile photos at any time via your profile settings. Removed photos are deleted from your profile, though the storage provider's own retention policies may apply to cached copies.</p>
+    <p>Please do not upload photos of other people without their consent, or photos that contain personally identifying information of third parties.</p>
+  </div>
+
+  <div class="legal-section" id="p6">
+    <div class="section-num">06</div>
+    <h2 class="section-heading">Payment Data</h2>
+    <p>DateVault does not store your card numbers, bank account details, or mobile money credentials. All payment processing is handled by authorised third-party payment processors. The payment method presented to you will depend on your location — members in different regions are shown relevant local payment options.</p>
+    <p>We receive and store only the outcome of your payment (success/failure), the transaction reference number, and the payment method type. This is used to activate your membership and maintain our payment records.</p>
+    <p>For details on how your payment data is handled during processing, please refer to the privacy policy of the payment processor applicable to your transaction.</p>
+  </div>
+
+  <div class="legal-section" id="p7">
+    <div class="section-num">07</div>
+    <h2 class="section-heading">Communications &amp; Messages</h2>
+    <p>Private messages between matched members are stored securely in our database. Only the two participants in a match can read their conversation. Admin accounts have read access to messages for the purpose of:</p>
+    <ul>
+      <li>Investigating reports of harassment or abusive behaviour.</li>
+      <li>Resolving support tickets where message context is relevant.</li>
+      <li>Enforcing compliance with our Terms &amp; Conditions.</li>
+    </ul>
+    <p>DateVault does not actively monitor or read member messages unless a report or complaint is under investigation.</p>
+    <p>Transactional emails are sent via our authorised email delivery provider. Your email address is shared with this provider solely for the purpose of delivering these emails. Admin notifications are sent via an internal messaging tool used exclusively by our admin team and do not expose your information publicly.</p>
+  </div>
+
+  <div class="legal-section" id="p8">
+    <div class="section-num">08</div>
+    <h2 class="section-heading">Third-Party Services</h2>
+    <p>DateVault uses authorised third-party service providers to operate the Platform. These providers are selected for their reliability and security standards, and each operates under its own privacy policy. The categories of providers we use are:</p>
+    <table class="data-table">
+      <thead>
+        <tr><th>Category</th><th>Purpose</th><th>Data Shared</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>Authentication &amp; Database</strong></td><td>Secure login and storage of all profile, match, and message data</td><td>Email, account ID, profile data, messages</td></tr>
+        <tr><td><strong>Media &amp; Photo Storage</strong></td><td>Secure hosting of profile photos and verification documents</td><td>Profile photos, verification documents</td></tr>
+        <tr><td><strong>Payment Processing</strong></td><td>Processing membership fees via available regional payment methods</td><td>Name, email, payment amount, transaction reference</td></tr>
+        <tr><td><strong>Email Delivery</strong></td><td>Sending transactional emails (approvals, rejections, invite codes)</td><td>Email address, name</td></tr>
+        <tr><td><strong>Admin Notifications</strong></td><td>Internal operational alerts to the admin team only</td><td>Name, email (internal only)</td></tr>
+        <tr><td><strong>Platform Hosting</strong></td><td>Hosting of the web application and backend functions</td><td>No personal data stored at this layer</td></tr>
+      </tbody>
+    </table>
+    <p>We only share with third-party providers the minimum data necessary for them to deliver their service. We do not sell, rent, or trade your data with any third party for their own commercial purposes.</p>
+  </div>
+
+  <div class="legal-section" id="p9">
+    <div class="section-num">09</div>
+    <h2 class="section-heading">Data Sharing</h2>
+    <p>Your personal information is shared as follows:</p>
+    <ul>
+      <li><strong>With other members:</strong> Your profile information (name, age, photos, bio, interests, zodiac, relationship goals, location) is visible to other verified active members. Your email, verification documents, and payment details are <strong>never</strong> shared with other members.</li>
+      <li><strong>With our admin team:</strong> Full profile data, verification documents, messages (when investigating reports), and payment records are accessible to authorised DateVault administrators.</li>
+      <li><strong>With third-party service providers:</strong> As described in Section 8, limited data is shared with providers solely to deliver their services.</li>
+      <li><strong>With law enforcement:</strong> We may disclose data if required by law, court order, or government authority, or where we believe disclosure is necessary to protect the safety of DateVault, our members, or the public.</li>
+    </ul>
+    <p>We do not share, rent, sell, or trade your personal data with any third party for their independent marketing or commercial purposes.</p>
+  </div>
+
+  <div class="legal-section" id="p10">
+    <div class="section-num">10</div>
+    <h2 class="section-heading">Data Retention</h2>
+    <p>We retain your data for as long as your account is active or as needed to provide our services.</p>
+    <ul>
+      <li><strong>Active accounts:</strong> All data retained while your membership is active.</li>
+      <li><strong>Voluntarily deleted accounts:</strong> Profile data, photos, and verification documents deleted within 30 days of a confirmed deletion request.</li>
+      <li><strong>Banned accounts:</strong> A minimal record (email, ban reason, ban date) is retained indefinitely to prevent re-registration in violation of our Terms.</li>
+      <li><strong>Rejected applications:</strong> Application data may be retained for up to 90 days for fraud prevention, then deleted.</li>
+      <li><strong>Payment records:</strong> Transaction records retained for up to 7 years for legal and accounting compliance.</li>
+      <li><strong>Subscription records:</strong> Plan history, billing dates, and status changes are retained for up to 7 years for accounting and dispute resolution purposes.</li>
+      <li><strong>Priority Support requests:</strong> Retained for up to 2 years for internal records and dispute resolution.</li>
+    </ul>
+  </div>
+
+  <div class="legal-section" id="p11">
+    <div class="section-num">11</div>
+    <h2 class="section-heading">Your Rights</h2>
+    <p>Subject to applicable law, you have the following rights regarding your personal data:</p>
+    <ul>
+      <li><strong>Access:</strong> Request a copy of the personal data we hold about you.</li>
+      <li><strong>Correction:</strong> Update inaccurate profile information directly in your profile settings, or contact support for assistance.</li>
+      <li><strong>Deletion:</strong> Request deletion of your account and personal data (see Section 10 for retention exceptions).</li>
+      <li><strong>Objection:</strong> Object to certain processing of your data if you believe it is being used unlawfully.</li>
+      <li><strong>Portability:</strong> Request a structured export of your personal data in a machine-readable format.</li>
+    </ul>
+    <div class="callout-surface">ℹ &nbsp;To exercise any of these rights, contact us via the in-app support feature. We will respond within 30 days. Some requests may be subject to legal retention obligations.</div>
+  </div>
+
+  <div class="legal-section" id="p12">
+    <div class="section-num">12</div>
+    <h2 class="section-heading">Security</h2>
+    <p>We implement reasonable technical and organisational measures to protect your personal data. These measures include:</p>
+    <ul>
+      <li><strong>Authentication provider</strong> — industry-standard authentication with encrypted password storage.</li>
+      <li><strong>Database security rules</strong> — strictly enforced rules ensure members can only access data they are permitted to see. Other members cannot access your verification documents, payment records, or messages outside your shared matches.</li>
+      <li><strong>Secure media storage</strong> — photos and documents stored with access restricted to authorised personnel.</li>
+      <li><strong>Server-side secrets</strong> — API keys for payment providers, email, and notification services are stored only on our secure backend and never exposed in client-side code.</li>
+      <li><strong>HTTPS</strong> — all data is transmitted over encrypted connections.</li>
+    </ul>
+    <p>While we take security seriously, no system is completely secure. You are responsible for keeping your account password confidential. Report any suspected unauthorised access immediately via our support feature.</p>
+  </div>
+
+  <div class="legal-section" id="p13">
+    <div class="section-num">13</div>
+    <h2 class="section-heading">Changes to This Policy</h2>
+    <p>We may update this Privacy Policy from time to time. When material changes are made, we will notify you via a platform announcement and/or email to your registered address.</p>
+    <p>Your continued use of the Platform after changes are notified constitutes your acceptance of the updated Policy.</p>
+  </div>
+
+  <div class="legal-section" id="p14">
+    <div class="section-num">14</div>
+    <h2 class="section-heading">Contact</h2>
+    <p>For any privacy-related questions, data access requests, or concerns, please reach us through:</p>
+    <ul>
+      <li><strong>In-app support:</strong> Chat → Support tab → Contact Support</li>
+      <li><strong>Email:</strong> The address associated with your DateVault account</li>
+    </ul>
+    <p>We aim to acknowledge all privacy-related inquiries within 5 business days and resolve them within 30 days.</p>
+  </div>
+
+  <div class="legal-footer">
+    <div class="auth-logo" style="font-size:1.2rem;margin-bottom:0.4rem;">DateVault</div>
+    <p>© 2026 DateVault. All rights reserved. Private Membership Dating.</p>
+    <p style="margin-top:0.5rem;"><a class="gold-text" href="terms-and-conditions.html">View Terms &amp; Conditions →</a></p>
+  </div>
+
+</div>
+</body>
+</html>
