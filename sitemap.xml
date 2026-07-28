@@ -1,15 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <!-- 1. Main Landing Page -->
   <url>
     <loc>https://elysiandate.site/</loc>
-    <priority>1.0</priority>
+    <priority>1.00</priority>
+  </url>
+
+  <!-- 2. Public Pricing Page -->
+  <url>
+    <loc>https://elysiandate.site/pricing</loc>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- 3. Authentication Pages -->
+  <url>
+    <loc>https://elysiandate.site/auth/login</loc>
+    <priority>0.60</priority>
   </url>
   <url>
-    <loc>https://elysiandate.site/terms-and-conditions.html</loc>
-    <priority>0.5</priority>
+    <loc>https://elysiandate.site/auth/signup</loc>
+    <priority>0.60</priority>
+  </url>
+
+  <!-- 4. Legal Pages -->
+  <url>
+    <loc>https://elysiandate.site/legal/privacy</loc>
+    <priority>0.30</priority>
   </url>
   <url>
-    <loc>https://elysiandate.site/privacy-policy.html</loc>
-    <priority>0.5</priority>
+    <loc>https://elysiandate.site/legal/terms</loc>
+    <priority>0.30</priority>
   </url>
 </urlset>
