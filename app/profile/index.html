@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Profile — DateVault</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
+  <link rel="stylesheet" href="css/style.css"/>
+
+<style>
+.dv-toggle{position:relative;display:inline-block;width:48px;height:26px;flex-shrink:0}
+.dv-toggle input{opacity:0;width:0;height:0}
+.dv-toggle-slider{position:absolute;cursor:pointer;inset:0;background:var(--surface2);border-radius:26px;border:1px solid var(--border);transition:.3s}
+.dv-toggle-slider::before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:var(--muted);border-radius:50%;transition:.3s}
+.dv-toggle input:checked+.dv-toggle-slider{background:rgba(201,168,76,0.2);border-color:var(--gold)}
+.dv-toggle input:checked+.dv-toggle-slider::before{transform:translateX(22px);background:var(--gold)}
+</style>
+</head>
+<body>
+  <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
+  <div class="app-shell">
+    <div class="topbar">
+      <div class="topbar-title">Profile</div>
+      <button onclick="doLogout()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Sign Out</button>
+    </div>
+    <div class="profile-page" id="profileContent"></div>
+  </div>
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Edit Profile</div>
+      <div class="stack" style="max-height:75vh;overflow-y:auto;padding-right:4px;">
+        <div><label>Display Name</label><input type="text" id="editName"/></div>
+        <div><label>Bio</label><textarea id="editBio" style="min-height:80px;"></textarea></div>
+        <div><label>Phone Number</label><input type="tel" id="editPhone" placeholder="+254 700 000 000"/><p class="muted" style="font-size:12px;">Include your country code.</p></div>
+        <div><label>Date of Birth</label><input type="date" id="editDob"/></div>
+        <div class="grid-2"><div><label>Gender</label><select id="editGender"><option value="">Select</option><option>Woman</option><option>Man</option><option>Non-binary</option><option>Other</option></select></div><div><label>Interested In</label><select id="editInterestedIn"><option value="">Select</option><option>Women</option><option>Men</option><option>Everyone</option></select></div></div>
+        <div class="grid-2"><div><label>City</label><input type="text" id="editCity"/></div><div><label>Country</label><input type="text" id="editCountry"/></div></div>
+        <div><label>Video Availability</label><input type="text" id="editVideoAvailability" placeholder="e.g. Weeknights after 7pm"/></div>
+        <!-- Interests -->
+        <div>
+          <label>Interests</label>
+          <div class="interests-selector" id="editInterestSelector" style="margin-top:0.5rem;"></div>
+        </div>
+        <!-- Zodiac -->
+        <div>
+          <label>Zodiac Sign</label>
+          <div class="zodiac-grid" id="editZodiacGrid" style="margin-top:0.5rem;"></div>
+        </div>
+        <div><label>Relationship Goal</label>
+          <select id="editGoal"><option>Long-term relationship</option><option>Casual dating</option><option>Friendship</option><option>Not sure yet</option></select>
+        </div>
+        <!-- Photo management -->
+        <div>
+          <label>Photos <span style="color:var(--muted);font-size:11px;">(tap + to add, tap photo to remove)</span></label>
+          <div class="photo-grid" id="editPhotoGrid" style="margin-top:0.5rem;"></div>
+          <input type="file" id="editPhotoInput" multiple accept="image/*" style="display:none;" onchange="handleEditPhotos(this)"/>
+        </div>
+        <div id="editError" style="display:none;color:var(--danger);font-size:13px;"></div>
+        <div id="editProgress" style="display:none;color:var(--gold);font-size:13px;text-align:center;"></div>
+        <div style="display:flex;gap:0.75rem;">
+          <button class="btn btn-outline" onclick="closeEdit()">Cancel</button>
+          <button class="btn btn-gold btn-full" id="saveBtn" onclick="saveProfile()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="nav-item" href="dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>Discover</a>
+    <a class="nav-item" id="exploreNavItem" href="explore.html"><span id="exploreNavLock" style="display:none;position:absolute;top:2px;right:10px;color:var(--gold);font-size:12px;line-height:1;">◇</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Explore</a>
+    <a class="nav-item" href="likes.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>Likes</a>
+    <a class="nav-item" href="chat.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat</a>
+    <a class="nav-item active" href="profile.html"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</a>
+  </nav>
+  <div id="toast" class="toast"></div>
+
+  <script type="module">
+    import { requireMember, logout, db, hasActiveMembership } from "./js/auth.js";
+    import { getSubscription, planLabel, isVault } from "./js/subscription.js";
+    import { uploadToCloudinary } from "./js/verification.js";
+    import { doc, updateDoc, getDocs, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { setMemberPrivacyPref } from "./js/location.js";
+
+    const INTERESTS = ['Travel','Photography','Cooking','Music','Art','Fitness','Reading','Movies','Hiking','Fashion','Technology','Sports','Dancing','Yoga','Gaming','Wine','Food','Meditation','Pets','Nature'];
+    const ZODIAC = [
+      {sign:'♈',name:'Aries'},{sign:'♉',name:'Taurus'},{sign:'♊',name:'Gemini'},{sign:'♋',name:'Cancer'},
+      {sign:'♌',name:'Leo'},{sign:'♍',name:'Virgo'},{sign:'♎',name:'Libra'},{sign:'♏',name:'Scorpio'},
+      {sign:'♐',name:'Sagittarius'},{sign:'♑',name:'Capricorn'},{sign:'♒',name:'Aquarius'},{sign:'♓',name:'Pisces'}
+    ];
+
+    let myUser, myProfile;
+    let editSelectedInterests = [];
+    let editSelectedZodiac = '';
+    let editPhotoFiles = [];
+    let editExistingPhotos = [];
+
+    async function init() {
+      const { user, profile } = await requireMember();
+      myUser = user; myProfile = profile;
+      renderProfile();
+      updateExploreNavLock();
+      document.getElementById('loader').classList.add('hidden');
+      if (new URLSearchParams(location.search).get('edit') === '1') setTimeout(() => openEdit(), 0);
+    }
+
+
+    function isStandardPlan() {
+      return (myProfile?.stage === 'paid' || myProfile?.hasPaid || myProfile?.paid) && (myProfile?.plan || myProfile?.subscription?.plan) === 'standard';
+    }
+    function updateExploreNavLock() {
+      const nav = document.getElementById('exploreNavItem');
+      const lock = document.getElementById('exploreNavLock');
+      if (!nav || !lock || !isStandardPlan()) return;
+      lock.style.display = 'block';
+      nav.onclick = (event) => {
+        event.preventDefault();
+        showToast('Explore requires Elite or Vault. Upgrade to unlock.');
+      };
+    }
+
+    const REQUIRED_FIELDS = ['displayName','bio','dob','gender','interestedIn','relationshipGoal','city','country','zodiac','videoAvailability'];
+    function profileCompletion(p = myProfile) {
+      const total = REQUIRED_FIELDS.length + 2;
+      let done = REQUIRED_FIELDS.filter(k => Array.isArray(p[k]) ? p[k].length : String(p[k] || '').trim()).length;
+      if ((p.interests || []).length) done++;
+      if ((p.photos || []).length) done++;
+      return { done, total, percent: Math.round((done / total) * 100) };
+    }
+    function isProfileComplete(p = myProfile) {
+      const c = profileCompletion(p);
+      return c.done === c.total;
+    }
+
+    function renderSubscriptionCard(p) {
+      const sub = getSubscription(p);
+      const expired = sub.status === 'expired';
+      if (!hasActiveMembership(p)) {
+        return `<div class="glass-card subscription-panel"><div><div style="font-size:12px;color:var(--muted);">Membership</div><div style="font-weight:700;color:var(--gold);">Locked until approval and payment</div><div style="font-size:12px;color:var(--muted);">Complete your profile and verification before payment.</div></div><button class="btn btn-gold btn-sm" onclick="location.href='${p.profileComplete ? 'verification.html' : 'profile.html?edit=1'}'">${p.profileComplete ? 'Start Verification' : 'Complete Profile'}</button></div>`;
+      }
+      return `<div class="glass-card subscription-panel"><div><div style="font-size:12px;color:var(--muted);">Current Plan</div><div style="font-weight:700;color:var(--gold);">${planLabel(sub.plan)} ${isVault(p) ? '<span class="vault-badge">VAULT</span>' : ''}</div><div style="font-size:12px;color:var(--muted);">${expired ? 'Expired — renew to restore benefits' : (sub.nextBillingDate ? 'Next billing: '+sub.nextBillingDate : 'Standard benefits active')}</div></div><button class="btn btn-gold btn-sm" onclick="location.href='pricing.html'">${expired ? 'Renew' : 'Upgrade'}</button></div>`;
+    }
+
+    function renderPrivacyControls(p) {
+      const sub = getSubscription(p);
+      if (sub.plan === 'none') return '';
+      const canEdit = ['elite','vault'].includes(sub.plan) || ['elite','vault'].includes(p.stage);
+      const prefs = p._privacyPrefs || {};
+      const helper = canEdit
+        ? 'Elite and Vault members can hide age, location and distance from other members unless admin overrides apply.'
+        : 'Standard members must keep age, location and distance visible. Upgrade to Elite or Vault to hide them.';
+      return `<div class="glass-card" style="margin-bottom:0.75rem;">
+        <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">PRIVACY SETTINGS</div>
+        <p class="muted" style="font-size:13px;margin-bottom:0.75rem;">${helper}</p>
+        ${['location','distance','age'].map(field => {
+          const checked = canEdit ? prefs[field] !== false : true;
+          const action = canEdit ? `updatePrivacyPref('${field}', this.checked)` : `lockedPrivacyClick(event, '${field}')`;
+          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:0.75rem 0;border-top:1px solid var(--border);"><span style="text-transform:capitalize;">${field}${!canEdit ? ' <span style="color:var(--gold);font-size:11px;">Locked</span>' : ''}</span><label class="dv-toggle" title="${canEdit ? 'Update privacy' : 'Upgrade to unlock'}"><input type="checkbox" ${checked ? 'checked' : ''} onchange="${action}"><span class="dv-toggle-slider"></span></label></div>`;
+        }).join('')}
+      </div>`;
+    }
+
+    function renderProfile() {
+      const p = myProfile;
+      const photo = p.photos?.[0] || '';
+      const age = p.dob ? Math.floor((Date.now()-new Date(p.dob))/31557600000) : '';
+      const zodiacSigns = {'Aries':'♈','Taurus':'♉','Gemini':'♊','Cancer':'♋','Leo':'♌','Virgo':'♍','Libra':'♎','Scorpio':'♏','Sagittarius':'♐','Capricorn':'♑','Aquarius':'♒','Pisces':'♓'};
+      const content = document.getElementById('profileContent');
+      const completion = profileCompletion(p);
+      content.innerHTML = `
+        <div class="glass-card" style="margin-bottom:0.75rem;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;"><strong>Profile ${completion.percent}% complete</strong><span class="muted">${completion.done}/${completion.total}</span></div>
+          <div style="height:8px;background:var(--surface2);border-radius:999px;overflow:hidden;"><div style="height:100%;width:${completion.percent}%;background:var(--gold);border-radius:999px;"></div></div>
+          ${!p.profileComplete ? '<p class="muted" style="font-size:13px;margin-top:0.75rem;">Complete all required fields and upload at least one photo to start verification.</p><button class="btn btn-gold btn-sm" style="margin-top:0.75rem;" onclick="openEdit()">Complete Profile</button>' : '<p style="font-size:13px;color:var(--success);margin-top:0.75rem;">Profile complete. Start identity verification before any payment is requested.</p>'}
+          ${p.profileComplete && !p.verificationSubmitted ? '<button class="btn btn-gold btn-sm" style="margin-top:0.75rem;" onclick="location.href=\'verification.html\'">Start Verification</button>' : ''}
+        </div>
+        <div class="profile-header">
+          ${photo?`<img src="${photo}" alt="Profile"/>`:`<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:3rem;">👤</div>`}
+          <button class="profile-edit-btn" onclick="openEdit()">Edit Profile</button>
+          <div class="overlay">
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:4px;">
+              <span class="status-badge status-gold" style="font-size:11px;">Verified Member</span>
+              ${isVault(p)?'<span class="vault-badge">VAULT</span>':''}
+              ${p.zodiac?`<span style="font-size:16px;">${zodiacSigns[p.zodiac]||''}</span>`:''}
+            </div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:1.75rem;">${p.displayName||p.name||'Member'}${age?', '+age:''}</div>
+            <div style="color:rgba(255,255,255,0.75);font-size:13px;">${p.city||''}${p.city&&p.country?', ':''}${p.country||''}</div>
+          </div>
+        </div>
+
+        ${renderSubscriptionCard(p)}
+
+        ${renderPrivacyControls(p)}
+
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-val" id="likesCount">—</div><div class="stat-label">Likes Given</div></div>
+          <div class="stat-card"><div class="stat-val" id="matchCount">—</div><div class="stat-label">Matches</div></div>
+          <div class="stat-card"><div class="stat-val" style="font-size:1rem;">${p.memberId||''}</div><div class="stat-label">Member ID</div></div>
+        </div>
+
+        ${p.photos&&p.photos.length>1?`
+          <div class="photo-strip" style="margin-bottom:1rem;">
+            ${p.photos.map((url,i)=>`<img class="photo-thumb" src="${url}" alt="Photo ${i+1}"/>`).join('')}
+          </div>`:''
+        }
+
+        <div class="glass-card" style="margin-bottom:0.75rem;">
+          <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.5rem;">ABOUT</div>
+          <p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.8);">${p.bio||'No bio added yet.'}</p>
+        </div>
+
+        ${p.interests&&p.interests.length?`
+          <div class="glass-card" style="margin-bottom:0.75rem;">
+            <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">INTERESTS</div>
+            <div class="interests-wrap">${p.interests.map(i=>`<span class="interest-tag">${i}</span>`).join('')}</div>
+          </div>`:''
+        }
+
+        <div class="glass-card">
+          <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">DETAILS</div>
+          <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:14px;">
+            ${p.gender?`<div class="row"><span class="muted" style="width:130px;">Gender</span><span>${p.gender}</span></div>`:''}
+            ${p.interestedIn?`<div class="row"><span class="muted" style="width:130px;">Interested in</span><span>${p.interestedIn}</span></div>`:''}
+            ${p.relationshipGoal?`<div class="row"><span class="muted" style="width:130px;">Looking for</span><span>${p.relationshipGoal}</span></div>`:''}
+            ${p.videoAvailability?`<div class="row"><span class="muted" style="width:130px;">Video availability</span><span>${p.videoAvailability}</span></div>`:''}
+            ${p.zodiac?`<div class="row"><span class="muted" style="width:130px;">Zodiac</span><span>${zodiacSigns[p.zodiac]||''} ${p.zodiac}</span></div>`:''}
+          </div>
+        </div>`;
+      loadCounts();
+    }
+
+    async function loadCounts() {
+      const ms = await getDocs(collection(db,'users',myUser.uid,'matches'));
+      document.getElementById('matchCount').textContent = ms.size;
+      const sw = await getDocs(collection(db,'users',myUser.uid,'swipes'));
+      document.getElementById('likesCount').textContent = sw.docs.filter(d=>d.data().direction==='like').length;
+    }
+
+    window.openEdit = function() {
+      const p = myProfile;
+      document.getElementById('editName').value = p.displayName||p.name||'';
+      document.getElementById('editBio').value  = p.bio||'';
+      document.getElementById('editPhone').value = p.phone||'';
+      document.getElementById('editDob').value = p.dob||'';
+      document.getElementById('editGender').value = p.gender||'';
+      document.getElementById('editInterestedIn').value = p.interestedIn||'';
+      document.getElementById('editGoal').value = p.relationshipGoal||'';
+      document.getElementById('editCity').value = p.city||'';
+      document.getElementById('editCountry').value = p.country||'';
+      document.getElementById('editVideoAvailability').value = p.videoAvailability||'';
+      editSelectedInterests = [...(p.interests||[])];
+      editSelectedZodiac = p.zodiac||'';
+      editPhotoFiles = [];
+      editExistingPhotos = [...(p.photos||[])];
+
+      // Build interest selector
+      const iSel = document.getElementById('editInterestSelector');
+      iSel.innerHTML = '';
+      INTERESTS.forEach(i => {
+        const btn = document.createElement('button');
+        btn.className = 'interest-option' + (editSelectedInterests.includes(i)?' selected':'');
+        btn.textContent = i; btn.type='button';
+        btn.onclick = () => {
+          if (editSelectedInterests.includes(i)) { editSelectedInterests=editSelectedInterests.filter(x=>x!==i); btn.classList.remove('selected'); }
+          else { editSelectedInterests.push(i); btn.classList.add('selected'); }
+        };
+        iSel.appendChild(btn);
+      });
+
+      // Build zodiac grid
+      const zGrid = document.getElementById('editZodiacGrid');
+      zGrid.innerHTML = '';
+      ZODIAC.forEach(z => {
+        const btn = document.createElement('button');
+        btn.className = 'zodiac-btn'+(editSelectedZodiac===z.name?' selected':'');
+        btn.type='button';
+        btn.innerHTML=`<span class="sign">${z.sign}</span>${z.name}`;
+        btn.onclick=()=>{
+          document.querySelectorAll('#editZodiacGrid .zodiac-btn').forEach(b=>b.classList.remove('selected'));
+          btn.classList.add('selected'); editSelectedZodiac=z.name;
+        };
+        zGrid.appendChild(btn);
+      });
+
+      buildEditPhotoGrid();
+      document.getElementById('editModal').classList.add('open');
+    };
+
+    function buildEditPhotoGrid() {
+      const grid = document.getElementById('editPhotoGrid');
+      grid.innerHTML = '';
+      const allSlots = [...editExistingPhotos.map(url=>({type:'existing',url})), ...editPhotoFiles.map(f=>({type:'new',file:f}))];
+      for (let i = 0; i < 6; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'photo-cell';
+        if (allSlots[i]) {
+          const src = allSlots[i].type==='existing' ? allSlots[i].url : URL.createObjectURL(allSlots[i].file);
+          cell.innerHTML=`<img src="${src}"/><button class="remove-photo" onclick="removeEditPhoto(${i},event)">✕</button>`;
+        } else if (i === allSlots.length) {
+          cell.innerHTML=`<span class="add-icon">+</span>`;
+          cell.onclick=()=>document.getElementById('editPhotoInput').click();
+        } else { cell.style.opacity='0.3'; }
+        grid.appendChild(cell);
+      }
+    }
+
+    window.handleEditPhotos = function(input) {
+      editPhotoFiles = [...editPhotoFiles, ...Array.from(input.files)].slice(0, 6 - editExistingPhotos.length);
+      buildEditPhotoGrid(); input.value='';
+    };
+
+    window.removeEditPhoto = function(idx, e) {
+      e.stopPropagation();
+      const existing = editExistingPhotos.length;
+      if (idx < existing) editExistingPhotos.splice(idx,1);
+      else editPhotoFiles.splice(idx-existing,1);
+      buildEditPhotoGrid();
+    };
+
+    window.closeEdit = function() { document.getElementById('editModal').classList.remove('open'); };
+
+    window.saveProfile = async function() {
+      const btn = document.getElementById('saveBtn');
+      const prog = document.getElementById('editProgress');
+      const err = document.getElementById('editError');
+      err.style.display='none';
+      btn.disabled=true; prog.style.display='block'; prog.textContent='Saving...';
+      try {
+        // Upload new photos
+        const newURLs = [];
+        for (let i=0;i<editPhotoFiles.length;i++) {
+          prog.textContent=`Uploading photo ${i+1} of ${editPhotoFiles.length}...`;
+          const url = await uploadToCloudinary(editPhotoFiles[i],'datevault/profiles');
+          newURLs.push(url);
+        }
+        const photos = [...editExistingPhotos, ...newURLs].slice(0,6);
+        const updates = {
+          displayName: document.getElementById('editName').value.trim(),
+          bio:         document.getElementById('editBio').value.trim(),
+          phone:       document.getElementById('editPhone').value.trim().replace(/\s/g,''),
+          dob:         document.getElementById('editDob').value,
+          gender:      document.getElementById('editGender').value,
+          interestedIn: document.getElementById('editInterestedIn').value,
+          interests:   editSelectedInterests,
+          zodiac:      editSelectedZodiac,
+          relationshipGoal: document.getElementById('editGoal').value,
+          city:        document.getElementById('editCity').value.trim(),
+          country:     document.getElementById('editCountry').value.trim(),
+          videoAvailability: document.getElementById('editVideoAvailability').value.trim(),
+          photos,
+          photosUploaded: photos.length > 0
+        };
+        const completed = isProfileComplete({ ...myProfile, ...updates });
+        const firstCompletion = completed && !myProfile.profileComplete;
+        if (firstCompletion) {
+          Object.assign(updates, {
+            profileComplete: true,
+            stage: 'profileComplete',
+            profileCompletedAt: serverTimestamp(),
+            reminderCount: 0,
+            lastReminderSent: null,
+            reminderType: null
+          });
+        }
+        await updateDoc(doc(db,'users',myUser.uid), updates);
+        Object.assign(myProfile, updates, completed ? { profileComplete: true, stage: myProfile.stage === 'signedUp' ? 'profileComplete' : myProfile.stage } : {});
+        closeEdit(); renderProfile();
+        if (firstCompletion) {
+          showToast('Profile complete. Next: verify your identity.');
+          setTimeout(() => { location.href = 'verification.html'; }, 1500);
+        } else {
+          showToast('Profile updated');
+        }
+      } catch(e) { err.textContent=e.message; err.style.display='block'; }
+      btn.disabled=false; prog.style.display='none';
+      editPhotoFiles=[];
+    };
+
+    window.doLogout = ()=>logout();
+
+    function showToast(msg) {
+      const t=document.getElementById('toast');
+      t.textContent=msg; t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'),2200);
+    }
+
+    window.lockedPrivacyClick = function(event, field) {
+      event.preventDefault();
+      event.target.checked = true;
+      showToast(`${field} must stay visible on Standard. Upgrade to Elite or Vault to hide it.`);
+    };
+
+    window.updatePrivacyPref = async function(field, value) {
+      try {
+        await setMemberPrivacyPref(myUser.uid, field, value);
+        myProfile._privacyPrefs = { ...(myProfile._privacyPrefs || {}), [field]: value };
+        showToast(`${field} ${value ? 'now visible' : 'now hidden'}`);
+      } catch(e) { showToast('Could not save preference'); }
+    };
+
+    init().catch(console.error);
+  </script>
+
+</body>
+</html>
