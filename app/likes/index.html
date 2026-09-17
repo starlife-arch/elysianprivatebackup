@@ -41,7 +41,7 @@
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
       Likes
     </a>
-    <a class="nav-item" href="/app/wallet/"><span style="font-size:20px;line-height:22px;">💰</span>Wallet</a>
+    <a class="nav-item" href="/app/wallet/"><span style="font-size:20px;line-height:22px;"></span>Wallet</a>
     <a class="nav-item" href="/app/chat/">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
       Chat
@@ -150,7 +150,7 @@
       const tile = document.createElement('div');
       tile.className = 'profile-tile';
       tile.innerHTML = `
-        ${photo ? `<img src="${photo}" alt="${profile.displayName}" loading="lazy"/>` : `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:2rem;">👤</div>`}
+        ${photo ? `<img src="${photo}" alt="${profile.displayName}" loading="lazy"/>` : `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:2rem;"></div>`}
         ${isMatch ? '<div class="match-badge">MATCH</div>' : ''}
         <div class="tile-info">
           <div class="tile-name">${profile.displayName || profile.name || 'Member'}${ageDisplay} ${vaultBadge(profile)}</div>

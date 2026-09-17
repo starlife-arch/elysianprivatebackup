@@ -30,19 +30,19 @@
       <p id="paymentMethodsLabel" style="font-size:13px;color:var(--muted);margin-bottom:0.75rem;">Select payment method:</p>
 
       <button class="payment-option" id="pesapalOpt" onclick="selectMethod('pesapal')">
-        <div class="payment-icon">📱</div>
+        <div class="payment-icon"></div>
         <div><div style="font-weight:600;font-size:14px;">M-Pesa / Mobile Money</div>
         <div style="font-size:12px;color:var(--muted);">Kenya, Uganda, Tanzania via Pesapal</div></div>
       </button>
 
       <button class="payment-option" id="printpayOpt" onclick="selectMethod('printpay')">
-        <div class="payment-icon">📱</div>
-        <div><div style="font-weight:600;font-size:14px;">📱 M-Pesa (PrintPay)</div>
+        <div class="payment-icon"></div>
+        <div><div style="font-weight:600;font-size:14px;"> M-Pesa (PrintPay)</div>
         <div style="font-size:12px;color:var(--muted);">Kenya — instant STK push</div></div>
       </button>
 
       <button class="payment-option" id="paystackOpt" onclick="selectMethod('paystack')">
-        <div class="payment-icon">💳</div>
+        <div class="payment-icon"></div>
         <div><div style="font-weight:600;font-size:14px;">Card / Bank Transfer</div>
         <div style="font-size:12px;color:var(--muted);">Visa, Mastercard, Bank via Paystack</div></div>
       </button>
@@ -179,7 +179,7 @@
           method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ phone: phone.replace(/\s/g,''), uid: currentUser.uid, email: userEmail, name: userName, amountKes: amountKES, amountUSD, purpose, plan, billing, inviteToken })
         });
-        const data = await res.json();
+        const contentType = res.headers.get('content-type') || ''; if (!contentType.includes('application/json')) throw new Error('Payment service returned an unexpected response.'); const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Could not initiate payment.');
         if (data.redirectUrl) {
           localStorage.setItem('pesapalOrderTrackingId', data.orderTrackingId || '');
@@ -194,17 +194,18 @@
     };
 
     window.payPrintPay = async function() {
-      const phone_number = document.getElementById('printpayPhone').value.trim().replace(/\s/g, '');
+      let phone_number = document.getElementById('printpayPhone').value.trim().replace(/[^0-9]/g, '');
+      if (/^0[17]\d{8}$/.test(phone_number)) phone_number = '254' + phone_number.slice(1);
       if (!/^(?:0\d{9}|254\d{9})$/.test(phone_number)) { showErr('Enter a Kenyan M-Pesa number in 07XXXXXXXX or 254XXXXXXXX format.'); return; }
       const btn = document.getElementById('printpayPayBtn'); btn.disabled = true; btn.textContent = 'Sending STK push...'; showErr('');
       try {
-        const res = await fetch('/.netlify/functions/printpay', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone_number, amount: amountKES, uid: currentUser.uid, purpose, plan, billing, tokens: tokenCount, amountUSD }) });
-        const data = await res.json(); if (!res.ok || !data.checkout_id) throw new Error(data.error || 'Could not start M-Pesa payment.');
+        const res = await fetch('/api/printpay', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone_number, amount: amountKES, uid: currentUser.uid, purpose, plan, billing, tokens: tokenCount, amountUSD }) });
+        const contentType = res.headers.get('content-type') || ''; if (!contentType.includes('application/json')) throw new Error('Payment service returned an unexpected response.'); const data = await res.json(); if (!res.ok || !data.checkout_id) throw new Error(data.error || 'Could not start M-Pesa payment.');
         showSuccess('Check your phone and enter your M-Pesa PIN.'); pollPrintPay(data.checkout_id);
       } catch (e) { showErr(e.message); btn.disabled = false; btn.textContent = 'Pay with M-Pesa'; }
     };
     function pollPrintPay(checkoutId) {
-      let attempts = 0; const poll = setInterval(async () => { attempts++; try { const res = await fetch('/.netlify/functions/printpay?checkout_id=' + encodeURIComponent(checkoutId)); const data = await res.json(); if (data.completed || data.status === 'SUCCESS') { clearInterval(poll); window.location.href = returnUrl(); return; } if (data.failed || data.status === 'FAILED') { clearInterval(poll); showErr('M-Pesa payment failed. Please try again.'); return; } } catch (e) {} if (attempts >= 30) { clearInterval(poll); showErr('Payment is still pending. Please check your M-Pesa prompts.'); } }, 4000);
+      let attempts = 0; const poll = setInterval(async () => { attempts++; try { const res = await fetch('/api/printpay?checkout_id=' + encodeURIComponent(checkoutId)); const contentType = res.headers.get('content-type') || ''; if (!contentType.includes('application/json')) throw new Error('Payment service returned an unexpected response.'); const data = await res.json(); if (data.completed || data.status === 'SUCCESS') { clearInterval(poll); window.location.href = returnUrl(); return; } if (data.failed || data.status === 'FAILED') { clearInterval(poll); showErr('M-Pesa payment failed. Please try again.'); return; } } catch (e) {} if (attempts >= 30) { clearInterval(poll); showErr('Payment is still pending. Please check your M-Pesa prompts.'); } }, 4000);
     }
 
     window.payPaystack = function() {
@@ -216,7 +217,7 @@
         callback: async function(response) {
           try {
             const res = await fetch('/api/verify-paystack', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ reference: response.reference, uid: currentUser.uid, inviteToken }) });
-            const data = await res.json();
+            const contentType = res.headers.get('content-type') || ''; if (!contentType.includes('application/json')) throw new Error('Payment service returned an unexpected response.'); const data = await res.json();
             if (data.success) await activatePayment('paystack', response.reference);
             else showErr('Payment verification failed. Contact support with ref: ' + response.reference);
           } catch(e) { await activatePayment('paystack', response.reference); }
@@ -272,7 +273,7 @@
         n++;
         try {
           const res = await fetch('/api/pesapal?action=status', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ orderTrackingId, merchantReference }) });
-          const data = await res.json();
+          const contentType = res.headers.get('content-type') || ''; if (!contentType.includes('application/json')) throw new Error('Payment service returned an unexpected response.'); const data = await res.json();
           if (res.ok && data.completed) { clearInterval(iv); localStorage.removeItem('pesapalOrderTrackingId'); localStorage.removeItem('pesapalMerchantReference'); localStorage.removeItem('pesapalInviteToken'); window.location.href = returnUrl(); return; }
         } catch(e) {}
         if (n >= 24) { clearInterval(iv); showErr('Payment is still pending. If you paid, contact support with your Pesapal reference.'); }

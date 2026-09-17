@@ -37,7 +37,7 @@ export async function debitTokens(uid, amount, note = '', type = 'debit') {
   });
 }
 
-export async function giftTokens(fromUID, toUID, amount) {
+export async function giftTokens(fromUID, toUID, amount, note = '') {
   amount = amountOf(amount);
   if (fromUID === toUID) throw new Error('You cannot send a gift to yourself.');
   if (!Number.isInteger(amount) || amount < MIN_GIFT) throw new Error(`Gifts must be at least ${MIN_GIFT} tokens.`);
@@ -46,14 +46,15 @@ export async function giftTokens(fromUID, toUID, amount) {
     const fromRef = doc(db, 'users', fromUID), toRef = doc(db, 'users', toUID);
     const [from, to] = await Promise.all([transaction.get(fromRef), transaction.get(toRef)]);
     if (!from.exists() || !to.exists()) throw new Error('Member not found.');
+    if (from.data().walletFrozen || to.data().walletFrozen) throw new Error('This wallet is currently on hold.');
     if (Number(from.data().walletBalance || 0) < amount) throw new Error('Not enough tokens — buy tokens in your wallet.');
     sender = from.data();
     transaction.update(fromRef, { walletBalance: Number(from.data().walletBalance || 0) - amount });
     transaction.set(toRef, { walletBalance: increment(amount) }, { merge: true });
-    transaction.set(doc(collection(db, 'users', fromUID, 'walletTransactions')), { type: 'gift_sent', amount, toUID, note: 'Gift sent', createdAt: serverTimestamp(), status: 'completed' });
-    transaction.set(doc(collection(db, 'users', toUID, 'walletTransactions')), { type: 'gift_received', amount, fromUID, note: 'Gift received', createdAt: serverTimestamp(), status: 'completed' });
+    transaction.set(doc(collection(db, 'users', fromUID, 'walletTransactions')), { type: 'gift_sent', amount, toUID, note: note || 'Gift sent', createdAt: serverTimestamp(), status: 'completed' });
+    transaction.set(doc(collection(db, 'users', toUID, 'walletTransactions')), { type: 'gift_received', amount, fromUID, note: note || 'Gift received', createdAt: serverTimestamp(), status: 'completed' });
   });
-  await addDoc(collection(db, 'admin_messages'), { toUID, message: `🎁 ${sender.displayName || sender.name || 'A member'} sent you ${amount} tokens!`, sentAt: serverTimestamp(), read: false, walletEvent: true });
+  await addDoc(collection(db, 'admin_messages'), { toUID, message: `${sender.displayName || sender.name || 'A member'} sent you ${amount} tokens`, sentAt: serverTimestamp(), read: false, walletEvent: true });
   return getWalletBalance(fromUID);
 }
 
@@ -64,7 +65,8 @@ export async function requestWithdrawal(uid, method, details) {
   await runTransaction(db, async transaction => {
     const userRef = doc(db, 'users', uid);
     const user = await transaction.get(userRef);
-    if (!user.exists() || Number(user.data().walletBalance || 0) < WITHDRAWAL_TOKENS) throw new Error('You need at least 3,000 tokens to withdraw.');
+    if (!user.exists() || user.data().walletFrozen) throw new Error('Your wallet is on hold — contact support.');
+    if (Number(user.data().walletBalance || 0) < WITHDRAWAL_TOKENS) throw new Error('You need at least 3,000 tokens to withdraw.');
     transaction.update(userRef, { walletBalance: Number(user.data().walletBalance || 0) - WITHDRAWAL_TOKENS });
     transaction.set(withdrawalRef, { uid, tokens: WITHDRAWAL_TOKENS, payout: WITHDRAWAL_PAYOUT, method, details: String(details).trim(), status: 'pending', createdAt: serverTimestamp(), processedAt: null, processedBy: null });
     transaction.set(doc(collection(db, 'users', uid, 'walletTransactions')), { type: 'withdrawal_request', amount: WITHDRAWAL_TOKENS, note: `$${WITHDRAWAL_PAYOUT} withdrawal requested via ${method}`, createdAt: serverTimestamp(), status: 'pending' });
