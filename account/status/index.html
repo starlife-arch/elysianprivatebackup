@@ -30,7 +30,7 @@
 
       document.getElementById('statusCard').innerHTML = `
         <div class="auth-logo">DateVault</div>
-        <div style="font-size:3rem;margin:1rem 0;">✕</div>
+        <div style="font-size:3rem;margin:1rem 0;"></div>
         <h2 style="color:var(--danger);">Application Not Approved</h2>
         <p class="auth-tagline">Your application was not approved at this time.</p>
         ${data.rejectionReason ? `<div style="margin:1.25rem 0;padding:1rem;background:rgba(224,92,110,0.1);border:1px solid rgba(224,92,110,0.25);border-radius:12px;color:var(--text);font-size:14px;line-height:1.6;">${data.rejectionReason}</div>` : ''}
