@@ -29,16 +29,29 @@ async function start(event) {
   return json(200, { checkout_id });
 }
 
+async function notifyTokenPurchase(payment, user) {
+  if (payment.purpose !== 'tokens') return;
+  const base = process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://elysiandate.site';
+  const payload = { uid: payment.uid, name: user.displayName || user.name || 'Member', email: user.email || '', amountUSD: payment.amountUSD, tokens: payment.tokens, method: 'M-Pesa Africa' };
+  await Promise.all([
+    fetch(`${base}/api/telegram-notify`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'token_purchase', ...payload, message:`Token purchase\n${payload.name}\n${Number(payment.tokens).toLocaleString()} tokens · $${Number(payment.amountUSD).toFixed(2)} · M-Pesa Africa`}) }),
+    payload.email ? fetch(`${base}/api/send-member-notification-email`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'token_purchase', ...payload}) }) : Promise.resolve()
+  ]).catch(error => console.error('Token purchase notification failed', error));
+}
+
 async function complete(checkoutId, statusData) {
+  let completedPayment, completedUser;
   const paymentRef = db().collection('payments').doc(`printpay_${checkoutId}`);
   await db().runTransaction(async tx => {
     const paymentDoc = await tx.get(paymentRef);
     if (!paymentDoc.exists) throw new Error('Payment was not found.');
     const payment = paymentDoc.data();
     if (payment.status === 'completed') return;
+    completedPayment = payment;
     const userRef = db().collection('users').doc(payment.uid);
     const user = await tx.get(userRef);
     if (!user.exists) throw new Error('Member not found.');
+    completedUser = user.data();
     const now = getAdmin().firestore.FieldValue.serverTimestamp();
     tx.update(paymentRef, { status: 'completed', printpayStatus: statusData, completedAt: now });
     if (payment.purpose === 'tokens') {
@@ -52,6 +65,7 @@ async function complete(checkoutId, statusData) {
       tx.update(userRef, { paid: true, hasPaid: true, plan: 'standard', stage: 'paid', inviteTokenUsed: true, inviteUsed: true, paymentMethod: 'printpay', status: 'active_member', activatedAt: now, reminderCount: 0, lastReminderSent: null, reminderType: null, subscription: { plan: 'standard', billing: 'included', status: 'active', startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 }, vaultBadge: false });
     }
   });
+  if (completedPayment && completedUser) await notifyTokenPurchase(completedPayment, completedUser);
 }
 
 async function status(event) {

@@ -26,6 +26,7 @@ exports.handler = async function(event) {
     reapply_allowed: `↻ Reapply Allowed\n ${userLine}`,
     user_banned: ` User Banned\n ${userLine}`,
     user_unbanned: ` User Unbanned\n ${userLine}`,
+    token_purchase: `Token Purchase\n ${userLine}\nTokens: ${amountUSD || 'unknown'} USD`,
     payment_received: ` Payment Received\n ${userLine}\nMethod: ${method || "unknown"}`,
     access_granted: ` Admin Access Granted\n ${userLine}\nDuration: ${days || "lifetime"}`,
     plan_assigned: ` Admin Plan Assigned\n ${userLine}\nPlan: ${plan || "unknown"}${billing ? ` ${billing}` : ""}`,
