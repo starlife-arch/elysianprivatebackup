@@ -29,7 +29,7 @@
           <label>Password</label>
           <div style="position:relative;">
             <input type="password" id="password" placeholder="Your password" style="padding-right:3rem;"/>
-            <button type="button" aria-label="Show password" onclick="togglePassword('password', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gold);cursor:pointer;font-size:16px;">👁</button>
+            <button type="button" aria-label="Show password" onclick="togglePassword('password', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gold);cursor:pointer;font-size:16px;"></button>
           </div>
         </div>
         <button type="button" onclick="doForgotPassword()" style="align-self:flex-end;background:none;border:none;color:var(--gold);font-size:13px;cursor:pointer;padding:0;">Forgot password?</button>
@@ -53,7 +53,7 @@
       const input = document.getElementById(inputId);
       const showing = input.type === 'text';
       input.type = showing ? 'password' : 'text';
-      btn.textContent = showing ? '👁' : '🙈';
+      btn.textContent = showing ? '' : '';
       btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
     };
 

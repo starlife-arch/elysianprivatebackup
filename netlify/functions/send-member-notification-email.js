@@ -61,6 +61,12 @@ function copyFor(type, data, appUrl) {
       body: "Your profile and identity verification are now with the DateVault review team. We will notify you after review before asking for the entry payment.",
       cta: "Check Status", url: `${appUrl}/status.html`
     },
+    token_purchase: {
+      subject: "Your DateVault tokens are ready",
+      title: "Your token purchase was successful.",
+      body: `${Number(data.tokens || 0).toLocaleString()} tokens were added to your DateVault wallet. Your new tokens are ready to use for gifts and other wallet features.`,
+      cta: "Open Token Wallet", url: `${appUrl}/app/wallet/`
+    },
     payment_received: {
       subject: "DateVault payment received",
       title: "Your payment was received.",
@@ -85,7 +91,7 @@ exports.handler = async function(event) {
   if (!data.email) return json(400, { error: "Missing email" });
 
   const BREVO_API_KEY = process.env.BREVO_API_KEY;
-  const paymentTypes = new Set(["subscription_expired", "subscription_renewed", "payment_received", "priority_support_requested"]);
+  const paymentTypes = new Set(["subscription_expired", "subscription_renewed", "payment_received", "token_purchase", "priority_support_requested"]);
   const adminTypes = new Set(["access_granted", "access_revoked", "plan_assigned", "user_banned", "user_unbanned", "reapply_allowed"]);
   const FROM_EMAIL = paymentTypes.has(data.type)
     ? (process.env.EMAIL_PAYMENT || process.env.FROM_EMAIL || "noreply@datevault.com")
