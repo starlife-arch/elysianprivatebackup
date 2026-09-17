@@ -37,7 +37,7 @@ service cloud.firestore {
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin() || isActiveMember();
       allow create: if isOwner(uid);
-      allow update: if isOwner(uid) || isAdmin();
+      allow update: if isAdmin() || (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'walletFrozen', 'walletFrozenReason', 'walletFrozenAt', 'role', 'status', 'subscription']));
       allow delete: if isAdmin();
 
       match /swipes/{swipedUID} {
@@ -57,7 +57,7 @@ service cloud.firestore {
       }
       match /walletTransactions/{transactionId} {
         allow read: if isOwner(uid) || isAdmin();
-        allow create: if isOwner(uid) || isAdmin() || isActiveMember();
+        allow create: if isAdmin() || (isActiveMember() && !get(/databases/$(database)/documents/users/$(uid)).data.walletFrozen);
         allow update, delete: if isAdmin();
       }
     }
@@ -140,6 +140,12 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+
+    match /admin_audit/{auditId} {
+      allow read: if isAdmin();
+      allow create: if isAdmin();
+      allow update, delete: if false;
+    }
 
     match /otp_verifications/{otpId} {
       allow read, write: if false;

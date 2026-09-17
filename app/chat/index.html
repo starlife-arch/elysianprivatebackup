@@ -100,7 +100,7 @@
     </div>
     <div class="chat-messages" id="messages"></div>
     <div class="chat-input-bar">
-      <button class="attach-btn" id="giftBtn" onclick="openGift()" title="Send token gift" style="background:none;border:none;color:var(--gold);cursor:pointer;flex-shrink:0;font-size:20px;">🎁</button>
+      <button class="attach-btn" id="giftBtn" title="Send token gift" aria-label="Send token gift" style="background:none;border:none;color:var(--gold);cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:44px;height:44px;"><i data-icon="gift" data-size="22"></i></button>
       <button class="attach-btn" onclick="document.getElementById('imgInput').click()" style="background:none;border:none;color:var(--muted);cursor:pointer;flex-shrink:0;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
       </button>
@@ -128,7 +128,7 @@
   <div id="supportTicketView" class="chat-window support-chat-window" style="display:none;">
     <div class="support-chat-header">
       <button onclick="backToList()" class="support-icon-btn" aria-label="Back">‹</button>
-      <div class="support-bot-icon">✦</div>
+      <div class="support-bot-icon"></div>
       <div style="flex:1;min-width:0;">
         <div class="support-chat-title" id="supportTicketTitle">DateVault Support</div>
         <div class="support-chat-subtitle" id="supportTicketStatus">Support conversation</div>
@@ -141,7 +141,7 @@
     <div class="support-composer" id="supportComposer">
       <textarea id="supportReplyInput" placeholder="Ask a question..." rows="1" onkeydown="handleTicketKey(event)" oninput="autoResize(this)"></textarea>
       <div class="support-composer-actions">
-        <span>⌕</span><span>☺</span><span>GIF</span><span>🎙</span>
+        <span>⌕</span><span></span><span>GIF</span><span></span>
         <button onclick="sendTicketReply()" id="supportSendBtn" class="support-send-btn">↑</button>
       </div>
     </div>
@@ -191,7 +191,7 @@
     <a class="nav-item" href="/app/dashboard/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>Discover</a>
     <a class="nav-item" id="exploreNavItem" href="/app/explore/"><span id="exploreNavLock" style="display:none;position:absolute;top:2px;right:10px;color:var(--gold);font-size:12px;line-height:1;">◇</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Explore</a>
     <a class="nav-item" href="/app/likes/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>Likes</a>
-    <a class="nav-item" href="/app/wallet/"><span style="font-size:20px;line-height:22px;">💰</span>Wallet</a>
+    <a class="nav-item" href="/app/wallet/"><span style="font-size:20px;line-height:22px;"></span>Wallet</a>
     <a class="nav-item active" href="/app/chat/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat</a>
     <a class="nav-item" href="/app/profile/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</a>
   </nav>
@@ -209,7 +209,7 @@
       serverTimestamp, collection, query, where, orderBy, onSnapshot, limit, arrayUnion
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    let myUser, myProfile, theirUID = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
+    let myUser, myProfile, theirUID = null, theirProfile = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
     let blockedByMe = false, blockedMe = false;
     let selectedReportReason = '';
 
@@ -286,7 +286,7 @@
         btn.style.cssText = 'background:none;border:none;cursor:pointer;flex-shrink:0;text-align:center;';
         btn.innerHTML = `<div style="position:relative;width:64px;">
           <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid var(--gold);background:var(--surface2);">
-            ${c.theirPhoto?`<img src="${c.theirPhoto}" style="width:100%;height:100%;object-fit:cover;"/>`:`<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:22px;">👤</div>`}
+            ${c.theirPhoto?`<img src="${c.theirPhoto}" style="width:100%;height:100%;object-fit:cover;"/>`:`<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:22px;"></div>`}
           </div>
           <div style="font-size:11px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:64px;">${c.theirName}</div>
         </div>`;
@@ -303,7 +303,7 @@
           if (c.unavailable) item.style.opacity = '0.6';
           const time = c.lastMessageAt ? formatTime(c.lastMessageAt.toDate ? c.lastMessageAt.toDate() : new Date()) : '';
           item.innerHTML = `
-            ${c.theirPhoto?`<img class="chat-avatar" src="${c.theirPhoto}" alt="${c.theirName}"/>`:`<div class="chat-avatar-placeholder">👤</div>`}
+            ${c.theirPhoto?`<img class="chat-avatar" src="${c.theirPhoto}" alt="${c.theirName}"/>`:`<div class="chat-avatar-placeholder"></div>`}
             <div class="chat-info">
               <div class="chat-name">${c.theirName}</div>
               <div class="chat-preview">${c.unavailable?'<span style="color:var(--muted);font-size:12px;">No longer available</span>':c.lastMessage}</div>
@@ -330,6 +330,7 @@
 
       const snap = await getDoc(doc(db, 'users', uid));
       const them = snap.exists() ? snap.data() : {};
+      theirProfile = them;
       document.getElementById('chatName').textContent = them.displayName || them.name || 'Member';
       document.getElementById('chatMenuName').textContent = them.displayName || them.name || 'Member';
       const av = document.getElementById('chatAvatar');
@@ -380,9 +381,14 @@
         const wrap = document.createElement('div');
         wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
         const bubble = document.createElement('div');
-        bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in');
+        if (m.type === 'gift') {
+          bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in') + ' gift-bubble';
+          bubble.innerHTML = `<strong>${isOut ? 'You sent' : 'You received'} ${Number(m.giftAmount || 0).toLocaleString()} tokens</strong><div class="muted" style="font-size:11px">Token gift</div>`;
+        } else {
+          bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in');
         if (m.imageURL) bubble.innerHTML = `<img src="${m.imageURL}" style="max-width:200px;border-radius:12px;"/>`;
         else bubble.textContent = m.text;
+        }
         const time = document.createElement('div');
         time.className = 'msg-time';
         time.textContent = (m.sentAt ? formatTime(m.sentAt.toDate ? m.sentAt.toDate() : new Date()) : '') + (isOut && hasPlan(myProfile, 'elite') ? (m.read ? ' · Read' : ' · Sent') : '');
@@ -425,11 +431,12 @@
     };
 
     window.openGift = async function() {
-      if (!theirUID) { showToast('Open a match to send a gift.'); return; }
-      const amount = Number(window.prompt(`Send Gift to ${document.getElementById('chatName').textContent} (minimum 10 tokens):`, '10'));
-      if (!Number.isFinite(amount)) return;
-      try { const { giftTokens } = await import('../../js/wallet.js'); await giftTokens(myUser.uid, theirUID, amount); showToast('Gift sent! ✦'); }
-      catch (e) { showToast(e.message || 'Could not send gift.'); }
+      const button = document.getElementById('giftBtn');
+      if (!theirUID || blockedByMe || blockedMe) { showToast('Open an unblocked match to send a gift.'); return; }
+      button.disabled = true;
+      try { const { openGiftSheet } = await import('../../js/gift.js'); await openGiftSheet({ toUID: theirUID, toName: document.getElementById('chatName').textContent, toPhoto: theirProfile?.photos?.[0] || '' }); }
+      catch (e) { console.error('Unable to open gift sheet', e); showToast(e.message || 'Could not open gift.'); }
+      finally { button.disabled = false; }
     };
 
     window.sendImage = async function(input) {
@@ -463,7 +470,7 @@
         const overlay = document.createElement('div');
         overlay.className = 'confirm-overlay open';
         overlay.innerHTML = `<div class="confirm-box">
-          <div class="confirm-icon">💔</div>
+          <div class="confirm-icon"></div>
           <div class="confirm-title">Unmatch</div>
           <div class="confirm-msg">Are you sure you want to unmatch? This will remove your match and delete the conversation.</div>
           <div class="confirm-actions">
@@ -582,7 +589,7 @@
         const overlay = document.createElement('div');
         overlay.className = 'confirm-overlay open';
         overlay.innerHTML = `<div class="confirm-box">
-          <div class="confirm-icon">🚫</div>
+          <div class="confirm-icon"></div>
           <div class="confirm-title">Block User</div>
           <div class="confirm-msg">You will no longer see each other on DateVault. They will not be able to message you.</div>
           <div class="confirm-actions">
@@ -734,7 +741,7 @@
               name: myProfile.displayName || myProfile.name || myUser.email,
               email: myUser.email,
               ticketId, subject, phone,
-              message: `${isVaultPriority ? '☎️ Priority Support Requested' : '🎫 Support Ticket Created'}\n👤 ${myProfile.displayName || myProfile.name || myUser.email}${myProfile.memberId ? ` (${myProfile.memberId})` : ''}\n📧 ${myUser.email}\nTicket: ${ticketId}\nSubject: ${subject}${phone ? `\nPhone: ${phone}` : ''}\n\n${message}`
+              message: `${isVaultPriority ? '️ Priority Support Requested' : ' Support Ticket Created'}\n ${myProfile.displayName || myProfile.name || myUser.email}${myProfile.memberId ? ` (${myProfile.memberId})` : ''}\n ${myUser.email}\nTicket: ${ticketId}\nSubject: ${subject}${phone ? `\nPhone: ${phone}` : ''}\n\n${message}`
             })
           });
         } catch (err) {
@@ -893,6 +900,8 @@
     window.backToList = function() {
       if (unsubMessages) { unsubMessages(); unsubMessages=null; }
       theirUID=null;
+      theirProfile=null;
+      blockedByMe=false; blockedMe=false;
       showConvList();
       history.replaceState({},'','/app/chat/');
       loadAll();
@@ -915,5 +924,5 @@
 
     init().catch(console.error);
   </script>
-</body>
+<script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons(); document.getElementById("giftBtn")?.addEventListener("click", () => window.openGift());</script></body>
 </html>
