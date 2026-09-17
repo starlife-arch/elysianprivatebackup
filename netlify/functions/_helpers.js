@@ -48,24 +48,11 @@ function preflight(event) {
 
 function fetchJSON(url, options = {}, body = null) {
   return new Promise((resolve, reject) => {
-    const urlObj = new URL(url);
-    const reqOptions = {
-      hostname: urlObj.hostname,
-      path: urlObj.pathname + urlObj.search,
-      method: options.method || "GET",
-      headers: options.headers || {}
-    };
-    const req = https.request(reqOptions, (res) => {
-      let data = "";
-      res.on("data", chunk => data += chunk);
-      res.on("end", () => {
-        try { resolve(JSON.parse(data)); }
-        catch (e) { resolve(data); }
-      });
-    });
-    req.on("error", reject);
-    if (body) req.write(typeof body === "string" ? body : JSON.stringify(body));
-    req.end();
+    const urlObj = new URL(url); let payload = null;
+    const headers = { ...(options.headers || {}) };
+    if (body !== null) { payload = typeof body === 'string' ? body : options.form ? new URLSearchParams(body).toString() : JSON.stringify(body); headers['Content-Type'] ||= options.form ? 'application/x-www-form-urlencoded' : 'application/json'; headers['Content-Length'] = Buffer.byteLength(payload); }
+    const req = https.request({ hostname:urlObj.hostname, path:urlObj.pathname+urlObj.search, method:options.method||'GET', headers }, res => { let response=''; res.on('data', chunk => response += chunk); res.on('end', () => { let data; try { data=JSON.parse(response); } catch (_) { data=null; } resolve({ status:res.statusCode, headers:res.headers, body:response, data }); }); });
+    req.on('error', reject); if (payload) req.write(payload); req.end();
   });
 }
 
