@@ -52,6 +52,7 @@
       <img id="matchTheirAvatar" src="" alt=""/>
     </div>
     <p class="muted" style="text-align:center;">You and <span id="matchName"></span> liked each other</p>
+    <button class="btn btn-outline btn-sm" onclick="quickGift()">🎁 Send 50 tokens</button>
     <button class="btn btn-gold" onclick="goToChat()">Send a Message</button>
     <button class="btn btn-outline btn-sm" onclick="closeMatch()">Keep Swiping</button>
   </div>
@@ -70,6 +71,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
       Likes
     </a>
+    <a class="nav-item" href="wallet.html"><span style="font-size:20px;line-height:22px;">💰</span>Wallet</a>
     <a class="nav-item" href="chat.html">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
       Chat
@@ -446,6 +448,12 @@
 
     window.closeMatch = () => document.getElementById('matchPopup').classList.remove('show');
     window.goToChat = () => window.location.href = `chat.html?uid=${matchedUID}`;
+    window.quickGift = async () => {
+      const amount = Number(window.prompt('Gift tokens (minimum 10):', '50'));
+      if (!Number.isFinite(amount) || !matchedUID) return;
+      try { const { giftTokens } = await import('./js/wallet.js'); await giftTokens(myUser.uid, matchedUID, amount); showToast('Gift sent! ✦'); }
+      catch (e) { showToast(e.message || 'Not enough tokens — buy tokens in your wallet'); }
+    };
 
     function listenUnreadChats() {
       // FIX: use bracket notation for dynamic field name

@@ -55,6 +55,11 @@ service cloud.firestore {
         allow read: if isOwner(uid) || isOwner(blockedUID) || isAdmin();
         allow write: if isOwner(uid) || isAdmin();
       }
+      match /walletTransactions/{transactionId} {
+        allow read: if isOwner(uid) || isAdmin();
+        allow create: if isOwner(uid) || isAdmin() || isActiveMember();
+        allow update, delete: if isAdmin();
+      }
     }
 
     match /matches/{matchId} {
@@ -115,7 +120,7 @@ service cloud.firestore {
 
     match /admin_messages/{msgId} {
       allow read: if isAdmin() || (isAuth() && resource.data.toUID == request.auth.uid);
-      allow create: if isAdmin();
+      allow create: if isAdmin() || isActiveMember();
       allow update: if isAdmin() || (
         isAuth()
         && resource.data.toUID == request.auth.uid
@@ -127,6 +132,12 @@ service cloud.firestore {
     match /payments/{paymentId} {
       allow read: if isAdmin() || (isAuth() && resource.data.uid == request.auth.uid);
       allow create, update, delete: if isAdmin();
+    }
+
+    match /withdrawals/{withdrawalId} {
+      allow read: if isAdmin() || (isAuth() && resource.data.uid == request.auth.uid);
+      allow create: if isActiveMember() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAdmin();
     }
 
 
