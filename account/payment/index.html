@@ -35,6 +35,12 @@
         <div style="font-size:12px;color:var(--muted);">Kenya, Uganda, Tanzania via Pesapal</div></div>
       </button>
 
+      <button class="payment-option" id="printpayOpt" onclick="selectMethod('printpay')">
+        <div class="payment-icon">📱</div>
+        <div><div style="font-weight:600;font-size:14px;">📱 M-Pesa (PrintPay)</div>
+        <div style="font-size:12px;color:var(--muted);">Kenya — instant STK push</div></div>
+      </button>
+
       <button class="payment-option" id="paystackOpt" onclick="selectMethod('paystack')">
         <div class="payment-icon">💳</div>
         <div><div style="font-weight:600;font-size:14px;">Card / Bank Transfer</div>
@@ -48,6 +54,12 @@
         </div>
         <p style="font-size:12px;color:var(--muted);margin:0.5rem 0;">You will receive an STK push on your phone to confirm.</p>
         <button class="btn btn-gold btn-full" style="margin-top:0.5rem;" id="pesapalPayBtn" onclick="payPesapal()">Request M-Pesa Payment</button>
+      </div>
+
+      <div id="printpayForm" style="display:none;margin-top:1rem;">
+        <div><label>Phone Number (07XXXXXXXX or 254XXXXXXXX)</label><input type="tel" id="printpayPhone" placeholder="0712 345 678"/></div>
+        <p style="font-size:12px;color:var(--muted);margin:0.5rem 0;">An M-Pesa prompt will be sent to your phone.</p>
+        <button class="btn btn-gold btn-full" id="printpayPayBtn" onclick="payPrintPay()">Pay with M-Pesa</button>
       </div>
 
       <!-- Paystack just uses popup -->
@@ -73,22 +85,26 @@
     const plan = params.get('plan') || 'standard';
     const billing = params.get('billing') || 'monthly';
     const pricingCfg = await getPricingConfig();
-    const amountUSD = purpose === 'entry' ? pricingCfg.entryUSD : paymentAmountUSD(purpose, plan, billing, pricingCfg);
+    const tokenCount = Math.floor(Number(params.get('tokens') || 0));
+    const tokenAmount = Number(params.get('amount') || 0);
+    const amountUSD = purpose === 'tokens' ? tokenAmount : (purpose === 'entry' ? pricingCfg.entryUSD : paymentAmountUSD(purpose, plan, billing, pricingCfg));
     const amountKES = paymentAmountKES(amountUSD);
 
     function paymentTitle() {
       if (purpose === 'subscription') return `${planLabel(plan)} ${billing === 'annual' ? 'Annual' : 'Monthly'} Plan`;
+      if (purpose === 'tokens') return `${tokenCount.toLocaleString()} Tokens`;
       if (purpose === 'priority_support') return 'Priority Support Request';
       return 'Private Membership Access';
     }
     function paymentPeriod() {
       if (purpose === 'subscription') return billing === 'annual' ? 'Annual subscription · renews yearly' : 'Monthly subscription · renews monthly';
+      if (purpose === 'tokens') return `${tokenCount.toLocaleString()} tokens · 100 tokens = $1`;
       if (purpose === 'priority_support') return 'One-time support request · scheduled manually';
       return 'One-time access fee · Lifetime membership';
     }
-    function returnUrl() { return purpose === 'entry' ? 'dashboard.html' : (purpose === 'priority_support' ? 'chat.html?tab=support' : 'dashboard.html'); }
+    function returnUrl() { return purpose === 'tokens' ? '../../app/wallet/' : (purpose === 'entry' ? 'dashboard.html' : (purpose === 'priority_support' ? 'chat.html?tab=support' : 'dashboard.html')); }
     function setPaymentVisible(visible) {
-      ['paymentPrice','paymentPeriod','perksList','paymentMethodsLabel','pesapalOpt','paystackOpt','pesapalForm','paystackForm'].forEach(id => {
+      ['paymentPrice','paymentPeriod','perksList','paymentMethodsLabel','pesapalOpt','printpayOpt','paystackOpt','pesapalForm','printpayForm','paystackForm'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = visible ? '' : 'none';
       });
@@ -143,7 +159,7 @@
     });
 
     window.selectMethod = function(m) {
-      ['pesapal','paystack'].forEach(x => {
+      ['pesapal','printpay','paystack'].forEach(x => {
         document.getElementById(x+'Opt').classList.remove('selected');
         document.getElementById(x+'Form').style.display='none';
       });
@@ -177,6 +193,20 @@
       }
     };
 
+    window.payPrintPay = async function() {
+      const phone_number = document.getElementById('printpayPhone').value.trim().replace(/\s/g, '');
+      if (!/^(?:0\d{9}|254\d{9})$/.test(phone_number)) { showErr('Enter a Kenyan M-Pesa number in 07XXXXXXXX or 254XXXXXXXX format.'); return; }
+      const btn = document.getElementById('printpayPayBtn'); btn.disabled = true; btn.textContent = 'Sending STK push...'; showErr('');
+      try {
+        const res = await fetch('/.netlify/functions/printpay', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone_number, amount: amountKES, uid: currentUser.uid, purpose, plan, billing, tokens: tokenCount, amountUSD }) });
+        const data = await res.json(); if (!res.ok || !data.checkout_id) throw new Error(data.error || 'Could not start M-Pesa payment.');
+        showSuccess('Check your phone and enter your M-Pesa PIN.'); pollPrintPay(data.checkout_id);
+      } catch (e) { showErr(e.message); btn.disabled = false; btn.textContent = 'Pay with M-Pesa'; }
+    };
+    function pollPrintPay(checkoutId) {
+      let attempts = 0; const poll = setInterval(async () => { attempts++; try { const res = await fetch('/.netlify/functions/printpay?checkout_id=' + encodeURIComponent(checkoutId)); const data = await res.json(); if (data.completed || data.status === 'SUCCESS') { clearInterval(poll); window.location.href = returnUrl(); return; } if (data.failed || data.status === 'FAILED') { clearInterval(poll); showErr('M-Pesa payment failed. Please try again.'); return; } } catch (e) {} if (attempts >= 30) { clearInterval(poll); showErr('Payment is still pending. Please check your M-Pesa prompts.'); } }, 4000);
+    }
+
     window.payPaystack = function() {
       if (!PAYSTACK_PUBLIC_KEY || PAYSTACK_PUBLIC_KEY.includes('YOUR_')) { showErr('Paystack not configured yet. Use M-Pesa or contact admin.'); return; }
       const handler = PaystackPop.setup({
@@ -197,7 +227,10 @@
     };
 
     async function activatePayment(method, reference = '') {
-      if (purpose === 'subscription') {
+      if (purpose === 'tokens') {
+        const { creditTokens } = await import('../../js/wallet.js');
+        await creditTokens(currentUser.uid, tokenCount, 'Token pack purchase', 'credit');
+      } else if (purpose === 'subscription') {
         const label = planLabel(plan);
         await updateDoc(doc(db, 'users', currentUser.uid), {
           subscription: { plan, billing, status: 'active', startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(billing), prioritySupportRequests: profile.subscription?.prioritySupportRequests || 0 },

@@ -154,6 +154,7 @@ export async function signup(email, password, fullName = "") {
     stage: "signedUp",
     subscription: { plan: "none", billing: null, status: "inactive", startDate: null, nextBillingDate: null, prioritySupportRequests: 0 },
     vaultBadge: false,
+    walletBalance: 0,
     createdAt: serverTimestamp(),
     photos: [], interests: []
   });
