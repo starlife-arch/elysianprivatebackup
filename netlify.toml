@@ -18,3 +18,8 @@
   from = "/dashboard.html"
   to = "/app/dashboard/"
   status = 301
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
