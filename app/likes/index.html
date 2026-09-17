@@ -58,6 +58,7 @@
     import { requireMember, db } from "../../js/auth.js";
     import { hasPlan, getSubscription, planLabel, vaultBadge } from "../../js/subscription.js";
     import { recordSwipe } from "../../js/swipe.js";
+    import { showError } from "../../js/dialog.js";
     import { collection, getDocs, getDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAdminSettings, resolveVisibility } from "../../js/location.js";
 
@@ -179,7 +180,7 @@
         else showEmpty('likedMe');
       } catch (e) {
         console.error(e);
-        alert('Could not save your response. Please try again.');
+        showError('Could not save your response. Please try again.');
       }
     };
 

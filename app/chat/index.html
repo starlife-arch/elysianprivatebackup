@@ -209,7 +209,7 @@
       serverTimestamp, collection, query, where, orderBy, onSnapshot, limit, arrayUnion
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    let myUser, myProfile, theirUID = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
+    let myUser, myProfile, theirUID = null, theirProfile = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
     let blockedByMe = false, blockedMe = false;
     let selectedReportReason = '';
 
@@ -330,6 +330,7 @@
 
       const snap = await getDoc(doc(db, 'users', uid));
       const them = snap.exists() ? snap.data() : {};
+      theirProfile = them;
       document.getElementById('chatName').textContent = them.displayName || them.name || 'Member';
       document.getElementById('chatMenuName').textContent = them.displayName || them.name || 'Member';
       const av = document.getElementById('chatAvatar');
@@ -380,9 +381,14 @@
         const wrap = document.createElement('div');
         wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
         const bubble = document.createElement('div');
-        bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in');
+        if (m.type === 'gift') {
+          bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in') + ' gift-bubble';
+          bubble.innerHTML = `<strong>${isOut ? 'You sent' : 'You received'} ${Number(m.giftAmount || 0).toLocaleString()} tokens</strong><div class="muted" style="font-size:11px">Token gift</div>`;
+        } else {
+          bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in');
         if (m.imageURL) bubble.innerHTML = `<img src="${m.imageURL}" style="max-width:200px;border-radius:12px;"/>`;
         else bubble.textContent = m.text;
+        }
         const time = document.createElement('div');
         time.className = 'msg-time';
         time.textContent = (m.sentAt ? formatTime(m.sentAt.toDate ? m.sentAt.toDate() : new Date()) : '') + (isOut && hasPlan(myProfile, 'elite') ? (m.read ? ' · Read' : ' · Sent') : '');
@@ -425,9 +431,12 @@
     };
 
     window.openGift = async function() {
-      if (!theirUID) { showToast('Open a match to send a gift.'); return; }
+      const button = document.getElementById('giftBtn');
+      if (!theirUID || blockedByMe || blockedMe) { showToast('Open an unblocked match to send a gift.'); return; }
+      button.disabled = true;
       try { const { openGiftSheet } = await import('../../js/gift.js'); await openGiftSheet({ toUID: theirUID, toName: document.getElementById('chatName').textContent, toPhoto: theirProfile?.photos?.[0] || '' }); }
       catch (e) { console.error('Unable to open gift sheet', e); showToast(e.message || 'Could not open gift.'); }
+      finally { button.disabled = false; }
     };
 
     window.sendImage = async function(input) {

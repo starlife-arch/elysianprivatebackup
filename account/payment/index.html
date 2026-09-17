@@ -29,22 +29,22 @@
 
       <p id="paymentMethodsLabel" style="font-size:13px;color:var(--muted);margin-bottom:0.75rem;">Select payment method:</p>
 
-      <button class="payment-option" id="pesapalOpt" onclick="selectMethod('pesapal')">
+      <button class="payment-option disabled" id="pesapalOpt" aria-disabled="true">
         <div class="payment-icon"></div>
         <div><div style="font-weight:600;font-size:14px;">M-Pesa / Mobile Money</div>
-        <div style="font-size:12px;color:var(--muted);">Kenya, Uganda, Tanzania via Pesapal</div></div>
+        <div style="font-size:12px;color:var(--muted);">Temporarily unavailable</div></div>
       </button>
 
       <button class="payment-option" id="printpayOpt" onclick="selectMethod('printpay')">
         <div class="payment-icon"></div>
-        <div><div style="font-weight:600;font-size:14px;"> M-Pesa (PrintPay)</div>
+        <div><div style="font-weight:600;font-size:14px;"> M-Pesa Africa</div>
         <div style="font-size:12px;color:var(--muted);">Kenya — instant STK push</div></div>
       </button>
 
-      <button class="payment-option" id="paystackOpt" onclick="selectMethod('paystack')">
+      <button class="payment-option disabled" id="paystackOpt" aria-disabled="true">
         <div class="payment-icon"></div>
         <div><div style="font-weight:600;font-size:14px;">Card / Bank Transfer</div>
-        <div style="font-size:12px;color:var(--muted);">Visa, Mastercard, Bank via Paystack</div></div>
+        <div style="font-size:12px;color:var(--muted);">Temporarily unavailable</div></div>
       </button>
 
       <!-- Pesapal Form -->
@@ -155,10 +155,12 @@
       if (profile.phone) document.getElementById('pesapalPhone').value = profile.phone;
       document.getElementById('paymentPeriod').textContent = paymentPeriod();
       document.getElementById('loader').classList.add('hidden');
+      selectMethod('printpay');
       handlePesapalReturn();
     });
 
     window.selectMethod = function(m) {
+      if (m !== 'printpay') return;
       ['pesapal','printpay','paystack'].forEach(x => {
         document.getElementById(x+'Opt').classList.remove('selected');
         document.getElementById(x+'Form').style.display='none';
