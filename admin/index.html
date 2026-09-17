@@ -31,8 +31,8 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Message Users</button>
       <button class="sidebar-item" id="nav-announcements" onclick="showSection('announcements')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>Announcements</button>
-      <button class="sidebar-item" id="nav-pricing" onclick="showSection('pricing')">💳 Pricing</button>
-      <button class="sidebar-item" id="nav-wallet" onclick="showSection('wallet')">💰 Wallet <span class="sidebar-count" id="withdrawalCount" style="display:none;"></span></button>
+      <button class="sidebar-item" id="nav-pricing" onclick="showSection('pricing')"> Pricing</button>
+      <button class="sidebar-item" id="nav-wallet" onclick="showSection('wallet')"> Wallet <span class="sidebar-count" id="withdrawalCount" style="display:none;"></span></button>
       <button class="sidebar-item" id="nav-support"       onclick="showSection('support')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Support Tickets
         <span class="sidebar-count" id="supportCount" style="display:none;"></span></button>
@@ -43,7 +43,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23,7 16,12 23,17"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>Video Calls</button>
       <div style="margin-top:auto;padding-top:1rem;border-top:1px solid var(--border);">
         <button class="sidebar-item" id="nav-privacy" onclick="showSection('privacy')">
-          🔒 Privacy Controls
+           Privacy Controls
         </button>
         <button class="sidebar-item" onclick="doLogout()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sign Out</button>
@@ -190,7 +190,7 @@
 
 
       <section id="section-privacy" style="display:none;">
-        <h2 style="margin-bottom:1.5rem;color:var(--gold);">🔒 Privacy Controls</h2>
+        <h2 style="margin-bottom:1.5rem;color:var(--gold);"> Privacy Controls</h2>
 
         <!-- GLOBAL TOGGLES -->
         <div class="glass-card" style="margin-bottom:1.5rem;">
@@ -200,7 +200,7 @@
 
             <div style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;background:var(--surface2);border-radius:12px;border:1px solid var(--border);">
               <div>
-                <div style="font-weight:600;font-size:14px;">📍 Show Location</div>
+                <div style="font-weight:600;font-size:14px;"> Show Location</div>
                 <div style="font-size:12px;color:var(--muted);">City & country visible on profiles</div>
               </div>
               <label class="dv-toggle">
@@ -211,7 +211,7 @@
 
             <div style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;background:var(--surface2);border-radius:12px;border:1px solid var(--border);">
               <div>
-                <div style="font-weight:600;font-size:14px;">🗺️ Show Distance</div>
+                <div style="font-weight:600;font-size:14px;">️ Show Distance</div>
                 <div style="font-size:12px;color:var(--muted);">Distance badge on cards & profiles</div>
               </div>
               <label class="dv-toggle">
@@ -222,7 +222,7 @@
 
             <div style="display:flex;align-items:center;justify-content:space-between;padding:0.875rem 1rem;background:var(--surface2);border-radius:12px;border:1px solid var(--border);">
               <div>
-                <div style="font-weight:600;font-size:14px;">🎂 Show Age</div>
+                <div style="font-weight:600;font-size:14px;"> Show Age</div>
                 <div style="font-size:12px;color:var(--muted);">Age shown next to member names</div>
               </div>
               <label class="dv-toggle">
@@ -299,10 +299,7 @@
     }
 
     window.refreshAll = async function() {
-      allUsers   = await fetchAllUsers();
-      allReports = await fetchReports();
-      allCalls   = await fetchVerificationCalls();
-      allTickets = await fetchTickets();
+      [allUsers, allReports, allCalls, allTickets] = await Promise.all([fetchAllUsers(), fetchReports(), fetchVerificationCalls(), fetchTickets()]);
       renderOverview(); renderPending(); renderMembers(allUsers);
       filterReports(); renderCalls(); populateDMRecipients();
       loadSentDMs(); loadAllAnnouncements(); loadPricing();
@@ -346,7 +343,7 @@
       const p5=allUsers.filter(u=>u.status==='pending_admin_review').slice(0,5);
       ra.innerHTML=p5.length?p5.map(u=>`
         <div onclick="showSection('pending')" style="cursor:pointer;padding:0.75rem;background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.75rem;">
-          <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--surface2);flex-shrink:0;">${u.photos&&u.photos[0]?`<img src="${u.photos[0]}" style="width:100%;height:100%;object-fit:cover;"/>`:'<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;">👤</div>'}</div>
+          <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--surface2);flex-shrink:0;">${u.photos&&u.photos[0]?`<img src="${u.photos[0]}" style="width:100%;height:100%;object-fit:cover;"/>`:'<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:14px;"></div>'}</div>
           <div style="flex:1;min-width:0;"><div style="font-weight:600;font-size:13px;">${u.displayName||u.name||u.email}</div><div style="font-size:12px;color:var(--muted);">${u.country||''} · ${u.memberId||''}</div></div>
           <span class="status-badge status-pending" style="font-size:10px;">PENDING</span>
         </div>`).join(''):`<p class="muted" style="font-size:13px;">No pending applications.</p>`;
@@ -397,7 +394,7 @@
         ${u.selfieURL?`<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">SELFIE</div><a href="${u.selfieURL}" target="_blank"><img src="${u.selfieURL}" class="id-photo"/></a></div>`:''}
       </div>`:'';
       return `<div class="admin-user-card" id="card-${u.id}">
-        ${photos[0]?`<img src="${photos[0]}" class="admin-avatar" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--border);" alt=""/>`:`<div class="admin-avatar">👤</div>`}
+        ${photos[0]?`<img src="${photos[0]}" class="admin-avatar" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--border);" alt=""/>`:`<div class="admin-avatar"></div>`}
         <div class="admin-user-info" style="flex:1;min-width:0;">
           <div class="admin-user-name">${u.displayName||u.name||'Unknown'} <span class="status-badge status-gold" style="font-size:10px;text-transform:uppercase;">${(u.stage||'signedUp').replace(/_/g,' ')}</span> ${subscriptionBadge(u)} ${u.banned?'<span style="color:var(--danger);font-size:12px;">[BANNED]</span>':''}</div>
           <div class="admin-user-meta">${u.email||''} · <strong style="color:var(--gold);">${u.memberId||'No ID'}</strong> · ${u.country||'—'}</div>
@@ -429,7 +426,7 @@
             ${u.adminApproved&&!u.hasPaid&&u.status!=='active_member'?`<button class="btn btn-sm btn-gold" onclick="doResendInvite('${u.id}')">Resend Invite</button>`:''}
             ${u.status!=='active_member'&&u.status!=='pending_admin_review'?`<button class="btn btn-sm btn-gold" onclick="openGrantModal('${u.id}')">Grant Access</button>`:''}
             ${u.status==='active_member'?`<button class="btn btn-sm" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--muted);" onclick="openGrantModal('${u.id}')">Extend/Change Access</button><button class="btn btn-sm btn-danger" onclick="doRevokeAccess('${u.id}')">Revoke Access</button>`:''}
-            <button class="btn btn-sm" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--gold);" onclick="openAssignPlanModal('${u.id}','${u.displayName||u.name||'Member'}')">✦ Assign Plan</button>
+            <button class="btn btn-sm" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--gold);" onclick="openAssignPlanModal('${u.id}','${u.displayName||u.name||'Member'}')"> Assign Plan</button>
             <button class="btn btn-sm" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--muted);" onclick="openDMToUser('${u.id}')">Message</button>
             ${u.banned?`<button class="btn btn-sm btn-outline" onclick="doUnban('${u.id}')">Unban</button>`:`<button class="btn btn-sm btn-danger" onclick="doBan('${u.id}')">Ban</button>`}
           </div>
@@ -438,7 +435,7 @@
     }
 
     window.doResendInvite = async function(uid) {
-      const ok = await showConfirm('Generate a new 72-hour invite link and resend the approval email?', { title:'Resend Invite', icon:'✉️', confirmText:'Resend Invite' });
+      const ok = await showConfirm('Generate a new 72-hour invite link and resend the approval email?', { title:'Resend Invite', icon:'️', confirmText:'Resend Invite' });
       if (!ok) return;
       const result = await resendInvite(uid);
       allUsers = await fetchAllUsers(); renderPending(); filterMembers(); renderOverview();
@@ -448,12 +445,12 @@ Warnings:
 ${result.notices.join('\n')}` : '';
       await showAlert(`Invite resent.
 
-Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
+Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
     };
 
     window.doApprove = async function(uid) {
       const meetLink = await showPrompt('Paste the Google Meet link for the video verification call', {
-        title:'Video Verification Link', icon:'🎥', placeholder:'https://meet.google.com/...', confirmText:'Approve', cancelText:'Cancel'
+        title:'Video Verification Link', icon:'', placeholder:'https://meet.google.com/...', confirmText:'Approve', cancelText:'Cancel'
       });
       if (meetLink === null) return;
       if (!meetLink.trim()) { showError('A video meeting link is required when approving a member.'); return; }
@@ -467,13 +464,13 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
 
     window.doReject = async function(uid) {
       const reason = await showPrompt('Reason for rejection (optional)', {
-        title:'Reject Application', icon:'✕', placeholder:'e.g. Incomplete information', confirmText:'Reject', cancelText:'Cancel'
+        title:'Reject Application', icon:'', placeholder:'e.g. Incomplete information', confirmText:'Reject', cancelText:'Cancel'
       });
       if (reason === null) return;
       const result = await rejectUser(uid, reason||'');
       if (result.notices.length) {
         await showAlert(`Member rejected, but one or more notifications failed.\n\n${result.notices.join('\n')}`, {
-          title:'Member Rejected', icon:'✕'
+          title:'Member Rejected', icon:''
         });
       } else {
         showSuccess('Member rejected and notified.');
@@ -521,7 +518,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
 
     window.doRevokeAccess = async function(uid) {
       const ok = await showConfirm('Revoke this member access and send them back to the payment page?', {
-        title:'Revoke Access', icon:'⛔', confirmText:'Revoke Access', danger:true
+        title:'Revoke Access', icon:'', confirmText:'Revoke Access', danger:true
       });
       if (!ok) return;
       const result = await revokeAccess(uid);
@@ -532,13 +529,13 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
 
     window.doBan = async function(uid) {
       const ok = await showConfirm('Ban this user? They will be immediately blocked from the platform.', {
-        title:'Ban User', icon:'🚫', confirmText:'Ban User', danger:true
+        title:'Ban User', icon:'', confirmText:'Ban User', danger:true
       });
       if (!ok) return;
       const result = await banUser(uid); if (result?.notices?.length) showError('User banned, but notification warning: '+result.notices.join(' · ')); else showError('User banned and notified.'); await refreshAll();
     };
     window.doUnban = async function(uid) {
-      const ok = await showConfirm('Unban this user and restore their access?', { title:'Unban User', icon:'✓', confirmText:'Unban' });
+      const ok = await showConfirm('Unban this user and restore their access?', { title:'Unban User', icon:'', confirmText:'Unban' });
       if (!ok) return;
       const result = await unbanUser(uid); if (result?.notices?.length) showError('User unbanned, but notification warning: '+result.notices.join(' · ')); else showSuccess('User unbanned and notified.'); await refreshAll();
     };
@@ -682,7 +679,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
       allTickets=await fetchTickets(); filterTickets();
     };
     window.closeTicket=async function(id){
-      const ok = await showConfirm('Close this support chat? The member will no longer be able to reply in this ticket.', { title:'Close Support Chat', icon:'✓', confirmText:'Close Chat' });
+      const ok = await showConfirm('Close this support chat? The member will no longer be able to reply in this ticket.', { title:'Close Support Chat', icon:'', confirmText:'Close Chat' });
       if(!ok)return;
       const ticket = allTickets.find(t=>t.id===id);
       await updateDoc(doc(db,'support_tickets',id),{status:'closed',closedAt:serverTimestamp(),updatedAt:serverTimestamp()});
@@ -809,9 +806,10 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
       setCount('withdrawalCount', pendingWithdrawals.length);
       document.getElementById('withdrawalList').innerHTML = pendingWithdrawals.length ? pendingWithdrawals.map(w => { const u=allUsers.find(x=>x.id===w.uid)||{}; return `<div style="padding:.75rem 0;border-bottom:1px solid var(--border)"><b>${esc(u.displayName||u.name||u.email||w.uid)}</b><div class="muted" style="font-size:12px">3,000 tokens · $15 · ${esc(w.method)} · ${esc(w.details)}</div><div style="margin-top:.5rem"><button class="btn btn-gold btn-sm" onclick="processWithdrawal('${w.id}','approved')">Approve</button> <button class="btn btn-danger btn-sm" onclick="processWithdrawal('${w.id}','rejected')">Reject</button></div></div>`; }).join('') : '<p class="muted">No pending withdrawal requests.</p>';
     }
-    window.searchWalletMembers = function() { const q=document.getElementById('walletSearch').value.toLowerCase().trim(); const u=allUsers.find(x=>(x.displayName||x.name||'').toLowerCase().includes(q)||(x.email||'').toLowerCase().includes(q)); const out=document.getElementById('walletMember'); if(!u||!q){out.innerHTML=q?'<p class="muted">No member found.</p>':'';return;} out.innerHTML=`<b>${esc(u.displayName||u.name||'Member')}</b><div class="muted">${esc(u.email||'')} · Balance: <span id="walletBalanceValue">${Number(u.walletBalance||0).toLocaleString()}</span></div><div style="display:flex;gap:.5rem;margin-top:.5rem"><input id="walletAmount" type="number" min="1" placeholder="Tokens"><button class="btn btn-gold btn-sm" onclick="adminTokens('${u.id}','credit')">Add Tokens</button><button class="btn btn-danger btn-sm" onclick="adminTokens('${u.id}','debit')">Deduct Tokens</button></div>`; };
-    window.adminTokens = async function(uid,type) { try { const amount=Number(document.getElementById('walletAmount').value); const { creditTokens,debitTokens,getWalletBalance }=await import('../js/wallet.js'); if(type==='credit') await creditTokens(uid,amount,`Admin credit by ${auth.currentUser?.email||'admin'}`,'admin_credit'); else await debitTokens(uid,amount,`Admin debit by ${auth.currentUser?.email||'admin'}`,'admin_debit'); document.getElementById('walletBalanceValue').textContent=(await getWalletBalance(uid)).toLocaleString(); await refreshAll(); showSuccess('Wallet updated.'); } catch(e){showError(e.message);} };
-    window.processWithdrawal = async function(id,status) { const w=pendingWithdrawals.find(x=>x.id===id); if(!w)return; try { await updateDoc(doc(db,'withdrawals',id),{status,processedAt:serverTimestamp(),processedBy:auth.currentUser.uid}); if(status==='rejected'){const {creditTokens}=await import('../js/wallet.js');await creditTokens(w.uid,3000,'Withdrawal rejected — tokens returned','credit');} await addDoc(collection(db,'admin_messages'),{toUID:w.uid,message:status==='approved'?'✅ Your $15 withdrawal has been approved and will be processed within 24 hours.':'❌ Withdrawal rejected — 3,000 tokens returned to your wallet.',sentAt:serverTimestamp(),read:false}); await refreshAll(); showSuccess(`Withdrawal ${status}.`); }catch(e){showError(e.message);} };
+    window.searchWalletMembers = function() { const q=document.getElementById('walletSearch').value.toLowerCase().trim(); const u=allUsers.find(x=>(x.displayName||x.name||'').toLowerCase().includes(q)||(x.email||'').toLowerCase().includes(q)); const out=document.getElementById('walletMember'); if(!u||!q){out.innerHTML=q?'<p class="muted">No member found.</p>':'';return;} out.innerHTML=`<b>${esc(u.displayName||u.name||'Member')}</b><div class="muted">${esc(u.email||'')} · Balance: <span id="walletBalanceValue">${Number(u.walletBalance||0).toLocaleString()}</span> · ${u.walletFrozen?'Wallet blocked':'Wallet active'}</div><div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.5rem"><input id="walletAmount" type="number" min="0" placeholder="Tokens"><input id="walletReason" placeholder="Reason (optional)"><button class="btn btn-gold btn-sm" onclick="adminTokens('${u.id}','credit')">Add Tokens</button><button class="btn btn-danger btn-sm" onclick="adminTokens('${u.id}','debit')">Deduct Tokens</button><button class="btn btn-outline btn-sm" onclick="adminTokens('${u.id}','set')">Set exact balance</button><button class="btn btn-outline btn-sm" onclick="toggleWalletFreeze('${u.id}',${!u.walletFrozen})">${u.walletFrozen?'Unblock wallet':'Block wallet'}</button></div>`; };
+    window.adminTokens = async function(uid,type) { try { const amount=Math.floor(Number(document.getElementById('walletAmount').value)), reason=document.getElementById('walletReason').value.trim(); const member=allUsers.find(x=>x.id===uid); if(!Number.isInteger(amount)||amount<0) throw new Error('Enter a valid token amount.'); const { creditTokens,debitTokens,getWalletBalance }=await import('../js/wallet.js'); const current=Number(member?.walletBalance||0); if(type==='set'){if(amount>current) await creditTokens(uid,amount-current,reason,'admin_credit'); else if(amount<current) await debitTokens(uid,current-amount,reason,'admin_debit');} else if(type==='credit') await creditTokens(uid,amount,reason,'admin_credit'); else {if(amount>current) throw new Error('Deduction exceeds the current balance.'); await debitTokens(uid,amount,reason,'admin_debit');} await addDoc(collection(db,'admin_audit'),{adminUID:auth.currentUser.uid,adminEmail:auth.currentUser.email,action:`wallet_${type}`,targetUID:uid,amount,reason,at:serverTimestamp()}); document.getElementById('walletBalanceValue').textContent=(await getWalletBalance(uid)).toLocaleString(); await refreshAll(); showSuccess('Wallet updated.'); } catch(e){console.error('Admin wallet update failed',e);showError(e.message);} };
+    window.toggleWalletFreeze = async function(uid, frozen) { try { const reason=document.getElementById('walletReason').value.trim(); await updateDoc(doc(db,'users',uid),{walletFrozen:frozen,walletFrozenReason:reason||null,walletFrozenAt:frozen?serverTimestamp():null}); await addDoc(collection(db,'admin_messages'),{toUID:uid,message:frozen?'Your wallet is on hold — contact support.':'Your wallet is active again.',sentAt:serverTimestamp(),read:false}); await addDoc(collection(db,'admin_audit'),{adminUID:auth.currentUser.uid,adminEmail:auth.currentUser.email,action:frozen?'wallet_freeze':'wallet_unfreeze',targetUID:uid,reason,at:serverTimestamp()}); await refreshAll(); showSuccess(frozen?'Wallet blocked.':'Wallet unblocked.'); } catch(e){console.error('Wallet status update failed',e);showError(e.message);} };
+    window.processWithdrawal = async function(id,status) { const w=pendingWithdrawals.find(x=>x.id===id); if(!w)return; try { await updateDoc(doc(db,'withdrawals',id),{status,processedAt:serverTimestamp(),processedBy:auth.currentUser.uid}); if(status==='rejected'){const {creditTokens}=await import('../js/wallet.js');await creditTokens(w.uid,3000,'Withdrawal rejected — tokens returned','credit');} await addDoc(collection(db,'admin_messages'),{toUID:w.uid,message:status==='approved'?' Your $15 withdrawal has been approved and will be processed within 24 hours.':' Withdrawal rejected — 3,000 tokens returned to your wallet.',sentAt:serverTimestamp(),read:false}); await refreshAll(); showSuccess(`Withdrawal ${status}.`); }catch(e){showError(e.message);} };
 
 
     function showToast(msg) {
@@ -840,7 +838,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
     window.saveGlobalSetting = async function(field, value) {
       try {
         await setAdminGlobalSetting(field, value);
-        showToast(`${field} ${value ? 'enabled' : 'disabled'} globally ✓`);
+        showToast(`${field} ${value ? 'enabled' : 'disabled'} globally `);
       } catch(e) { showToast('Error saving'); }
     };
 
@@ -866,7 +864,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;">
             ${['location','distance','age'].map(field => {
-              const icons = {location:'📍',distance:'🗺️',age:'🎂'};
+              const icons = {location:'',distance:'️',age:''};
               const cur = ov[field];
               return `<div style="text-align:center;">
                 <div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${icons[field]} ${field}</div>
@@ -885,7 +883,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
     window.applyOverride = async function(uid, field, value) {
       try {
         await setMemberOverride(uid, field, value);
-        showToast(`${field} ${value===null?'set to Auto':value?'forced ON':'forced OFF'} ✓`);
+        showToast(`${field} ${value===null?'set to Auto':value?'forced ON':'forced OFF'} `);
         searchPrivacyMembers();
       } catch(e) { showToast('Error applying override'); }
     };
@@ -965,7 +963,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
       try {
         const result = await assignPlanWithNotifications(assignPlanUID, plan, expiry);
         if (result?.notices?.length) showToast(`Plan assigned, notification warning: ${result.notices.join(' · ')}`);
-        else showToast(`Plan assigned: ${plan.toUpperCase()} ✓ Notifications sent`);
+        else showToast(`Plan assigned: ${plan.toUpperCase()}  Notifications sent`);
         closeAssignPlan();
         allUsers = await fetchAllUsers();
         renderPending(); filterMembers(); renderOverview();
@@ -983,7 +981,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
   <!-- Assign Plan Modal -->
   <div class="modal-overlay" id="assignPlanModal" onclick="if(event.target===this)closeAssignPlan()">
     <div class="modal-box" style="max-width:380px;">
-      <div class="modal-title">✦ Assign Plan</div>
+      <div class="modal-title"> Assign Plan</div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:1.25rem;">Manually assign a membership plan to <strong id="assignPlanMemberName"></strong>. This overrides their current plan immediately.</p>
 
       <div style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1.5rem;">
@@ -999,7 +997,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
         <label style="display:flex;align-items:center;gap:12px;padding:0.875rem;background:var(--surface2);border-radius:12px;border:2px solid transparent;cursor:pointer;" id="planOptElite">
           <input type="radio" name="assignPlan" value="elite" style="accent-color:var(--gold);">
           <div>
-            <div style="font-weight:700;font-size:14px;">Elite ✦</div>
+            <div style="font-weight:700;font-size:14px;">Elite </div>
             <div style="font-size:12px;color:var(--muted);">Privacy controls unlocked — can hide location, distance & age</div>
           </div>
         </label>
@@ -1007,7 +1005,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'✓' });
         <label style="display:flex;align-items:center;gap:12px;padding:0.875rem;background:var(--surface2);border-radius:12px;border:2px solid transparent;cursor:pointer;" id="planOptVault">
           <input type="radio" name="assignPlan" value="vault" style="accent-color:var(--gold);">
           <div>
-            <div style="font-weight:700;font-size:14px;">Vault 🔒</div>
+            <div style="font-weight:700;font-size:14px;">Vault </div>
             <div style="font-size:12px;color:var(--muted);">Full access — all features unlocked</div>
           </div>
         </label>

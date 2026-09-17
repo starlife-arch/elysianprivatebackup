@@ -219,3 +219,9 @@ https://your-site.netlify.app/api/pesapal?action=ipn
 | View announcements | Chat → Updates tab |
 | View invite code | Check email after approval |
 
+
+## PrintPay and wallet deployment
+
+Set `PRINTPAY_API_KEY` in Netlify environment variables. Configure the PrintPay dashboard webhook to `https://elysiandate.site/api/printpay-callback`. Deploy `firestore.indexes.json` with `firebase deploy --only firestore:indexes` before enabling wallet withdrawal queues; it includes the withdrawal, wallet transaction, payment, and audit indexes required by the member and admin consoles.
+
+Netlify must also have `FIREBASE_SERVICE_ACCOUNT` set to the JSON service-account credential used by the authenticated wallet function. Verify both `FIREBASE_SERVICE_ACCOUNT` and `PRINTPAY_API_KEY` before deploying payment or wallet changes.

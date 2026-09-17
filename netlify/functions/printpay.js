@@ -12,13 +12,17 @@ function nextBillingDate(billing = 'monthly') { const date = new Date(); billing
 
 async function start(event) {
   const { phone_number, amount, uid, purpose = 'entry', plan = 'standard', billing = 'monthly', tokens = 0, amountUSD = 0 } = parseBody(event);
-  const phone = String(phone_number || '').replace(/\s|\+/g, '');
+  let phone = String(phone_number || '').replace(/[^0-9]/g, '');
+  if (/^0[17]\d{8}$/.test(phone)) phone = `254${phone.slice(1)}`;
   const kes = Math.round(Number(amount));
-  if (!uid || !/^(?:0\d{9}|254\d{9})$/.test(phone) || !Number.isInteger(kes) || kes < 1) return json(400, { error: 'Provide a valid Kenyan phone number, amount, and member.' });
+  if (!uid || !/^254[17]\d{8}$/.test(phone) || !Number.isInteger(kes) || kes < 1) return json(400, { error: 'Provide a valid Kenyan phone number, amount, and member.' });
   const tokenPacks = { 100: 1, 500: 5, 1000: 10, 2000: 20, 5000: 50, 10000: 90 };
   if (purpose === 'tokens' && tokenPacks[Number(tokens)] !== Number(amountUSD)) return json(400, { error: 'Invalid token pack.' });
-  if (!process.env.PRINTPAY_API_KEY) throw new Error('PrintPay is not configured');
-  const result = await fetchJSON(PRINTPAY_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' } }, { x_api_key: process.env.PRINTPAY_API_KEY, phone_number: phone, amount: kes });
+  if (!process.env.PRINTPAY_API_KEY) return json(503, { error: 'PrintPay is not configured', code: 'misconfigured' });
+  let upstream = await fetchJSON(PRINTPAY_URL, { method: 'POST', headers: { Accept: 'application/json' }, form: true }, { x_api_key: process.env.PRINTPAY_API_KEY, phone_number: phone, amount: kes });
+  if (upstream.status >= 400) { console.warn('PrintPay form response', upstream.status, upstream.body); upstream = await fetchJSON(PRINTPAY_URL, { method: 'POST', headers: { Accept: 'application/json' } }, { x_api_key: process.env.PRINTPAY_API_KEY, phone_number: phone, amount: kes }); console.info('PrintPay JSON fallback response', upstream.status); }
+  const result = upstream.data || {};
+  if (upstream.status >= 400) return json(upstream.status, { error: result.message || result.error || 'M-Pesa is temporarily unavailable — try Card or contact support.', code: 'provider_error' });
   const checkout_id = result.checkout_id || result.checkoutId || result.id || result.data?.checkout_id;
   if (!checkout_id) throw new Error(result.message || 'PrintPay did not return a checkout ID.');
   await db().collection('payments').doc(`printpay_${checkout_id}`).set({ uid, phone, amountKes: kes, amountUSD: Number(amountUSD || 0), purpose, plan, billing, tokens: Number(tokens || 0), checkout_id, provider: 'printpay', status: 'pending', createdAt: getAdmin().firestore.FieldValue.serverTimestamp() });
@@ -53,7 +57,9 @@ async function complete(checkoutId, statusData) {
 async function status(event) {
   const checkout_id = event.queryStringParameters?.checkout_id;
   if (!checkout_id) return json(400, { error: 'checkout_id is required' });
-  const response = await fetchJSON(`${PRINTPAY_URL}?check_status=${encodeURIComponent(checkout_id)}`, { headers: { Accept: 'application/json' } });
+  const upstream = await fetchJSON(`${PRINTPAY_URL}?check_status=${encodeURIComponent(checkout_id)}`, { headers: { Accept: 'application/json' } });
+  if (upstream.status >= 400) return json(upstream.status, { error: 'M-Pesa status is temporarily unavailable', code: 'provider_error' });
+  const response = upstream.data || {};
   const state = String(response.status || response.data?.status || '').toUpperCase();
   if (state === 'SUCCESS') await complete(checkout_id, response);
   return json(200, { status: state || 'PENDING', completed: state === 'SUCCESS', failed: state === 'FAILED' });
@@ -62,5 +68,5 @@ async function status(event) {
 exports.handler = async event => {
   const options = preflight(event); if (options) return options;
   try { return event.httpMethod === 'POST' ? await start(event) : event.httpMethod === 'GET' ? await status(event) : json(405, { error: 'POST or GET required' }); }
-  catch (error) { console.error('PrintPay error:', error); return json(500, { error: error.message || 'PrintPay request failed' }); }
+  catch (error) { console.error('PrintPay error:', error); return json(500, { error: error.message || 'PrintPay request failed', code: 'provider_error' }); }
 };
