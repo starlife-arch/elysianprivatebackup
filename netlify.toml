@@ -1,39 +1,20 @@
 [build]
   publish = "."
 
-# Pretty URLs handling for subdirectories
-[[redirects]]
-  from = "/auth/*"
-  to = "/auth/:splat/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/app/*"
-  to = "/app/:splat/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/account/*"
-  to = "/account/:splat/index.html"
-  status = 200
-
-[[redirects]]
-  from = "/legal/*"
-  to = "/legal/:splat/index.html"
-  status = 200
-
-# Catch-all for legacy root .html requests -> redirect to clean routes
+# Folder routes resolve naturally to each directory's index.html. Do not add an
+# SPA catch-all, which would prevent direct page routes from loading.
+# Redirect only the legacy root filenames.
 [[redirects]]
   from = "/login.html"
-  to = "/auth/login"
+  to = "/auth/login/"
   status = 301
 
 [[redirects]]
   from = "/signup.html"
-  to = "/auth/signup"
+  to = "/auth/signup/"
   status = 301
 
 [[redirects]]
   from = "/dashboard.html"
-  to = "/app/dashboard"
+  to = "/app/dashboard/"
   status = 301

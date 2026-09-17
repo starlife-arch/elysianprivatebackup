@@ -4,10 +4,10 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Enter Invite Code — DateVault</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
-  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="../../favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="../../favicon.png"/>
+  <link rel="stylesheet" href="../../css/style.css"/>
 </head>
 <body>
   <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
@@ -29,17 +29,17 @@
   </div>
 
   <script type="module">
-    import { auth, db, onAuthStateChanged } from "./js/auth.js";
-    import { createOtpVerification } from "./js/otp.js";
+    import { auth, db, onAuthStateChanged } from "../../js/auth.js";
+    import { createOtpVerification } from "../../js/otp.js";
     import { getDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let currentUser = null;
 
     onAuthStateChanged(auth, async (user) => {
-      if (!user) { window.location.href = 'login.html'; return; }
+      if (!user) { window.location.href = '/auth/login/'; return; }
       const snap = await getDoc(doc(db, 'users', user.uid));
       if (!snap.exists() || snap.data().status !== 'approved_pending_invite') {
-        const { routeUser } = await import('./js/auth.js');
+        const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
       currentUser = user;
@@ -90,7 +90,7 @@
             inviteUsed: true,
             status: 'approved_pending_payment'
           });
-          window.location.href = `payment.html?token=${encodeURIComponent(data.inviteToken || data.inviteCode || code)}`;
+          window.location.href = `/account/payment/?token=${encodeURIComponent(data.inviteToken || data.inviteCode || code)}`;
         }
       });
       otp.start();
@@ -107,7 +107,7 @@
     }
 
     window.doLogout = async function() {
-      const { logout } = await import('./js/auth.js');
+      const { logout } = await import('../../js/auth.js');
       logout();
     };
   </script>

@@ -4,10 +4,10 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Member Profile — DateVault</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
-  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="../../favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="../../favicon.png"/>
+  <link rel="stylesheet" href="../../css/style.css"/>
 </head>
 <body>
   <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
@@ -20,19 +20,19 @@
   </div>
 
   <nav class="bottom-nav">
-    <a class="nav-item" href="dashboard.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>Discover</a>
-    <a class="nav-item" href="explore.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Explore</a>
-    <a class="nav-item" href="likes.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>Likes</a>
-    <a class="nav-item" href="wallet.html"><span style="font-size:20px;line-height:22px;">💰</span>Wallet</a>
-    <a class="nav-item" href="chat.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat</a>
-    <a class="nav-item" href="profile.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</a>
+    <a class="nav-item" href="/app/dashboard/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>Discover</a>
+    <a class="nav-item" href="/app/explore/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Explore</a>
+    <a class="nav-item" href="/app/likes/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>Likes</a>
+    <a class="nav-item" href="/app/wallet/"><span style="font-size:20px;line-height:22px;">💰</span>Wallet</a>
+    <a class="nav-item" href="/app/chat/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Chat</a>
+    <a class="nav-item" href="/app/profile/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</a>
   </nav>
 
   <script type="module">
-    import { requireActiveMember, db } from "./js/auth.js";
-    import { vaultBadge } from "./js/subscription.js";
-    import { haversineKm, formatDistance, getAdminSettings, resolveVisibility, requestAndSaveLocation } from "./js/location.js";
-    import { recordSwipe } from "./js/swipe.js";
+    import { requireActiveMember, db } from "../../js/auth.js";
+    import { vaultBadge } from "../../js/subscription.js";
+    import { haversineKm, formatDistance, getAdminSettings, resolveVisibility, requestAndSaveLocation } from "../../js/location.js";
+    import { recordSwipe } from "../../js/swipe.js";
     import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const zodiacSigns = {'Aries':'♈','Taurus':'♉','Gemini':'♊','Cancer':'♋','Leo':'♌','Virgo':'♍','Libra':'♎','Scorpio':'♏','Sagittarius':'♐','Capricorn':'♑','Aquarius':'♒','Pisces':'♓'};
@@ -52,7 +52,7 @@
       myCoords = profile._location || await requestAndSaveLocation(user.uid);
       adminSettings = await getAdminSettings();
       const uid = params.get('uid');
-      if (!uid || uid === user.uid) { window.location.href = 'profile.html'; return; }
+      if (!uid || uid === user.uid) { window.location.href = '/app/profile/'; return; }
       viewedUID = uid;
       const [snap, swipeSnap, matchSnap] = await Promise.all([
         getDoc(doc(db, 'users', uid)),
@@ -108,7 +108,7 @@
           <div style="text-align:center;">
             <div class="status-badge status-gold" style="margin-bottom:0.75rem;">MATCH</div>
             <p style="color:var(--muted);font-size:13px;margin-bottom:0.75rem;">You matched with this member.</p>
-            <button class="btn btn-gold btn-full" onclick="window.location.href='chat.html?uid=${viewedUID}'">Send Message</button>
+            <button class="btn btn-gold btn-full" onclick="window.location.href='/app/chat/?uid=${viewedUID}'">Send Message</button>
           </div>`;
       }
       if (alreadyResponded) {
@@ -148,7 +148,7 @@
     window.openGift = async function() {
       const amount = Number(window.prompt('Send Gift (minimum 10 tokens):', '10'));
       if (!Number.isFinite(amount)) return;
-      try { const { giftTokens } = await import('./js/wallet.js'); await giftTokens(myUser.uid, viewedUID, amount); alert('Gift sent! ✦'); }
+      try { const { giftTokens } = await import('../../js/wallet.js'); await giftTokens(myUser.uid, viewedUID, amount); alert('Gift sent! ✦'); }
       catch (e) { alert(e.message || 'Could not send gift.'); }
     };
 

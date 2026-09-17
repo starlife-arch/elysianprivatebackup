@@ -74,28 +74,28 @@ export function normalizeProfile(profile = {}) {
 }
 
 export async function routeUser(user) {
-  if (!user) { window.location.href = "login.html"; return; }
+  if (!user) { window.location.href = "/auth/login/"; return; }
   const snap = await getDoc(doc(db, "users", user.uid));
-  if (!snap.exists()) { window.location.href = "signup.html"; return; }
+  if (!snap.exists()) { window.location.href = "/auth/signup/"; return; }
   const d = normalizeProfile(snap.data());
-  if (d.role === "admin")  { window.location.href = "admin.html";   return; }
-  if (d.banned)            { window.location.href = "suspended.html"; return; }
-  if (d.status === "rejected") { window.location.href = "status.html"; return; }
+  if (d.role === "admin")  { window.location.href = "/admin/";   return; }
+  if (d.banned)            { window.location.href = "/account/suspended/"; return; }
+  if (d.status === "rejected") { window.location.href = "/account/status/"; return; }
   if (d.status === "approved_pending_payment") {
     const token = d.inviteToken || d.inviteCode || "";
-    window.location.href = token ? `payment.html?token=${encodeURIComponent(token)}` : "dashboard.html";
+    window.location.href = token ? `/account/payment/?token=${encodeURIComponent(token)}` : "/app/dashboard/";
     return;
   }
   if (isAccessExpired(d)) {
     await expireAccess(user.uid);
   }
-  window.location.href = "dashboard.html";
+  window.location.href = "/app/dashboard/";
 }
 
 export async function requireMember() {
   return new Promise(resolve => {
     onAuthStateChanged(auth, async user => {
-      if (!user) { window.location.href = "login.html"; return; }
+      if (!user) { window.location.href = "/auth/login/"; return; }
       const snap = await getDoc(doc(db, "users", user.uid));
       let profile = snap.exists() ? normalizeProfile(snap.data()) : null;
       if (!profile || profile.banned || isAccessExpired(profile)) {
@@ -112,7 +112,7 @@ export async function requireMember() {
 export async function requireActiveMember() {
   const session = await requireMember();
   if (!hasActiveMembership(session.profile)) {
-    window.location.href = "dashboard.html";
+    window.location.href = "/app/dashboard/";
     return new Promise(() => {});
   }
   return session;
@@ -121,10 +121,10 @@ export async function requireActiveMember() {
 export async function requireAdmin() {
   return new Promise(resolve => {
     onAuthStateChanged(auth, async user => {
-      if (!user) { window.location.href = "login.html"; return; }
+      if (!user) { window.location.href = "/auth/login/"; return; }
       const snap = await getDoc(doc(db, "users", user.uid));
       if (!snap.exists() || snap.data().role !== "admin") {
-        window.location.href = "login.html"; return;
+        window.location.href = "/auth/login/"; return;
       }
       resolve({ user, profile: snap.data() });
     });
@@ -179,7 +179,7 @@ export async function resetPassword(email) {
 
 export async function logout() {
   await signOut(auth);
-  window.location.href = "index.html";
+  window.location.href = "/";
 }
 
 export async function getProfile(uid) {

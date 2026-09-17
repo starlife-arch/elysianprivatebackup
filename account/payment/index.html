@@ -4,10 +4,10 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Membership Payment — DateVault</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
-  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="../../favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="../../favicon.png"/>
+  <link rel="stylesheet" href="../../css/style.css"/>
   <script src="https://js.paystack.co/v1/inline.js"></script>
 </head>
 <body>
@@ -73,10 +73,10 @@
   </div>
 
   <script type="module">
-    import { auth, db, onAuthStateChanged } from "./js/auth.js";
-    import { PAYSTACK_PUBLIC_KEY, getPricingConfig } from "./js/firebase.js";
+    import { auth, db, onAuthStateChanged } from "../../js/auth.js";
+    import { PAYSTACK_PUBLIC_KEY, getPricingConfig } from "../../js/firebase.js";
     import { getDoc, doc, updateDoc, serverTimestamp, addDoc, collection, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { planLabel, nextBillingDate, paymentAmountUSD, paymentAmountKES } from "./js/subscription.js";
+    import { planLabel, nextBillingDate, paymentAmountUSD, paymentAmountKES } from "../../js/subscription.js";
 
     let currentUser = null, userEmail = '', userName = '', profile = {};
     const params = new URLSearchParams(window.location.search);
@@ -102,7 +102,7 @@
       if (purpose === 'priority_support') return 'One-time support request · scheduled manually';
       return 'One-time access fee · Lifetime membership';
     }
-    function returnUrl() { return purpose === 'tokens' ? '../../app/wallet/' : (purpose === 'entry' ? 'dashboard.html' : (purpose === 'priority_support' ? 'chat.html?tab=support' : 'dashboard.html')); }
+    function returnUrl() { return purpose === 'tokens' ? '/app/wallet/' : (purpose === 'entry' ? '/app/dashboard/' : (purpose === 'priority_support' ? '/app/chat/?tab=support' : '/app/dashboard/')); }
     function setPaymentVisible(visible) {
       ['paymentPrice','paymentPeriod','perksList','paymentMethodsLabel','pesapalOpt','printpayOpt','paystackOpt','pesapalForm','printpayForm','paystackForm'].forEach(id => {
         const el = document.getElementById(id);
@@ -132,18 +132,18 @@
     }
 
     onAuthStateChanged(auth, async user => {
-      if (!user) { window.location.href = 'login.html'; return; }
+      if (!user) { window.location.href = '/auth/login/'; return; }
       const snap = await getDoc(doc(db, 'users', user.uid));
       profile = snap.exists() ? snap.data() : {};
       if (purpose === 'entry' && !inviteToken) inviteToken = profile.inviteToken || profile.inviteCode || '';
       const isPesapalCallback = params.get('pesapal') === 'callback';
       if (purpose === 'entry' && !isPesapalCallback && (!snap.exists() || !(profile.adminApproved || ['approved_pending_invite','approved_pending_payment'].includes(profile.status)))) {
-        const { routeUser } = await import('./js/auth.js');
+        const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
       if (purpose === 'entry' && !isPesapalCallback && !inviteToken) { showInvalidInvite(); return; }
       if (purpose !== 'entry' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
-        const { routeUser } = await import('./js/auth.js');
+        const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
       currentUser = user;
