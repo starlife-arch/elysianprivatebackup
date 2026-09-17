@@ -37,39 +37,16 @@ export async function debitTokens(uid, amount, note = '', type = 'debit') {
   });
 }
 
-export async function giftTokens(fromUID, toUID, amount) {
-  amount = amountOf(amount);
-  if (fromUID === toUID) throw new Error('You cannot send a gift to yourself.');
-  if (!Number.isInteger(amount) || amount < MIN_GIFT) throw new Error(`Gifts must be at least ${MIN_GIFT} tokens.`);
-  let sender = {};
-  await runTransaction(db, async transaction => {
-    const fromRef = doc(db, 'users', fromUID), toRef = doc(db, 'users', toUID);
-    const [from, to] = await Promise.all([transaction.get(fromRef), transaction.get(toRef)]);
-    if (!from.exists() || !to.exists()) throw new Error('Member not found.');
-    if (Number(from.data().walletBalance || 0) < amount) throw new Error('Not enough tokens — buy tokens in your wallet.');
-    sender = from.data();
-    transaction.update(fromRef, { walletBalance: Number(from.data().walletBalance || 0) - amount });
-    transaction.set(toRef, { walletBalance: increment(amount) }, { merge: true });
-    transaction.set(doc(collection(db, 'users', fromUID, 'walletTransactions')), { type: 'gift_sent', amount, toUID, note: 'Gift sent', createdAt: serverTimestamp(), status: 'completed' });
-    transaction.set(doc(collection(db, 'users', toUID, 'walletTransactions')), { type: 'gift_received', amount, fromUID, note: 'Gift received', createdAt: serverTimestamp(), status: 'completed' });
-  });
-  await addDoc(collection(db, 'admin_messages'), { toUID, message: `🎁 ${sender.displayName || sender.name || 'A member'} sent you ${amount} tokens!`, sentAt: serverTimestamp(), read: false, walletEvent: true });
-  return getWalletBalance(fromUID);
+export async function giftTokens(fromUID, toUID, amount, note = '') {
+  const token = await (await import('./firebase.js')).auth.currentUser?.getIdToken();
+  const response = await fetch('/api/wallet', { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${token}`}, body:JSON.stringify({action:'gift',toUID,amount,note}) });
+  const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not send gift.'); return getWalletBalance(fromUID);
 }
 
 export async function requestWithdrawal(uid, method, details) {
-  if (!['Bank', 'M-Pesa', 'PayPal', 'Crypto BEP-20'].includes(method)) throw new Error('Select a withdrawal method.');
-  if (!String(details || '').trim()) throw new Error('Enter your payout details.');
-  const withdrawalRef = doc(collection(db, 'withdrawals'));
-  await runTransaction(db, async transaction => {
-    const userRef = doc(db, 'users', uid);
-    const user = await transaction.get(userRef);
-    if (!user.exists() || Number(user.data().walletBalance || 0) < WITHDRAWAL_TOKENS) throw new Error('You need at least 3,000 tokens to withdraw.');
-    transaction.update(userRef, { walletBalance: Number(user.data().walletBalance || 0) - WITHDRAWAL_TOKENS });
-    transaction.set(withdrawalRef, { uid, tokens: WITHDRAWAL_TOKENS, payout: WITHDRAWAL_PAYOUT, method, details: String(details).trim(), status: 'pending', createdAt: serverTimestamp(), processedAt: null, processedBy: null });
-    transaction.set(doc(collection(db, 'users', uid, 'walletTransactions')), { type: 'withdrawal_request', amount: WITHDRAWAL_TOKENS, note: `$${WITHDRAWAL_PAYOUT} withdrawal requested via ${method}`, createdAt: serverTimestamp(), status: 'pending' });
-  });
-  return withdrawalRef.id;
+  const token = await (await import('./firebase.js')).auth.currentUser?.getIdToken();
+  const response = await fetch('/api/wallet', { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${token}`}, body:JSON.stringify({action:'withdraw',method,details}) });
+  const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not request withdrawal.'); return data.id;
 }
 
 export async function getTransactionHistory(uid, max = 20) {

@@ -1,3 +1,4 @@
+import { icon as svgIcon } from './icons.js';
 // ── Custom Dialog System (replaces browser confirm/prompt/alert) ──
 
 let resolveDialog = null;
@@ -30,11 +31,11 @@ function closeDialog(val) {
 }
 
 // ── alert replacement ──
-export function showAlert(msg, { title = 'Notice', icon = 'ℹ️', type = '' } = {}) {
+export function showAlert(msg, { title = 'Notice', icon = 'info', type = '' } = {}) {
   return new Promise(resolve => {
     resolveDialog = resolve;
     const el = getOrCreateOverlay();
-    document.getElementById('dialogIcon').textContent = icon;
+    document.getElementById('dialogIcon').innerHTML = svgIcon(icon);
     document.getElementById('dialogTitle').textContent = title;
     document.getElementById('dialogMsg').textContent = msg;
     document.getElementById('dialogInputWrap').style.display = 'none';
@@ -45,11 +46,11 @@ export function showAlert(msg, { title = 'Notice', icon = 'ℹ️', type = '' } 
 }
 
 // ── confirm replacement ──
-export function showConfirm(msg, { title = 'Confirm', icon = '◈', confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = {}) {
+export function showConfirm(msg, { title = 'Confirm', icon = 'alert', confirmText = 'Confirm', cancelText = 'Cancel', danger = false } = {}) {
   return new Promise(resolve => {
     resolveDialog = resolve;
     const el = getOrCreateOverlay();
-    document.getElementById('dialogIcon').textContent = icon;
+    document.getElementById('dialogIcon').innerHTML = svgIcon(icon);
     document.getElementById('dialogTitle').textContent = title;
     document.getElementById('dialogMsg').textContent = msg;
     document.getElementById('dialogInputWrap').style.display = 'none';
@@ -62,11 +63,11 @@ export function showConfirm(msg, { title = 'Confirm', icon = '◈', confirmText 
 }
 
 // ── prompt replacement ──
-export function showPrompt(msg, { title = 'Enter', icon = '✏️', placeholder = '', defaultVal = '', confirmText = 'OK', cancelText = 'Cancel' } = {}) {
+export function showPrompt(msg, { title = 'Enter', icon = 'edit', placeholder = '', defaultVal = '', confirmText = 'OK', cancelText = 'Cancel' } = {}) {
   return new Promise(resolve => {
     resolveDialog = resolve;
     const el = getOrCreateOverlay();
-    document.getElementById('dialogIcon').textContent = icon;
+    document.getElementById('dialogIcon').innerHTML = svgIcon(icon);
     document.getElementById('dialogTitle').textContent = title;
     document.getElementById('dialogMsg').textContent = msg;
     const wrap = document.getElementById('dialogInputWrap');
