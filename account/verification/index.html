@@ -5,10 +5,10 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Verification — DateVault</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico"/>
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon.png"/>
-  <link rel="apple-touch-icon" sizes="180x180" href="favicon.png"/>
-  <link rel="stylesheet" href="css/style.css"/>
+  <link rel="icon" type="image/x-icon" href="../../favicon.ico"/>
+  <link rel="icon" type="image/png" sizes="32x32" href="../../favicon.png"/>
+  <link rel="apple-touch-icon" sizes="180x180" href="../../favicon.png"/>
+  <link rel="stylesheet" href="../../css/style.css"/>
 </head>
 <body>
   <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
@@ -65,8 +65,8 @@
   </div>
 
   <script type="module">
-    import { requireMember, db } from "./js/auth.js";
-    import { uploadToCloudinary } from "./js/verification.js";
+    import { requireMember, db } from "../../js/auth.js";
+    import { uploadToCloudinary } from "../../js/verification.js";
     import { doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let currentUser, currentProfile;
@@ -77,7 +77,7 @@
       currentUser = user;
       currentProfile = profile;
       if (profile.verificationSubmitted === true || blockedStages.includes(profile.stage) || profile.stage !== 'profileComplete') {
-        window.location.href = 'dashboard.html';
+        window.location.href = '/app/dashboard/';
         return;
       }
       setupPreview('idFile', 'idPreview');
@@ -192,7 +192,7 @@
         setProgress('Notifying admin…', 95);
         await notifyAdmin();
         setProgress('Complete', 100);
-        window.location.href = 'dashboard.html';
+        window.location.href = '/app/dashboard/';
       } catch(e) {
         showError('Error: ' + e.message);
         btn.disabled = false;

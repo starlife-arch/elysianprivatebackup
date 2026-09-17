@@ -40,7 +40,7 @@ exports.handler = async function(event) {
         ${videoAvailability ? `<p style="color:#6b7a99;font-size:13px;line-height:1.5;margin:0 0 12px;">Availability you provided: ${videoAvailability}</p>` : ""}
         <a href="${meetLink}" style="color:#c9a84c;font-size:15px;word-break:break-all;">${meetLink}</a>
       </div>` : ""}
-      <a href="${APP_URL}/payment.html?token=${encodeURIComponent(token)}" style="display:block;background:#c9a84c;color:#1a1200;text-decoration:none;padding:16px 32px;border-radius:999px;font-weight:600;text-align:center;margin:28px 0;">Complete My Membership</a>
+      <a href="${APP_URL}/account/payment/?token=${encodeURIComponent(token)}" style="display:block;background:#c9a84c;color:#1a1200;text-decoration:none;padding:16px 32px;border-radius:999px;font-weight:600;text-align:center;margin:28px 0;">Complete My Membership</a>
       <p style="color:rgba(240,242,248,0.75);font-size:15px;line-height:1.7;">This membership link is one-time use and linked to your account. Do not share it with anyone.</p>
     </div>
   </div>

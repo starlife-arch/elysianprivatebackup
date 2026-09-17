@@ -12,7 +12,7 @@
 <body>
   <div class="pricing-page">
     <div class="pricing-hero fade-up">
-      <a href="dashboard.html" class="btn btn-outline btn-sm">← Back</a>
+      <a href="/app/dashboard/" class="btn btn-outline btn-sm">← Back</a>
       <div class="auth-logo">DateVault</div>
       <h1>Membership Plans</h1>
       <p class="muted">Standard is included after your entry approval. Upgrade anytime for premium discovery, trust, and support benefits.</p>
@@ -103,18 +103,18 @@
     function isActivePaid(profile = currentProfile) { return profile?.status === 'active_member' && (profile?.hasPaid || profile?.paid || profile?.stage === 'paid'); }
     function entryUrl() {
       const token = currentProfile?.inviteToken || currentProfile?.inviteCode || '';
-      return token ? `payment.html?token=${encodeURIComponent(token)}` : 'dashboard.html';
+      return token ? `/account/payment/?token=${encodeURIComponent(token)}` : '/app/dashboard/';
     }
     function refreshEntryButton() {
       const btn = document.getElementById('entryCheckoutBtn');
       if (!btn) return;
-      if (!currentProfile) { btn.textContent = 'Create Account'; btn.onclick = () => location.href = 'signup.html'; return; }
+      if (!currentProfile) { btn.textContent = 'Create Account'; btn.onclick = () => location.href = '/auth/signup/'; return; }
       if (isActivePaid()) { btn.textContent = 'Entry Paid'; btn.disabled = true; return; }
-      if (currentProfile.stage === 'signedUp' || !currentProfile.profileComplete) { btn.textContent = 'Complete Profile'; btn.onclick = () => location.href = 'profile.html?edit=1'; return; }
-      if (currentProfile.stage === 'profileComplete') { btn.textContent = 'Start Verification'; btn.onclick = () => location.href = 'verification.html'; return; }
+      if (currentProfile.stage === 'signedUp' || !currentProfile.profileComplete) { btn.textContent = 'Complete Profile'; btn.onclick = () => location.href = '/app/profile/?edit=1'; return; }
+      if (currentProfile.stage === 'profileComplete') { btn.textContent = 'Start Verification'; btn.onclick = () => location.href = '/account/verification/'; return; }
       if (currentProfile.stage === 'verificationSubmitted' || currentProfile.status === 'pending_admin_review') { btn.textContent = 'Awaiting Approval'; btn.disabled = true; return; }
       if (currentProfile.stage === 'adminApproved' || ['approved_pending_invite','approved_pending_payment'].includes(currentProfile.status)) { btn.textContent = `Pay $${pricingCfg.entryUSD.toFixed(2)} Entry`; btn.onclick = () => location.href = entryUrl(); return; }
-      btn.textContent = 'Open Dashboard'; btn.onclick = () => location.href = 'dashboard.html';
+      btn.textContent = 'Open Dashboard'; btn.onclick = () => location.href = '/app/dashboard/';
     }
     onAuthStateChanged(auth, async user => {
       if (user) {
@@ -134,19 +134,19 @@
       document.getElementById('vaultMeta').textContent = mode === 'annual' ? '$19.99/mo equivalent' : 'Monthly billing';
     }
     window.checkout = function(plan) {
-      if (!isActivePaid()) { refreshEntryButton(); location.href = currentProfile ? 'dashboard.html' : 'signup.html'; return; }
-      window.location.href = `payment.html?purpose=subscription&plan=${plan}&billing=${billing}`;
+      if (!isActivePaid()) { refreshEntryButton(); location.href = currentProfile ? '/app/dashboard/' : '/auth/signup/'; return; }
+      window.location.href = `/account/payment/?purpose=subscription&plan=${plan}&billing=${billing}`;
     };
     window.checkoutEntry = function() {
-      if (!currentProfile) { location.href = 'signup.html'; return; }
-      if (currentProfile.stage === 'signedUp' || !currentProfile.profileComplete) { location.href = 'profile.html?edit=1'; return; }
-      if (currentProfile.stage === 'profileComplete') { location.href = 'verification.html'; return; }
+      if (!currentProfile) { location.href = '/auth/signup/'; return; }
+      if (currentProfile.stage === 'signedUp' || !currentProfile.profileComplete) { location.href = '/app/profile/?edit=1'; return; }
+      if (currentProfile.stage === 'profileComplete') { location.href = '/account/verification/'; return; }
       if (currentProfile.stage === 'adminApproved' || ['approved_pending_invite','approved_pending_payment'].includes(currentProfile.status)) { location.href = entryUrl(); return; }
-      location.href = 'dashboard.html';
+      location.href = '/app/dashboard/';
     };
     window.prioritySupport = function() {
-      if (!isActivePaid()) { location.href = currentProfile ? 'dashboard.html' : 'signup.html'; return; }
-      window.location.href = 'payment.html?purpose=priority_support';
+      if (!isActivePaid()) { location.href = currentProfile ? '/app/dashboard/' : '/auth/signup/'; return; }
+      window.location.href = '/account/payment/?purpose=priority_support';
     };
   </script>
 </body>
