@@ -20,7 +20,7 @@
       <div class="auth-logo">DateVault</div>
       <p class="auth-tagline">Welcome back</p>
       <div id="errorMsg" style="display:none;background:rgba(224,92,110,0.1);border:1px solid rgba(224,92,110,0.3);color:var(--danger);padding:0.75rem 1rem;border-radius:12px;font-size:13px;margin-bottom:1rem;"></div>
-      <div class="field-group" id="loginForm">
+      <button type="button" class="btn btn-outline btn-full google-signin" id="googleBtn" onclick="doGoogleSignIn()"><span aria-hidden="true" style="font-weight:700">G</span> Continue with Google</button><div class="auth-divider"><span>or</span></div><div class="field-group" id="loginForm">
         <div>
           <label>Email Address</label>
           <input type="email" id="email" placeholder="your@email.com"/>
@@ -41,13 +41,19 @@
   </div>
 
   <script type="module">
-    import { login, resetPassword, auth, onAuthStateChanged, routeUser } from "../../js/auth.js";
+    import { login, resetPassword, auth, onAuthStateChanged, routeUser, signInWithGoogle } from "../../js/auth.js";
     import { createOtpVerification } from "../../js/otp.js";
 
     onAuthStateChanged(auth, user => {
       if (user) routeUser(user);
       else document.getElementById('loader').classList.add('hidden');
     });
+
+    window.doGoogleSignIn = async function() {
+      const button=document.getElementById('googleBtn'); button.disabled=true; button.textContent='Connecting to Google...';
+      try { const result=await signInWithGoogle(); if(result.isNew) window.location.href='/auth/google-phone/'; else await routeUser(result.user); }
+      catch(error) { console.error('Google sign-in failed', error); if(error.code==='auth/account-exists-with-different-credential') { const {showAlert}=await import('../../js/dialog.js'); await showAlert('An account already exists with this email. Sign in with your password instead.',{title:'Use your password',icon:'info'}); } else { showErr(error.message || 'Could not continue with Google.'); } button.disabled=false; button.innerHTML='<span aria-hidden="true" style="font-weight:700">G</span> Continue with Google'; }
+    };
 
     window.togglePassword = function(inputId, btn) {
       const input = document.getElementById(inputId);
