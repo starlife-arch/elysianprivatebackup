@@ -61,6 +61,17 @@ function copyFor(type, data, appUrl) {
       body: "Your profile and identity verification are now with the DateVault review team. We will notify you after review before asking for the entry payment.",
       cta: "Check Status", url: `${appUrl}/status.html`
     },
+    wallet_credit: { subject: 'Tokens added to your DateVault wallet', title: 'Tokens were added to your wallet.', body: `${Number(data.amount||0).toLocaleString()} tokens were added by the DateVault team.${data.reason ? ` Reason: ${escapeHTML(data.reason)}` : ''}`, cta: 'Open Token Wallet', url: `${appUrl}/app/wallet/` },
+    wallet_debit: { subject: 'DateVault wallet adjustment', title: 'Tokens were deducted from your wallet.', body: `${Number(data.amount||0).toLocaleString()} tokens were deducted by the DateVault team.${data.reason ? ` Reason: ${escapeHTML(data.reason)}` : ''}`, cta: 'Open Token Wallet', url: `${appUrl}/app/wallet/` },
+    wallet_set: { subject: 'DateVault wallet balance updated', title: 'Your wallet balance was updated.', body: `The DateVault team updated your token wallet balance.${data.reason ? ` Reason: ${escapeHTML(data.reason)}` : ''}`, cta: 'Open Token Wallet', url: `${appUrl}/app/wallet/` },
+    withdrawal_paid: { subject: 'Your DateVault withdrawal was paid', title: 'Your withdrawal has been paid.', body: 'Your withdrawal request has been marked as paid by the DateVault team.', cta: 'Open Token Wallet', url: `${appUrl}/app/wallet/` },
+    withdrawal_rejected: { subject: 'Your DateVault withdrawal was rejected', title: 'Your withdrawal was rejected and refunded.', body: `${Number(data.amount||0).toLocaleString()} tokens were returned to your wallet.${data.reason ? ` Reason: ${escapeHTML(data.reason)}` : ''}`, cta: 'Open Token Wallet', url: `${appUrl}/app/wallet/` },
+    token_purchase: {
+      subject: "Your DateVault tokens are ready",
+      title: "Your token purchase was successful.",
+      body: `${Number(data.tokens || 0).toLocaleString()} tokens were added to your DateVault wallet. Your new tokens are ready to use for gifts and other wallet features.`,
+      cta: "Open Token Wallet", url: `${appUrl}/app/wallet/`
+    },
     payment_received: {
       subject: "DateVault payment received",
       title: "Your payment was received.",
@@ -85,7 +96,7 @@ exports.handler = async function(event) {
   if (!data.email) return json(400, { error: "Missing email" });
 
   const BREVO_API_KEY = process.env.BREVO_API_KEY;
-  const paymentTypes = new Set(["subscription_expired", "subscription_renewed", "payment_received", "priority_support_requested"]);
+  const paymentTypes = new Set(["subscription_expired", "subscription_renewed", "payment_received", "token_purchase", "wallet_credit", "wallet_debit", "wallet_set", "withdrawal_paid", "withdrawal_rejected", "priority_support_requested"]);
   const adminTypes = new Set(["access_granted", "access_revoked", "plan_assigned", "user_banned", "user_unbanned", "reapply_allowed"]);
   const FROM_EMAIL = paymentTypes.has(data.type)
     ? (process.env.EMAIL_PAYMENT || process.env.FROM_EMAIL || "noreply@datevault.com")

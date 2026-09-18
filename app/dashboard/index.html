@@ -52,7 +52,7 @@
       <img id="matchTheirAvatar" src="" alt=""/>
     </div>
     <p class="muted" style="text-align:center;">You and <span id="matchName"></span> liked each other</p>
-    <button class="btn btn-outline btn-sm" onclick="quickGift()">🎁 Send 50 tokens</button>
+    <button class="btn btn-outline btn-sm" onclick="quickGift()"><i data-icon="gift"></i> Send tokens</button>
     <button class="btn btn-gold" onclick="goToChat()">Send a Message</button>
     <button class="btn btn-outline btn-sm" onclick="closeMatch()">Keep Swiping</button>
   </div>
@@ -71,7 +71,7 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
       Likes
     </a>
-    <a class="nav-item" href="/app/wallet/"><span style="font-size:20px;line-height:22px;">💰</span>Wallet</a>
+    <a class="nav-item" href="/app/wallet/"><span style="font-size:20px;line-height:22px;"></span>Wallet</a>
     <a class="nav-item" href="/app/chat/">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
       Chat
@@ -193,7 +193,7 @@
       banner.innerHTML = `<div class="glass-card subscription-panel"><div style="font-weight:600;color:${color};">${msg}</div>${action}</div>`;
     }
     function renderLocationRequiredDeck() {
-      document.getElementById('swipeDeck').innerHTML = `<div class="glass-card locked-state" style="width:100%;min-height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;"><div class="lock-icon">📍</div><p style="font-weight:700;color:var(--text);">Location is required on Standard</p><p class="muted">Standard members must allow location before viewing members. Your exact location is never shown.</p><button class="btn btn-gold btn-sm" onclick="allowLocation()">Allow Location Access</button></div>`;
+      document.getElementById('swipeDeck').innerHTML = `<div class="glass-card locked-state" style="width:100%;min-height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;"><div class="lock-icon"></div><p style="font-weight:700;color:var(--text);">Location is required on Standard</p><p class="muted">Standard members must allow location before viewing members. Your exact location is never shown.</p><button class="btn btn-gold btn-sm" onclick="allowLocation()">Allow Location Access</button></div>`;
       document.querySelector('.action-btns').style.opacity = '0.35';
       document.querySelector('.action-btns').style.pointerEvents = 'none';
     }
@@ -244,7 +244,7 @@
       let distanceBadge = '';
       if (vis.showDistance && myCoords && prof._location) {
         const km = haversineKm(myCoords.lat, myCoords.lng, prof._location.lat, prof._location.lng);
-        distanceBadge = `<div style="position:absolute;top:12px;right:12px;z-index:6;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);color:#E8C96A;font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;border:1px solid rgba(201,168,76,0.35);">📍 ${formatDistance(km)}</div>`;
+        distanceBadge = `<div style="position:absolute;top:12px;right:12px;z-index:6;background:rgba(0,0,0,0.65);backdrop-filter:blur(6px);color:#E8C96A;font-size:11px;font-weight:600;padding:3px 10px;border-radius:100px;border:1px solid rgba(201,168,76,0.35);"> ${formatDistance(km)}</div>`;
       }
       card.innerHTML = `
         <img class="swipe-photo" src="${photo}" alt="${prof.displayName || 'Member'}" loading="lazy" onclick="openPhotoViewer('${prof.id}')" style="pointer-events:auto;cursor:zoom-in;"/>
@@ -449,10 +449,9 @@
     window.closeMatch = () => document.getElementById('matchPopup').classList.remove('show');
     window.goToChat = () => window.location.href = `/app/chat/?uid=${matchedUID}`;
     window.quickGift = async () => {
-      const amount = Number(window.prompt('Gift tokens (minimum 10):', '50'));
-      if (!Number.isFinite(amount) || !matchedUID) return;
-      try { const { giftTokens } = await import('../../js/wallet.js'); await giftTokens(myUser.uid, matchedUID, amount); showToast('Gift sent! ✦'); }
-      catch (e) { showToast(e.message || 'Not enough tokens — buy tokens in your wallet'); }
+      if (!matchedUID) return;
+      try { const { openGiftSheet } = await import('../../js/gift.js'); await openGiftSheet({toUID:matchedUID,toName:document.getElementById('matchName').textContent,toPhoto:document.getElementById('matchTheirAvatar').src}); }
+      catch (e) { console.error('Unable to open gift sheet', e); showToast(e.message || 'Could not open gift.'); }
     };
 
     function listenUnreadChats() {
@@ -548,7 +547,7 @@
   <!-- Location Permission Prompt -->
   <div class="modal-overlay" id="locationPromptModal" style="z-index:9999;">
     <div class="modal-box" style="max-width:340px;text-align:center;">
-      <div style="font-size:48px;margin-bottom:1rem;">📍</div>
+      <div style="font-size:48px;margin-bottom:1rem;"></div>
       <div class="modal-title" style="margin-bottom:0.5rem;">Enable Location</div>
       <p style="font-size:14px;color:var(--muted);line-height:1.6;margin-bottom:1.5rem;">
         DateVault uses your location to show nearby context and distances. Standard members must allow location to view members.<br><br>
@@ -556,7 +555,7 @@
       </p>
       <div style="display:flex;flex-direction:column;gap:0.75rem;">
         <button class="btn btn-gold btn-full" onclick="allowLocation()">
-          Allow Location Access ✦
+          Allow Location Access
         </button>
         <button class="btn btn-full" style="background:transparent;border:none;color:var(--muted);font-size:13px;" onclick="denyLocation()">
           Not now
@@ -565,5 +564,5 @@
     </div>
   </div>
 
-</body>
+<script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons();</script></body>
 </html>

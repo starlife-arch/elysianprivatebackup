@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+const fs=require('fs'),path=require('path'); const root=path.resolve(__dirname,'..'); const skip=new Set(['node_modules','.git']); let bad=[];
+function walk(dir){for(const entry of fs.readdirSync(dir,{withFileTypes:true})){if(skip.has(entry.name))continue;const file=path.join(dir,entry.name);if(entry.isDirectory())walk(file);else if(/\.(html|js|css)$/.test(entry.name)){const text=fs.readFileSync(file,'utf8');if(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}]/u.test(text)||/window\.(?:alert|confirm|prompt)\s*\(/.test(text))bad.push(path.relative(root,file));}}} walk(root);if(bad.length){console.error('UI guard failed:\n'+bad.join('\n'));process.exit(1)}console.log('UI guard passed');
