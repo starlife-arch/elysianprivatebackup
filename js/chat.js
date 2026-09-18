@@ -39,6 +39,7 @@ export async function sendMessage(myUID, theirUID, text, imageURL = null) {
 }
 
 // ── Listen to messages in real-time ──
+const readInSession = new Set();
 export function listenMessages(myUID, theirUID, callback) {
   const matchId = getMatchId(myUID, theirUID);
   const q = query(collection(db, "matches", matchId, "messages"), orderBy("sentAt", "asc"));
@@ -48,7 +49,7 @@ export function listenMessages(myUID, theirUID, callback) {
     // Mark incoming messages as read for Elite/Vault read receipts.
     snap.docs.forEach(d => {
       const m = d.data();
-      if (m.senderUID !== myUID && m.read !== true) updateDoc(doc(db, "matches", matchId, "messages", d.id), { read: true }).catch(()=>{});
+      if (m.senderUID !== myUID && m.read !== true && !readInSession.has(d.id)) { readInSession.add(d.id); updateDoc(doc(db, "matches", matchId, "messages", d.id), { read: true }).catch(error=>console.error('Could not mark message read', error)); }
     });
     updateDoc(doc(db, "matches", matchId), { [`hasUnread_${myUID}`]: false }).catch(()=>{});
   });
@@ -58,24 +59,6 @@ export function listenMessages(myUID, theirUID, callback) {
 export async function fetchConversations(myUID) {
   const q = query(collection(db, "matches"), where("users", "array-contains", myUID), orderBy("lastMessageAt", "desc"), limit(50));
   const snap = await getDocs(q);
-  const conversations = [];
-  for (const d of snap.docs) {
-    const data = d.data();
-    const theirUID = data.users.find(u => u !== myUID);
-    const blocks = await blockStatus(myUID, theirUID);
-    if (blocks.blockedByMe) continue;
-    const theirSnap = await getDoc(doc(db, "users", theirUID));
-    const them = theirSnap.exists() ? theirSnap.data() : {};
-    conversations.push({
-      matchId: d.id,
-      theirUID,
-      theirName: them.displayName || them.name || "Member",
-      theirPhoto: them.photos && them.photos[0] ? them.photos[0] : null,
-      lastMessage: data.lastMessage,
-      lastMessageAt: data.lastMessageAt,
-      hasUnread: data[`hasUnread_${myUID}`] || false,
-      unavailable: blocks.blockedMe
-    });
-  }
-  return conversations;
+  const results = await Promise.all(snap.docs.map(async d => { const data=d.data(), theirUID=data.users.find(u=>u!==myUID); const [blocks,theirSnap]=await Promise.all([blockStatus(myUID,theirUID),getDoc(doc(db,"users",theirUID))]); if(blocks.blockedByMe)return null; const them=theirSnap.exists()?theirSnap.data():{}; return {matchId:d.id,theirUID,theirName:them.displayName||them.name||"Member",theirPhoto:them.photos?.[0]||null,lastMessage:data.lastMessage,lastMessageAt:data.lastMessageAt,hasUnread:data[`hasUnread_${myUID}`]||false,unavailable:blocks.blockedMe}; }));
+  return results.filter(Boolean);
 }
