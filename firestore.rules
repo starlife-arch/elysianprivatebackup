@@ -33,11 +33,32 @@ service cloud.firestore {
     function ticketIsOpenForUserReply() {
       return resource.data.status != 'closed';
     }
+    function selfServiceStatus() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['status'])
+        || request.resource.data.status in ['signedUp', 'pending_verification', 'pending_admin_review'];
+    }
+    function selfServiceSubscription() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['subscription'])
+        || (
+          resource.data.subscription.status == 'active'
+          && request.resource.data.subscription.diff(resource.data.subscription).affectedKeys()
+            .hasOnly(['plan', 'billing', 'status', 'nextBillingDate', 'previousPlan', 'expiredAt', 'expiredBillingDate'])
+          && request.resource.data.subscription.plan == 'standard'
+          && request.resource.data.subscription.billing == 'included'
+          && request.resource.data.subscription.status == 'expired'
+          && request.resource.data.subscription.nextBillingDate == null
+          && request.resource.data.subscription.previousPlan == resource.data.subscription.plan
+          && request.resource.data.subscription.expiredBillingDate == resource.data.subscription.nextBillingDate
+        );
+    }
 
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin() || isActiveMember();
       allow create: if isOwner(uid);
-      allow update: if isAdmin() || (isOwner(uid) && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'walletFrozen', 'walletFrozenReason', 'walletFrozenAt', 'role', 'status', 'subscription']));
+      allow update: if isAdmin() || (isOwner(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'walletFrozen', 'walletFrozenReason', 'walletFrozenAt', 'role'])
+        && selfServiceStatus()
+        && selfServiceSubscription());
       allow delete: if isAdmin();
 
       match /swipes/{swipedUID} {
