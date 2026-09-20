@@ -33,6 +33,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2L15 22 11 13 2 9l20-7z"/></svg>Announcements</button>
       <button class="sidebar-item" id="nav-pricing" onclick="showSection('pricing')"> Pricing</button>
       <button class="sidebar-item" id="nav-wallet" onclick="showSection('wallet')"> Wallet <span class="sidebar-count" id="withdrawalCount" style="display:none;"></span></button>
+      <button class="sidebar-item" id="nav-revenue" onclick="showSection('revenue')"> Revenue</button>
       <button class="sidebar-item" id="nav-support"       onclick="showSection('support')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Support Tickets
         <span class="sidebar-count" id="supportCount" style="display:none;"></span></button>
@@ -144,6 +145,13 @@
         <div class="stats-grid" id="walletStats"></div>
         <div class="glass-card" style="margin:1rem 0;"><h3 style="margin-bottom:.35rem;">Member wallet controls</h3><p class="muted" style="font-size:13px;margin:.25rem 0 .75rem;">Select a member, then add, deduct, set, or freeze their token wallet.</p><label for="walletMemberSelect">Member</label><select id="walletMemberSelect" onchange="selectWalletMember(this.value)"><option value="">Loading members…</option></select><label for="walletSearch" style="margin-top:.75rem;display:block;">Search name, email, or member ID</label><input id="walletSearch" oninput="searchWalletMembers()" placeholder="Search name, email, or member ID"><div id="walletMember" style="margin-top:.75rem;"></div></div>
         <div class="glass-card"><h3 style="margin-bottom:.75rem;">Withdrawal Requests</h3><div id="withdrawalList"></div></div><div class="glass-card" style="margin-top:1rem;"><h3 style="margin-bottom:.75rem;">Wallet admin activity</h3><div id="walletAuditList"><p class="muted">Loading wallet activity…</p></div></div>
+      </section>
+
+      <section id="section-revenue" style="display:none;">
+        <div class="admin-header"><h1 class="admin-title">Revenue</h1><button class="btn btn-outline btn-sm" onclick="loadRevenueAdmin()">Refresh</button></div>
+        <div class="glass-card" style="margin-bottom:1rem;"><label for="revenueWindow">Reporting period</label><select id="revenueWindow" onchange="renderRevenue()" style="width:auto;margin-left:.5rem;"><option value="all">All time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option></select><p class="muted" style="font-size:12px;margin:.6rem 0 0;">Net revenue is an approximation and excludes processing fees and unresolved disputes.</p></div>
+        <div class="stats-grid" id="revenueStats"><p class="muted">Open Revenue to load reporting data.</p></div>
+        <div class="glass-card" style="margin-top:1rem;"><h3 style="margin-bottom:.75rem;">Revenue trend</h3><div id="revenueTrend"></div></div>
       </section>
 
       <!-- SUPPORT -->
@@ -285,7 +293,7 @@
     import { requireAdmin, logout, db, auth } from "../js/auth.js";
     import { showConfirm, showPrompt, showAlert, showSuccess, showError } from "../js/dialog.js";
     import { openSheet } from "../js/sheet.js";
-    import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport } from "../js/admin.js";
+    import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport, fetchPayments } from "../js/admin.js";
     import * as adminApi from "../js/admin.js";
     import { collection, getDocs, doc, addDoc, updateDoc, query, where, orderBy, limit, serverTimestamp, arrayUnion, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAdminSettings, setAdminGlobalSetting, setMemberOverride } from "../js/location.js";
@@ -798,7 +806,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
     };
 
     window.showSection=function(name){
-      ['overview','pending','members','messages','announcements','pricing','wallet','support','reports','calls','privacy'].forEach(s=>{
+      ['overview','pending','members','messages','announcements','pricing','wallet','revenue','support','reports','calls','privacy'].forEach(s=>{
         document.getElementById('section-'+s).style.display=s===name?'block':'none';
         document.getElementById('nav-'+s).classList.toggle('active',s===name);
       });
@@ -806,6 +814,24 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
     window.doLogout=()=>logout();
 
     let pendingWithdrawals = [];
+    let revenuePayments = [], revenueWithdrawals = [];
+    const money = value => `$${Number(value || 0).toFixed(2)}`;
+    const completedAt = value => { const date = value?.toDate ? value.toDate() : new Date(value); return Number.isNaN(date.getTime()) ? null : date; };
+    window.loadRevenueAdmin = async function() {
+      const stats = document.getElementById('revenueStats'); stats.innerHTML = '<p class="muted">Loading revenue data…</p>';
+      try { [revenuePayments, revenueWithdrawals] = await Promise.all([fetchPayments(), getDocs(collection(db, 'withdrawals')).then(snap => snap.docs.map(d => ({ id:d.id, ...d.data() })))]); renderRevenue(); }
+      catch (error) { console.error('Could not load revenue', error); stats.innerHTML = '<p class="gift-error">Could not load revenue data.</p>'; document.getElementById('revenueTrend').innerHTML = ''; }
+    };
+    window.renderRevenue = function() {
+      const windowDays = document.getElementById('revenueWindow').value, cutoff = windowDays === 'all' ? null : new Date(Date.now() - Number(windowDays) * 86400000);
+      const payments = revenuePayments.filter(p => !cutoff || (completedAt(p.completedAt) && completedAt(p.completedAt) >= cutoff));
+      const sum = list => list.reduce((total, item) => total + Number(item.amountUSD || 0), 0);
+      const byPurpose = purpose => sum(payments.filter(p => p.purpose === purpose));
+      const subscriptions = payments.filter(p => p.purpose === 'subscription');
+      const approved = revenueWithdrawals.filter(w => w.status === 'approved').reduce((total, w) => total + Number(w.payout || 0), 0), pending = revenueWithdrawals.filter(w => w.status === 'pending').reduce((total, w) => total + Number(w.payout || 0), 0), total = sum(payments), tokenPayments = payments.filter(p => p.purpose === 'tokens'), tokenCount = tokenPayments.reduce((total, p) => total + Number(p.tokens || 0), 0);
+      document.getElementById('revenueStats').innerHTML = `<div class="stat-tile"><div class="num">${money(total)}</div><div class="lbl">Total revenue</div></div><div class="stat-tile"><div class="num" style="color:var(--success);">${money(total-approved)}</div><div class="lbl">Approx. net after payouts</div></div><div class="stat-tile"><div class="num">${money(byPurpose('entry'))}</div><div class="lbl">Entry fees</div></div><div class="stat-tile"><div class="num">${money(byPurpose('subscription'))}</div><div class="lbl">Subscriptions</div></div><div class="stat-tile"><div class="num">${money(byPurpose('tokens'))}</div><div class="lbl">Token sales · ${tokenCount.toLocaleString()} tokens</div></div><div class="stat-tile"><div class="num">${money(sum(subscriptions.filter(p=>p.plan==='elite')))}</div><div class="lbl">Elite subscriptions</div></div><div class="stat-tile"><div class="num">${money(sum(subscriptions.filter(p=>p.plan==='vault')))}</div><div class="lbl">Vault subscriptions</div></div><div class="stat-tile"><div class="num" style="color:var(--danger);">${money(approved)}</div><div class="lbl">Approved payouts</div></div><div class="stat-tile"><div class="num" style="color:#ffaa00;">${money(pending)}</div><div class="lbl">Pending payouts</div></div><div class="stat-tile"><div class="num">${allUsers.reduce((total,u)=>total+Number(u.walletBalance||0),0).toLocaleString()}</div><div class="lbl">Tokens in wallets (liability)</div></div>`;
+      const buckets = {}; payments.forEach(p => { const date = completedAt(p.completedAt); if (!date) return; const key = date.toISOString().slice(0, 10); buckets[key] = (buckets[key] || 0) + Number(p.amountUSD || 0); }); const entries = Object.entries(buckets).sort((a,b)=>b[0].localeCompare(a[0])).slice(0, 14), max = Math.max(1, ...entries.map(([,amount])=>amount)); document.getElementById('revenueTrend').innerHTML = entries.length ? entries.map(([day,amount]) => `<div style="display:grid;grid-template-columns:90px 1fr 70px;gap:.5rem;align-items:center;margin:.45rem 0;"><span class="muted" style="font-size:12px;">${day}</span><div style="height:10px;background:var(--surface2);border-radius:99px;overflow:hidden;"><div style="width:${(amount/max)*100}%;height:100%;background:var(--gold);"></div></div><strong style="font-size:12px;text-align:right;">${money(amount)}</strong></div>`).join('') : '<p class="muted">No completed payments in this period.</p>';
+    };
     async function loadWalletAdmin() {
       const withdrawalSnap = await getDocs(query(collection(db, 'withdrawals'), where('status', '==', 'pending'), orderBy('createdAt', 'desc')));
       pendingWithdrawals = withdrawalSnap.docs.map(d => ({ id:d.id, ...d.data() }));
@@ -847,6 +873,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
       _origShow(name);
       if (name === 'privacy') loadPrivacySettings();
       if (name === 'wallet') loadWalletAdmin();
+      if (name === 'revenue') loadRevenueAdmin();
     };
 
     async function loadPrivacySettings() {

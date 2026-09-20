@@ -39,6 +39,18 @@ export function genInviteCode() {
   return code;
 }
 
+export async function fetchPayments(sinceDate = null) {
+  const paymentsQuery = query(collection(db, 'payments'), where('status', '==', 'completed'), orderBy('completedAt', 'desc'), limit(500));
+  const snap = await getDocs(paymentsQuery);
+  const payments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  if (!sinceDate) return payments;
+  return payments.filter(payment => {
+    const value = payment.completedAt;
+    const date = value?.toDate ? value.toDate() : new Date(value);
+    return !Number.isNaN(date.getTime()) && date >= sinceDate;
+  });
+}
+
 async function genUniqueInviteToken() {
   for (let i = 0; i < 8; i++) {
     const code = genInviteCode();
