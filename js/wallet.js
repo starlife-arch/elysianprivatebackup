@@ -4,6 +4,8 @@ import { doc, getDoc, collection, addDoc, query, orderBy, limit as firestoreLimi
 const MIN_GIFT = 10;
 const WITHDRAWAL_TOKENS = 3000;
 const WITHDRAWAL_PAYOUT = 15;
+const BOOST_COST = 200;
+const BOOST_DURATION_MINUTES = 30;
 
 const amountOf = value => Math.floor(Number(value));
 
@@ -49,9 +51,23 @@ export async function requestWithdrawal(uid, method, details) {
   const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not request withdrawal.'); return data.id;
 }
 
+export async function purchaseBoost() {
+  const token = await (await import('./firebase.js')).auth.currentUser?.getIdToken();
+  if (!token) throw new Error('Sign in required.');
+  const response = await fetch('/api/wallet', { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${token}`}, body:JSON.stringify({action:'boost'}) });
+  const data = await response.json(); if (!response.ok) throw new Error(data.error || 'Could not purchase a profile boost.'); return data;
+}
+
+export function getBoostRemainingMs(profile = {}) {
+  const expires = profile.boostExpiresAt;
+  if (!profile.boostActive || !expires) return 0;
+  const ms = typeof expires.toMillis === 'function' ? expires.toMillis() : new Date(expires).getTime();
+  return Number.isFinite(ms) ? Math.max(0, ms - Date.now()) : 0;
+}
+
 export async function getTransactionHistory(uid, max = 20) {
   const snap = await getDocs(query(collection(db, 'users', uid, 'walletTransactions'), orderBy('createdAt', 'desc'), firestoreLimit(Math.min(Number(max) || 20, 50))));
   return snap.docs.map(item => ({ id: item.id, ...item.data() }));
 }
 
-export { MIN_GIFT, WITHDRAWAL_TOKENS, WITHDRAWAL_PAYOUT };
+export { MIN_GIFT, WITHDRAWAL_TOKENS, WITHDRAWAL_PAYOUT, BOOST_COST, BOOST_DURATION_MINUTES };
