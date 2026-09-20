@@ -49,20 +49,36 @@
   </div>
 
   <script type="module">
-    import { signup, auth, onAuthStateChanged, routeUser, signInWithGoogle } from "../../js/auth.js";
+    import { signup, auth, onAuthStateChanged, routeUser, signInWithGoogle, handleGoogleRedirectResult } from "../../js/auth.js";
     import { createOtpVerification } from "../../js/otp.js";
 
-    let authInProgress = false;
+    let authInProgress = true;
 
-    onAuthStateChanged(auth, user => {
-      if (user && !authInProgress) routeUser(user);
-      else if (!user) document.getElementById('loader').classList.add('hidden');
-    });
+    async function initializeAuth() {
+      try {
+        const result = await handleGoogleRedirectResult();
+        if (result) {
+          if (result.isNew) window.location.href = '/auth/google-phone/';
+          else await routeUser(result.user);
+          return;
+        }
+      } catch (error) {
+        console.error('Google redirect sign-in failed', error);
+        showErr(error.message || 'Could not continue with Google.');
+      }
+      authInProgress = false;
+      onAuthStateChanged(auth, user => {
+        if (user && !authInProgress) routeUser(user);
+        else if (!user) document.getElementById('loader').classList.add('hidden');
+      });
+    }
+
+    initializeAuth();
 
     window.doGoogleSignIn = async function() {
       authInProgress = true;
       const button=document.getElementById('googleBtn'); button.disabled=true; button.textContent='Connecting to Google...';
-      try { const result=await signInWithGoogle(); if(result.isNew) window.location.href='/auth/google-phone/'; else await routeUser(result.user); }
+      try { const result=await signInWithGoogle(); if(!result) return; if(result.isNew) window.location.href='/auth/google-phone/'; else await routeUser(result.user); }
       catch(error) { authInProgress = false; console.error('Google sign-in failed', error); if(error.code==='auth/account-exists-with-different-credential') { const {showAlert}=await import('../../js/dialog.js'); await showAlert('An account already exists with this email. Sign in with your password instead.',{title:'Use your password',icon:'info'}); } else { showErr(error.message || 'Could not continue with Google.'); } button.disabled=false; button.innerHTML='<span aria-hidden="true" style="font-weight:700">G</span> Continue with Google'; }
     };
 
