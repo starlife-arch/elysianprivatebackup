@@ -1,7 +1,8 @@
 import { auth, db } from "./firebase.js";
 import {
   createUserWithEmailAndPassword, signInWithEmailAndPassword,
-  sendPasswordResetEmail, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup
+  sendPasswordResetEmail, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup,
+  signInWithRedirect, getRedirectResult
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   doc, getDoc, setDoc, updateDoc, serverTimestamp
@@ -131,14 +132,13 @@ export async function requireAdmin() {
   });
 }
 
-function initialUserData(user, fullName = '', memberId = genMemberId()) {
+function initialUserData(user, fullName = '', memberId = genMemberId(), phone = '') {
   const name = fullName || user.displayName || '';
-  return { uid:user.uid, memberId, email:user.email || '', name, displayName:name, status:'signedUp', role:'user', banned:false, paid:false, emailVerified:true, profileComplete:false, photosUploaded:false, verificationSubmitted:false, adminApproved:false, hasPaid:false, plan:'none', likesRemaining:2, likesResetAt:null, lastReminderSent:null, reminderCount:0, reminderType:null, stage:'signedUp', subscription:{ plan:'none', billing:null, status:'inactive', startDate:null, nextBillingDate:null, prioritySupportRequests:0 }, vaultBadge:false, walletBalance:0, createdAt:serverTimestamp(), photos:[], interests:[] };
+  return { uid:user.uid, memberId, email:user.email || '', name, displayName:name, phone:phone.replace(/\s/g, ''), status:'signedUp', role:'user', banned:false, paid:false, emailVerified:true, profileComplete:false, photosUploaded:false, verificationSubmitted:false, adminApproved:false, hasPaid:false, plan:'none', likesRemaining:2, likesResetAt:null, lastReminderSent:null, reminderCount:0, reminderType:null, stage:'signedUp', subscription:{ plan:'none', billing:null, status:'inactive', startDate:null, nextBillingDate:null, prioritySupportRequests:0 }, vaultBadge:false, walletBalance:0, createdAt:serverTimestamp(), photos:[], interests:[] };
 }
 
-export async function signInWithGoogle() {
-  const credential = await signInWithPopup(auth, new GoogleAuthProvider());
-  const user = credential.user, userRef = doc(db, 'users', user.uid), existing = await getDoc(userRef);
+async function completeGoogleSignIn(user) {
+  const userRef = doc(db, 'users', user.uid), existing = await getDoc(userRef);
   if (!existing.exists()) {
     const data = initialUserData(user);
     await setDoc(userRef, data);
@@ -148,10 +148,28 @@ export async function signInWithGoogle() {
   return { user, isNew:false };
 }
 
-export async function signup(email, password, fullName = "") {
+export async function signInWithGoogle() {
+  try {
+    const credential = await signInWithPopup(auth, new GoogleAuthProvider());
+    return completeGoogleSignIn(credential.user);
+  } catch (error) {
+    if (['auth/popup-blocked', 'auth/popup-closed-by-user', 'auth/cancelled-popup-request'].includes(error.code)) {
+      await signInWithRedirect(auth, new GoogleAuthProvider());
+      return null;
+    }
+    throw error;
+  }
+}
+
+export async function handleGoogleRedirectResult() {
+  const result = await getRedirectResult(auth);
+  return result ? completeGoogleSignIn(result.user) : null;
+}
+
+export async function signup(email, password, fullName = "", phone = "") {
   const cred = await createUserWithEmailAndPassword(auth, email, password);
   const memberId = genMemberId();
-  await setDoc(doc(db, "users", cred.user.uid), initialUserData(cred.user, fullName, memberId));
+  await setDoc(doc(db, "users", cred.user.uid), initialUserData(cred.user, fullName, memberId, phone));
   try {
     await fetch('/api/telegram-notify', {
       method: 'POST',
