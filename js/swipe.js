@@ -26,6 +26,13 @@ function createdAtMillis(profile = {}) {
   return new Date(createdAt).getTime() || 0;
 }
 
+export function isBoosted(profile = {}) {
+  const expires = profile.boostExpiresAt;
+  if (!profile.boostActive || !expires) return false;
+  const ms = typeof expires.toMillis === 'function' ? expires.toMillis() : new Date(expires).getTime();
+  return ms > Date.now();
+}
+
 // ── Fetch all eligible profiles to swipe ──
 export async function fetchProfiles(currentUser, profile) {
   const swipedSnap = await getDocs(collection(db, "users", currentUser.uid, "swipes"));
@@ -49,8 +56,8 @@ export async function fetchProfiles(currentUser, profile) {
     profiles.push({ id: d.id, ...data, _doc: d });
   });
 
-  // Boost Elite and Vault profiles higher in the deck, then show earlier members first.
-  return profiles.sort((a, b) => subscriptionRank(b) - subscriptionRank(a) || createdAtMillis(a) - createdAtMillis(b));
+  // Subscription tier always wins; boosts only break ties inside a tier.
+  return profiles.sort((a, b) => subscriptionRank(b) - subscriptionRank(a) || (isBoosted(b) - isBoosted(a)) || createdAtMillis(a) - createdAtMillis(b));
 }
 
 // ── Record a swipe and check for match ──

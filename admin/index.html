@@ -385,10 +385,16 @@
       const date = value.toDate ? value.toDate() : new Date(value);
       return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
     }
+    function isBoostActive(user) {
+      if (!user.boostActive || !user.boostExpiresAt) return false;
+      const date = user.boostExpiresAt.toDate ? user.boostExpiresAt.toDate() : new Date(user.boostExpiresAt);
+      return !Number.isNaN(date.getTime()) && date.getTime() > Date.now();
+    }
 
     function userCard(u, showVerif) {
       const sc={active_member:'status-active',pending_admin_review:'status-pending',rejected:'status-rejected',approved_pending_invite:'status-gold',approved_pending_payment:'status-gold'};
       const photos=u.photos||[];
+      const boostActive=isBoostActive(u);
       const photoStrip=photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:0.75rem;">${photos.map(p=>`<a href="${p}" target="_blank"><img src="${p}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;"/></a>`).join('')}</div>`:'';
       const idSection=(u.idPhotoURL||u.selfieURL)?`<div style="display:flex;gap:8px;margin-top:0.75rem;flex-wrap:wrap;">
         ${u.idPhotoURL?`<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">ID PHOTO</div><a href="${u.idPhotoURL}" target="_blank"><img src="${u.idPhotoURL}" class="id-photo"/></a></div>`:''}
@@ -405,6 +411,7 @@
             ${u.adminOverride?'<span class="status-badge status-gold" style="font-size:10px;">ADMIN OVERRIDE</span>':''}
             ${u.inviteToken?`<span class="status-badge status-gold" style="font-size:10px;letter-spacing:0.08em;">INVITE TOKEN: ${u.inviteToken}</span>`:(u.inviteCode?`<span class="status-badge status-gold" style="font-size:10px;letter-spacing:0.08em;">INVITE: ${u.inviteCode}</span>`:'')}
             ${u.accessExpiry?`<span class="status-badge status-pending" style="font-size:10px;">EXPIRES: ${u.accessExpiry}</span>`:''}
+            ${u.boostExpiresAt?`<span class="status-badge ${boostActive?'status-gold':'status-rejected'}" style="font-size:10px;">BOOST ${boostActive?'ACTIVE UNTIL':'EXPIRED'} ${formatDateTime(u.boostExpiresAt)}</span>`:''}
             ${subscriptionBadge(u)}
           </div>
           <details class="verification-detail" ${showVerif?'open':''}>
@@ -418,7 +425,8 @@
             <strong>Social:</strong> ${u.socialLinks||'—'}<br/>
             <strong>Verification submitted:</strong> ${formatDateTime(u.verificationSubmittedAt)}<br/>
             <strong>Video availability:</strong> ${u.videoAvailability||'Not specified'}<br/>
-            <strong>Subscription:</strong> ${subscriptionBadge(u)} ${u.subscription?.nextBillingDate?`Next billing: ${u.subscription.nextBillingDate}`:''}
+            <strong>Subscription:</strong> ${subscriptionBadge(u)} ${u.subscription?.nextBillingDate?`Next billing: ${u.subscription.nextBillingDate}`:''}<br/>
+            <strong>Profile boost:</strong> ${u.boostExpiresAt?(boostActive?`Active until ${formatDateTime(u.boostExpiresAt)}`:`Expired ${formatDateTime(u.boostExpiresAt)}`):'Not active'}
             ${photoStrip}${idSection}
           </details>
           <div class="admin-actions">
