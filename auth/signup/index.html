@@ -49,22 +49,37 @@
   </div>
 
   <script type="module">
-    import { signup, auth, onAuthStateChanged, routeUser, db, signInWithGoogle } from "../../js/auth.js";
+    import { signup, auth, onAuthStateChanged, routeUser, signInWithGoogle, handleGoogleRedirectResult } from "../../js/auth.js?v=google-redirect-1";
     import { createOtpVerification } from "../../js/otp.js";
-    import { doc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    let signupInProgress = false;
+    let authInProgress = true;
 
-    onAuthStateChanged(auth, user => {
-      if (user && !signupInProgress) routeUser(user);
-    });
+    async function initializeAuth() {
+      try {
+        const result = await handleGoogleRedirectResult();
+        if (result) {
+          if (result.isNew) window.location.href = '/auth/google-phone/';
+          else await routeUser(result.user);
+          return;
+        }
+      } catch (error) {
+        console.error('Google redirect sign-in failed', error);
+        showErr(error.message || 'Could not continue with Google.');
+      }
+      authInProgress = false;
+      onAuthStateChanged(auth, user => {
+        if (user && !authInProgress) routeUser(user);
+        else if (!user) document.getElementById('loader').classList.add('hidden');
+      });
+    }
 
-    document.getElementById('loader').classList.add('hidden');
+    initializeAuth();
 
     window.doGoogleSignIn = async function() {
+      authInProgress = true;
       const button=document.getElementById('googleBtn'); button.disabled=true; button.textContent='Connecting to Google...';
-      try { const result=await signInWithGoogle(); if(result.isNew) window.location.href='/auth/google-phone/'; else await routeUser(result.user); }
-      catch(error) { console.error('Google sign-in failed', error); if(error.code==='auth/account-exists-with-different-credential') { const {showAlert}=await import('../../js/dialog.js'); await showAlert('An account already exists with this email. Sign in with your password instead.',{title:'Use your password',icon:'info'}); } else { showErr(error.message || 'Could not continue with Google.'); } button.disabled=false; button.innerHTML='<span aria-hidden="true" style="font-weight:700">G</span> Continue with Google'; }
+      try { const result=await signInWithGoogle(); if(!result) return; if(result.isNew) window.location.href='/auth/google-phone/'; else await routeUser(result.user); }
+      catch(error) { authInProgress = false; console.error('Google sign-in failed', error); if(error.code==='auth/account-exists-with-different-credential') { const {showAlert}=await import('../../js/dialog.js'); await showAlert('An account already exists with this email. Sign in with your password instead.',{title:'Use your password',icon:'info'}); } else { showErr(error.message || 'Could not continue with Google.'); } button.disabled=false; button.innerHTML='<span aria-hidden="true" style="font-weight:700">G</span> Continue with Google'; }
     };
 
     window.togglePassword = function(inputId, btn) {
@@ -115,34 +130,12 @@
         },
         onVerified: async () => {
           try {
-            signupInProgress = true;
-            const user = await signup(email, password, fullName);
-            await setDoc(doc(db, "users", user.uid), {
-              displayName: fullName,
-              email,
-              phone: phone.replace(/\s/g,''),
-              emailVerified: true,
-              status: "pending_verification",
-              profileComplete: false,
-              photosUploaded: false,
-              verificationSubmitted: false,
-              adminApproved: false,
-              paid: false,
-              hasPaid: false,
-              plan: "none",
-              stage: "signedUp",
-              subscription: { plan: "none", billing: null, status: "inactive", startDate: null, nextBillingDate: null, prioritySupportRequests: 0 },
-              likesRemaining: 2,
-              likesResetAt: null,
-              lastReminderSent: null,
-              reminderCount: 0,
-              reminderType: null,
-              createdAt: serverTimestamp()
-            }, { merge: true });
+            authInProgress = true;
+            await signup(email, password, fullName, phone);
             otpContainer.innerHTML = '<div style="background:rgba(76,175,125,0.12);border:1px solid rgba(76,175,125,0.35);color:#4caf7d;padding:0.9rem 1rem;border-radius:12px;font-size:14px;text-align:center;">Account created! Complete your profile next.</div>';
             setTimeout(() => { window.location.href = '/app/profile/?edit=1'; }, 700);
           } catch(e) {
-            signupInProgress = false;
+            authInProgress = false;
             otpContainer.style.display = 'none';
             signupForm.style.display = 'flex';
             document.getElementById('authFooter').style.display = 'block';
