@@ -105,6 +105,20 @@
       ]
     },
     {
+      "collectionGroup": "admin_messages",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "toUID",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "read",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "withdrawals",
       "queryScope": "COLLECTION",
       "fields": [

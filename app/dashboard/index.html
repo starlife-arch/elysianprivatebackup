@@ -111,6 +111,7 @@
   <script type="module">
     import { requireMember, verificationState } from "../../js/auth.js";
     import { verifiedBadge } from "../../js/icons.js";
+    import { listenForNotifications } from "../../js/notifications.js";
     import { fetchProfiles, recordSwipe } from "../../js/swipe.js";
     import { db } from "../../js/auth.js";
     import { getSubscription, hasPlan, isVault, planLabel, vaultBadge } from "../../js/subscription.js";
@@ -141,7 +142,7 @@
         if (isStandardPlan() && !myCoords) renderLocationRequiredDeck();
         else await loadProfiles();
       } else renderLockedDeck(stageMessage());
-      if (isChatUnlocked()) listenUnreadChats();
+      listenForNotifications(myUser.uid, hasSomethingNew => { document.getElementById('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; });
       maybeShowLocationPrompt();
     }
 
@@ -462,15 +463,7 @@
       catch (e) { console.error('Unable to open gift sheet', e); showToast(e.message || 'Could not open gift.'); }
     };
 
-    function listenUnreadChats() {
-      // FIX: use bracket notation for dynamic field name
-      const q = query(collection(db, 'matches'), where('users', 'array-contains', myUser.uid));
-      onSnapshot(q, snap => {
-        const key = `hasUnread_${myUser.uid}`;
-        const hasUnread = snap.docs.some(d => d.data()[key] === true);
-        document.getElementById('chatBadge').style.display = hasUnread ? 'block' : 'none';
-      });
-    }
+
 
     function showToast(msg) {
       const t = document.getElementById('toast');
