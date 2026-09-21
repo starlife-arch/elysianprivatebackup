@@ -142,11 +142,13 @@ async function sendApprovalInvite(user, token, meetLink = "") {
 
 // ── Approve: generate invite code, send email, notify Telegram ──
 export async function approveUser(uid, meetLink = "") {
+  const existingSnap = await getDoc(doc(db, "users", uid));
+  const isReverification = existingSnap.exists() && existingSnap.data().verificationStatus === "reverification_requested";
   const code = await genUniqueInviteToken();
   const approvalUpdates = {
-    status: "approved_pending_payment",
+    status: isReverification ? "active_member" : "approved_pending_payment",
     adminApproved: true,
-    stage: "adminApproved",
+    stage: isReverification ? "paid" : "adminApproved",
     reminderCount: 0,
     lastReminderSent: null,
     reminderType: null,
@@ -155,7 +157,8 @@ export async function approveUser(uid, meetLink = "") {
     inviteToken: code,
     inviteTokenUsed: false,
     inviteTokenExpiry: inviteExpiryTimestamp(),
-    approvedAt: serverTimestamp()
+    approvedAt: serverTimestamp(),
+    verificationStatus: null
   };
   if (meetLink) approvalUpdates.verificationMeetLink = meetLink;
   await updateDoc(doc(db, "users", uid), approvalUpdates);

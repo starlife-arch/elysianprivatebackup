@@ -4,3 +4,7 @@ const paths = {
 };
 export function icon(name,{size=20,className='',stroke='currentColor'}={}) { const body=paths[name] || paths.info; return `<svg class="dv-icon ${className}" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${stroke}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${body}</svg>`; }
 export function mountIcons(root=document) { root.querySelectorAll('i[data-icon]').forEach(el=>el.outerHTML=icon(el.dataset.icon,{size:el.dataset.size||20,className:el.className.replace('dv-icon','')})); }
+
+export function verifiedBadge({ size = 16, color = 'var(--verified-blue)' } = {}) {
+  return `<svg class="dv-verified-badge" width="${size}" height="${size}" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="${color}" d="M12 1.5l2.4 2.1 3.2-.4 1 3.1 3 1.4-.9 3.2 1.8 2.6-1.8 2.6.9 3.2-3 1.4-1 3.1-3.2-.4L12 22.5l-2.4-2.1-3.2.4-1-3.1-3-1.4.9-3.2L1.5 12l1.8-2.6-.9-3.2 3-1.4 1-3.1 3.2.4z"/><path d="m8.5 12.3 2.3 2.3 4.9-5" fill="none" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}

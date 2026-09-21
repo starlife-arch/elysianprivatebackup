@@ -290,7 +290,7 @@
   <div id="toast" class="toast" style="bottom:1rem;"></div>
 
   <script type="module">
-    import { requireAdmin, logout, db, auth } from "../js/auth.js";
+    import { requireAdmin, logout, db, auth, verificationState } from "../js/auth.js";
     import { showConfirm, showPrompt, showAlert, showSuccess, showError } from "../js/dialog.js";
     import { openSheet } from "../js/sheet.js";
     import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport, fetchPayments, computeRiskScore } from "../js/admin.js";
@@ -410,6 +410,7 @@
       const photos=u.photos||[];
       const boostActive=isBoostActive(u);
       const risk=computeRiskScore(u.id, allUsers, allReports);
+      const verification=verificationState(u);
       const photoStrip=photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:0.75rem;">${photos.map(p=>`<a href="${p}" target="_blank"><img src="${p}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;"/></a>`).join('')}</div>`:'';
       const idSection=(u.idPhotoURL||u.selfieURL)?`<div style="display:flex;gap:8px;margin-top:0.75rem;flex-wrap:wrap;">
         ${u.idPhotoURL?`<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">ID PHOTO</div><a href="${u.idPhotoURL}" target="_blank"><img src="${u.idPhotoURL}" class="id-photo"/></a></div>`:''}
@@ -423,6 +424,7 @@
           <div style="margin:4px 0;display:flex;flex-wrap:wrap;gap:4px;">
             <span class="status-badge ${sc[u.status]||'status-pending'}" style="font-size:10px;">${(u.status||'unknown').replace(/_/g,' ')}</span>
             ${u.paid?'<span class="status-badge status-active" style="font-size:10px;">PAID</span>':''}
+            ${verification === 'verified' ? '<span class="status-badge status-active" style="font-size:10px;">VERIFIED</span>' : verification === 'stale' ? '<span class="status-badge status-pending" style="font-size:10px;">VERIFICATION STALE</span>' : verification === 'pending_recheck' ? '<span class="status-badge status-pending" style="font-size:10px;">RE-VERIFYING</span>' : ''}
             ${u.adminOverride?'<span class="status-badge status-gold" style="font-size:10px;">ADMIN OVERRIDE</span>':''}
             ${u.inviteToken?`<span class="status-badge status-gold" style="font-size:10px;letter-spacing:0.08em;">INVITE TOKEN: ${u.inviteToken}</span>`:(u.inviteCode?`<span class="status-badge status-gold" style="font-size:10px;letter-spacing:0.08em;">INVITE: ${u.inviteCode}</span>`:'')}
             ${u.accessExpiry?`<span class="status-badge status-pending" style="font-size:10px;">EXPIRES: ${u.accessExpiry}</span>`:''}
@@ -452,6 +454,7 @@
             ${u.status==='active_member'?`<button class="btn btn-sm" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--muted);" onclick="openGrantModal('${u.id}')">Extend/Change Access</button><button class="btn btn-sm btn-danger" onclick="doRevokeAccess('${u.id}')">Revoke Access</button>`:''}
             <button class="btn btn-sm" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--gold);" onclick="openAssignPlanModal('${u.id}','${u.displayName||u.name||'Member'}')"> Assign Plan</button>
             <button class="btn btn-sm" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--muted);" onclick="openDMToUser('${u.id}')">Message</button>
+            ${(verification === 'verified' || verification === 'stale') ? `<button class="btn btn-sm btn-outline" onclick="requestReverification('${u.id}')">Request re-verification</button>` : ''}
             ${u.banned?`<button class="btn btn-sm btn-outline" onclick="doUnban('${u.id}')">Unban</button>`:`<button class="btn btn-sm btn-danger" onclick="doBan('${u.id}')">Ban</button>`}
           </div>
         </div>
@@ -562,6 +565,17 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
       const ok = await showConfirm('Unban this user and restore their access?', { title:'Unban User', icon:'', confirmText:'Unban' });
       if (!ok) return;
       const result = await unbanUser(uid); if (result?.notices?.length) showError('User unbanned, but notification warning: '+result.notices.join(' · ')); else showSuccess('User unbanned and notified.'); await refreshAll();
+    };
+    window.requestReverification = async function(uid) {
+      const ok = await showConfirm('Request a new selfie holding ID from this member? Their access will remain active while they re-verify.', { title:'Request re-verification', icon:'', confirmText:'Request' });
+      if (!ok) return;
+      try {
+        await updateDoc(doc(db, 'users', uid), { verificationStatus:'reverification_requested' });
+        await addDoc(collection(db, 'admin_messages'), { toUID:uid, message:'Please resubmit your identity verification with a current selfie holding your ID. Your membership remains active while our team reviews it.', sentAt:serverTimestamp(), read:false });
+        await addDoc(collection(db, 'admin_audit'), { adminUID:auth.currentUser.uid, adminEmail:auth.currentUser.email, action:'reverification_requested', targetUID:uid, at:serverTimestamp() });
+        await refreshAll();
+        showSuccess('Re-verification requested and member notified.');
+      } catch (error) { console.error('Could not request re-verification', error); showError(error.message || 'Could not request re-verification.'); }
     };
 
     function populateDMRecipients() {

@@ -10,6 +10,17 @@ import {
 import { expireSubscriptionIfNeeded } from "./subscription.js";
 
 
+const VERIFICATION_FRESHNESS_DAYS = 90;
+
+export function verificationState(profile = {}) {
+  if (profile.status !== 'active_member') return 'none';
+  if (profile.verificationStatus === 'reverification_requested') return 'pending_recheck';
+  const approvedAt = profile.approvedAt?.toDate ? profile.approvedAt.toDate() : new Date(profile.approvedAt);
+  if (Number.isNaN(approvedAt?.getTime())) return 'verified';
+  const ageDays = (Date.now() - approvedAt.getTime()) / 86400000;
+  return ageDays > VERIFICATION_FRESHNESS_DAYS ? 'stale' : 'verified';
+}
+
 function dateOnly(value) {
   if (!value) return null;
   if (typeof value === "string") return value.slice(0, 10);
