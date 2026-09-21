@@ -56,7 +56,7 @@ service cloud.firestore {
       allow read: if isOwner(uid) || isAdmin() || isActiveMember();
       allow create: if isOwner(uid);
       allow update: if isAdmin() || (isOwner(uid)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'walletFrozen', 'walletFrozenReason', 'walletFrozenAt', 'role'])
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'walletFrozen', 'walletFrozenReason', 'walletFrozenAt', 'role', 'verificationStatus'])
         && selfServiceStatus()
         && selfServiceSubscription());
       allow delete: if isAdmin();
