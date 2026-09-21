@@ -1,7 +1,7 @@
 import { db } from "./auth.js";
 import {
   collection, addDoc, query, orderBy, onSnapshot,
-  doc, updateDoc, serverTimestamp, getDoc, getDocs, where, limit
+  doc, updateDoc, serverTimestamp, getDoc, getDocs, where, limit, runTransaction
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 export function getMatchId(uid1, uid2) {
@@ -35,6 +35,15 @@ export async function sendMessage(myUID, theirUID, text, imageURL = null) {
     lastMessage: text || "Photo",
     lastMessageAt: serverTimestamp(),
     [`hasUnread_${theirUID}`]: true
+  });
+  const today = new Date().toISOString().slice(0, 10);
+  await runTransaction(db, async transaction => {
+    const userRef = doc(db, "users", myUID);
+    const userSnap = await transaction.get(userRef);
+    if (!userSnap.exists()) return;
+    const user = userSnap.data();
+    const messagesSentToday = user.lastMessageDate === today ? Number(user.messagesSentToday || 0) + 1 : 1;
+    transaction.update(userRef, { messagesSentToday, lastMessageDate: today });
   });
 }
 

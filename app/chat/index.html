@@ -92,7 +92,7 @@
       <img class="chat-header-avatar" id="chatAvatar" src="" alt="" onclick="openMemberProfile()" style="width:40px;height:40px;border-radius:50%;object-fit:cover;cursor:pointer;"/>
       <div style="flex:1;min-width:0;">
         <div style="font-weight:600;cursor:pointer;" id="chatName" onclick="openMemberProfile()"></div>
-        <div style="font-size:11px;color:var(--success);">Verified Member</div>
+        <div id="chatVerification" style="font-size:11px;"></div>
       </div>
       <button onclick="showChatMenu()" style="background:none;border:none;color:var(--muted);cursor:pointer;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
@@ -199,7 +199,8 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { requireMember } from "../../js/auth.js";
+    import { requireMember, verificationState } from "../../js/auth.js";
+    import { verifiedBadge } from "../../js/icons.js";
     import { hasPlan, isVault } from "../../js/subscription.js";
     import { db } from "../../js/auth.js";
     import { sendMessage, listenMessages, fetchConversations } from "../../js/chat.js";
@@ -319,6 +320,19 @@
       document.getElementById('noConvs').style.display = hasConvs ? 'none' : 'block';
     }
 
+    function renderChatVerification(profile) {
+      const state = verificationState(profile);
+      if (state === 'stale') return '<span style="color:var(--muted);">Verified (renewing soon)</span>';
+      if (state === 'pending_recheck') return '<span style="color:var(--muted);">Re-verifying</span>';
+      return '';
+    }
+    function chatNameBadge(profile) {
+      const state = verificationState(profile);
+      if (state === 'verified') return verifiedBadge({ size: 17 });
+      if (state === 'stale') return verifiedBadge({ size: 17, color: 'var(--muted)' });
+      return '';
+    }
+
     async function openChat(uid) {
       // Verify match
       const matchSnap = await getDoc(doc(db, 'users', myUser.uid, 'matches', uid));
@@ -331,7 +345,10 @@
       const snap = await getDoc(doc(db, 'users', uid));
       const them = snap.exists() ? snap.data() : {};
       theirProfile = them;
-      document.getElementById('chatName').textContent = them.displayName || them.name || 'Member';
+      const chatName = document.getElementById('chatName');
+      chatName.textContent = them.displayName || them.name || 'Member';
+      chatName.insertAdjacentHTML('beforeend', chatNameBadge(them));
+      document.getElementById('chatVerification').innerHTML = renderChatVerification(them);
       document.getElementById('chatMenuName').textContent = them.displayName || them.name || 'Member';
       const av = document.getElementById('chatAvatar');
       av.src = them.photos?.[0] || 'https://placehold.co/40x40/131929/6b7a99';

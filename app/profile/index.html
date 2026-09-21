@@ -81,7 +81,8 @@
   <div id="toast" class="toast"></div>
 
   <script type="module">
-    import { requireMember, logout, db, hasActiveMembership } from "../../js/auth.js";
+    import { requireMember, logout, db, hasActiveMembership, verificationState } from "../../js/auth.js";
+    import { verifiedBadge } from "../../js/icons.js";
     import { getSubscription, planLabel, isVault } from "../../js/subscription.js";
     import { uploadToCloudinary } from "../../js/verification.js";
     import { doc, updateDoc, getDocs, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -202,6 +203,14 @@
       </div>`;
     }
 
+    function verificationIndicator(profile) {
+      const state = verificationState(profile);
+      if (state === 'verified') return verifiedBadge({ size: 17 });
+      if (state === 'stale') return `${verifiedBadge({ size: 17, color: 'var(--muted)' })}<span style="font-size:11px;color:var(--muted);">Verified (renewing soon)</span>`;
+      if (state === 'pending_recheck') return '<span style="font-size:11px;color:var(--muted);">Re-verifying</span>';
+      return '';
+    }
+
     function renderProfile() {
       const p = myProfile;
       const photo = p.photos?.[0] || '';
@@ -221,11 +230,10 @@
           <button class="profile-edit-btn" onclick="openEdit()">Edit Profile</button>
           <div class="overlay">
             <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:4px;">
-              <span class="status-badge status-gold" style="font-size:11px;">Verified Member</span>
               ${isVault(p)?'<span class="vault-badge">VAULT</span>':''}
               ${p.zodiac?`<span style="font-size:16px;">${zodiacSigns[p.zodiac]||''}</span>`:''}
             </div>
-            <div style="font-family:'Cormorant Garamond',serif;font-size:1.75rem;">${p.displayName||p.name||'Member'}${age?', '+age:''}</div>
+            <div style="font-family:'Cormorant Garamond',serif;font-size:1.75rem;display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;">${p.displayName||p.name||'Member'}${age?', '+age:''}${verificationIndicator(p)}</div>
             <div style="color:rgba(255,255,255,0.75);font-size:13px;">${p.city||''}${p.city&&p.country?', ':''}${p.country||''}</div>
           </div>
         </div>
