@@ -109,7 +109,8 @@
   </div>
 
   <script type="module">
-    import { requireMember } from "../../js/auth.js";
+    import { requireMember, verificationState } from "../../js/auth.js";
+    import { verifiedBadge } from "../../js/icons.js";
     import { fetchProfiles, recordSwipe } from "../../js/swipe.js";
     import { db } from "../../js/auth.js";
     import { getSubscription, hasPlan, isVault, planLabel, vaultBadge } from "../../js/subscription.js";
@@ -227,6 +228,13 @@
       visible.forEach((p, i) => deck.appendChild(createCard(p, i === visible.length - 1)));
     }
 
+    function verificationIcon(prof) {
+      const state = verificationState(prof);
+      if (state === 'verified') return verifiedBadge({ size: 15 });
+      if (state === 'stale') return verifiedBadge({ size: 15, color: 'var(--muted)' });
+      return '';
+    }
+
     function createCard(prof, isTop) {
       const card = document.createElement('div');
       card.className = 'swipe-card';
@@ -255,7 +263,7 @@
         <div class="swipe-indicator indicator-like">LIKE</div>
         <div class="swipe-indicator indicator-nope">PASS</div>
         <div class="card-overlay">
-          <div class="card-name">${prof.displayName || prof.name || 'Member'}${ageDisplay} ${vaultBadge(prof)}</div>
+          <div class="card-name">${prof.displayName || prof.name || 'Member'}${ageDisplay} ${verificationIcon(prof)} ${vaultBadge(prof)}</div>
           <div class="card-sub">${locationDisplay}</div>
           ${prof.relationshipGoal ? `<div class="card-badge">${prof.relationshipGoal}</div>` : ''}
         </div>`;
