@@ -815,14 +815,20 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
 
     let pendingWithdrawals = [];
     let revenuePayments = [], revenueWithdrawals = [];
+    let revenueLoadFailed = false;
+    const renderRevenueLoadError = () => {
+      document.getElementById('revenueStats').innerHTML = '<p class="gift-error">Could not load revenue data. <button class="btn btn-outline btn-sm" type="button" onclick="loadRevenueAdmin()">Retry</button></p>';
+      document.getElementById('revenueTrend').innerHTML = '';
+    };
     const money = value => `$${Number(value || 0).toFixed(2)}`;
     const completedAt = value => { const date = value?.toDate ? value.toDate() : new Date(value); return Number.isNaN(date.getTime()) ? null : date; };
     window.loadRevenueAdmin = async function() {
       const stats = document.getElementById('revenueStats'); stats.innerHTML = '<p class="muted">Loading revenue data…</p>';
-      try { [revenuePayments, revenueWithdrawals] = await Promise.all([fetchPayments(), getDocs(collection(db, 'withdrawals')).then(snap => snap.docs.map(d => ({ id:d.id, ...d.data() })))]); renderRevenue(); }
-      catch (error) { console.error('Could not load revenue', error); stats.innerHTML = '<p class="gift-error">Could not load revenue data.</p>'; document.getElementById('revenueTrend').innerHTML = ''; }
+      try { [revenuePayments, revenueWithdrawals] = await Promise.all([fetchPayments(), getDocs(collection(db, 'withdrawals')).then(snap => snap.docs.map(d => ({ id:d.id, ...d.data() })))]); revenueLoadFailed = false; renderRevenue(); }
+      catch (error) { revenueLoadFailed = true; console.error('Could not load revenue', error); renderRevenueLoadError(); }
     };
     window.renderRevenue = function() {
+      if (revenueLoadFailed) { renderRevenueLoadError(); return; }
       const windowDays = document.getElementById('revenueWindow').value, cutoff = windowDays === 'all' ? null : new Date(Date.now() - Number(windowDays) * 86400000);
       const payments = revenuePayments.filter(p => !cutoff || (completedAt(p.completedAt) && completedAt(p.completedAt) >= cutoff));
       const sum = list => list.reduce((total, item) => total + Number(item.amountUSD || 0), 0);
