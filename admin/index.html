@@ -293,7 +293,7 @@
     import { requireAdmin, logout, db, auth } from "../js/auth.js";
     import { showConfirm, showPrompt, showAlert, showSuccess, showError } from "../js/dialog.js";
     import { openSheet } from "../js/sheet.js";
-    import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport, fetchPayments } from "../js/admin.js";
+    import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport, fetchPayments, computeRiskScore } from "../js/admin.js";
     import * as adminApi from "../js/admin.js";
     import { collection, getDocs, doc, addDoc, updateDoc, query, where, orderBy, limit, serverTimestamp, arrayUnion, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAdminSettings, setAdminGlobalSetting, setMemberOverride } from "../js/location.js";
@@ -387,6 +387,12 @@
       document.getElementById('membersList').innerHTML=list.map(u=>userCard(u,false)).join('')||'<p class="muted" style="padding:1rem;">No users found.</p>';
     }
 
+    const HIGH_RISK_THRESHOLD = 40;
+    function riskBadge(risk) {
+      if (risk.score < HIGH_RISK_THRESHOLD) return '';
+      const style = risk.score >= 100 ? 'status-rejected' : 'status-pending';
+      return `<span class="status-badge ${style}" style="font-size:10px;" title="${esc(risk.reasons.join(' · '))}">RISK ${risk.score}</span>`;
+    }
 
     function formatDateTime(value) {
       if (!value) return '—';
@@ -403,6 +409,7 @@
       const sc={active_member:'status-active',pending_admin_review:'status-pending',rejected:'status-rejected',approved_pending_invite:'status-gold',approved_pending_payment:'status-gold'};
       const photos=u.photos||[];
       const boostActive=isBoostActive(u);
+      const risk=computeRiskScore(u.id, allUsers, allReports);
       const photoStrip=photos.length?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:0.75rem;">${photos.map(p=>`<a href="${p}" target="_blank"><img src="${p}" style="width:64px;height:64px;object-fit:cover;border-radius:8px;border:1px solid var(--border);cursor:pointer;"/></a>`).join('')}</div>`:'';
       const idSection=(u.idPhotoURL||u.selfieURL)?`<div style="display:flex;gap:8px;margin-top:0.75rem;flex-wrap:wrap;">
         ${u.idPhotoURL?`<div><div style="font-size:11px;color:var(--muted);margin-bottom:4px;">ID PHOTO</div><a href="${u.idPhotoURL}" target="_blank"><img src="${u.idPhotoURL}" class="id-photo"/></a></div>`:''}
@@ -411,7 +418,7 @@
       return `<div class="admin-user-card" id="card-${u.id}">
         ${photos[0]?`<img src="${photos[0]}" class="admin-avatar" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid var(--border);" alt=""/>`:`<div class="admin-avatar"></div>`}
         <div class="admin-user-info" style="flex:1;min-width:0;">
-          <div class="admin-user-name">${u.displayName||u.name||'Unknown'} <span class="status-badge status-gold" style="font-size:10px;text-transform:uppercase;">${(u.stage||'signedUp').replace(/_/g,' ')}</span> ${subscriptionBadge(u)} ${u.banned?'<span style="color:var(--danger);font-size:12px;">[BANNED]</span>':''}</div>
+          <div class="admin-user-name">${u.displayName||u.name||'Unknown'} <span class="status-badge status-gold" style="font-size:10px;text-transform:uppercase;">${(u.stage||'signedUp').replace(/_/g,' ')}</span> ${subscriptionBadge(u)} ${riskBadge(risk)} ${u.banned?'<span style="color:var(--danger);font-size:12px;">[BANNED]</span>':''}</div>
           <div class="admin-user-meta">${u.email||''} · <strong style="color:var(--gold);">${u.memberId||'No ID'}</strong> · ${u.country||'—'}</div>
           <div style="margin:4px 0;display:flex;flex-wrap:wrap;gap:4px;">
             <span class="status-badge ${sc[u.status]||'status-pending'}" style="font-size:10px;">${(u.status||'unknown').replace(/_/g,' ')}</span>
@@ -756,9 +763,24 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
       if(!reports.length){list.innerHTML='';empty.style.display='block';return;}
       empty.style.display='none';
       const sc={pending:'status-pending',resolved:'status-active'};
-      list.innerHTML=reports.map(r=>{
+      const reportTime = report => {
+        const value = report.reportedAt?.toDate ? report.reportedAt.toDate() : new Date(report.reportedAt);
+        return Number.isNaN(value.getTime()) ? 0 : value.getTime();
+      };
+      const sortedReports = reports.slice().sort((a, b) => {
+        const aPending = (a.status || 'pending') === 'pending';
+        const bPending = (b.status || 'pending') === 'pending';
+        if (aPending && bPending) {
+          const scoreDifference = computeRiskScore(b.reportedUID, allUsers, allReports).score - computeRiskScore(a.reportedUID, allUsers, allReports).score;
+          if (scoreDifference) return scoreDifference;
+        }
+        if (aPending !== bPending) return aPending ? -1 : 1;
+        return reportTime(b) - reportTime(a);
+      });
+      list.innerHTML=sortedReports.map(r=>{
         const reporter=allUsers.find(u=>u.id===r.reporterUID);
         const reported=allUsers.find(u=>u.id===r.reportedUID);
+        const risk=computeRiskScore(r.reportedUID, allUsers, allReports);
         const status=r.status||'pending';
         const reportedAt=r.reportedAt?new Date(r.reportedAt.toDate?r.reportedAt.toDate():r.reportedAt).toLocaleString():'';
         const details=r.details?`<div style="font-size:13px;margin:0.5rem 0;"><span style="color:var(--muted);">Details:</span> ${esc(r.details)}</div>`:'';
@@ -768,7 +790,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
             <div class="report-reason">${esc(r.reason||'Report')}</div>
             <span class="status-badge ${sc[status]||'status-pending'}" style="font-size:11px;flex-shrink:0;">${esc(status)}</span>
           </div>
-          <div style="font-size:13px;margin-bottom:0.5rem;"><span style="color:var(--muted);">Reporter:</span> ${esc(reporter?.displayName||reporter?.email||r.reporterName||r.reporterUID)} &nbsp;→&nbsp; <span style="color:var(--muted);">Reported:</span> ${esc(reported?.displayName||reported?.email||r.reportedName||r.reportedUID)}</div>
+          <div style="font-size:13px;margin-bottom:0.5rem;"><span style="color:var(--muted);">Reporter:</span> ${esc(reporter?.displayName||reporter?.email||r.reporterName||r.reporterUID)} &nbsp;→&nbsp; <span style="color:var(--muted);">Reported:</span> ${esc(reported?.displayName||reported?.email||r.reportedName||r.reportedUID)} ${riskBadge(risk)}</div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:0.5rem;">${esc(reportedAt)}${r.matchId?` · Match: ${esc(r.matchId)}`:''}</div>
           ${details}
           ${snapshot}

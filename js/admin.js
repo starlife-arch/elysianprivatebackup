@@ -39,6 +39,62 @@ export function genInviteCode() {
   return code;
 }
 
+export function computeRiskScore(uid, users = [], reports = []) {
+  const PENDING_REPORTS_HIGH_RISK_THRESHOLD = 3;
+  const PENDING_REPORTS_HIGH_RISK_SCORE = 40;
+  const PENDING_REPORT_SCORE = 15;
+  const ALL_TIME_REPORTS_THRESHOLD = 5;
+  const ALL_TIME_REPORTS_SCORE = 20;
+  const NEW_REPORTED_ACCOUNT_AGE_DAYS = 3;
+  const NEW_REPORTED_ACCOUNT_SCORE = 25;
+  const WALLET_ON_HOLD_SCORE = 10;
+  const BANNED_SCORE = 100;
+  const HIGH_VELOCITY_ACCOUNT_AGE_DAYS = 1;
+  const HIGH_VELOCITY_MESSAGE_THRESHOLD = 30;
+  const HIGH_VELOCITY_SCORE = 25;
+  const MAX_RISK_SCORE = 100;
+
+  const user = users.find(u => u.id === uid);
+  if (!user) return { score: 0, reasons: [] };
+
+  const reasons = [];
+  let score = 0;
+  const against = reports.filter(r => r.reportedUID === uid);
+  const pendingAgainst = against.filter(r => (r.status || 'pending') === 'pending').length;
+  if (pendingAgainst >= PENDING_REPORTS_HIGH_RISK_THRESHOLD) {
+    score += PENDING_REPORTS_HIGH_RISK_SCORE;
+    reasons.push(`${pendingAgainst} pending reports`);
+  } else if (pendingAgainst >= 1) {
+    score += PENDING_REPORT_SCORE * pendingAgainst;
+    reasons.push(`${pendingAgainst} pending report(s)`);
+  }
+  if (against.length >= ALL_TIME_REPORTS_THRESHOLD) {
+    score += ALL_TIME_REPORTS_SCORE;
+    reasons.push(`${against.length} reports all-time`);
+  }
+
+  const createdAt = user.createdAt?.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
+  const ageDays = (Date.now() - createdAt.getTime()) / 86400000;
+  if (!Number.isNaN(ageDays) && ageDays < NEW_REPORTED_ACCOUNT_AGE_DAYS && against.length > 0) {
+    score += NEW_REPORTED_ACCOUNT_SCORE;
+    reasons.push('New account, already reported');
+  }
+  if (!Number.isNaN(ageDays) && ageDays < HIGH_VELOCITY_ACCOUNT_AGE_DAYS && Number(user.messagesSentToday || 0) > HIGH_VELOCITY_MESSAGE_THRESHOLD) {
+    score += HIGH_VELOCITY_SCORE;
+    reasons.push('New account with high message velocity');
+  }
+  if (user.walletFrozen) {
+    score += WALLET_ON_HOLD_SCORE;
+    reasons.push('Wallet on hold');
+  }
+  if (user.banned) {
+    score += BANNED_SCORE;
+    reasons.push('Already banned');
+  }
+
+  return { score: Math.min(score, MAX_RISK_SCORE), reasons };
+}
+
 export async function fetchPayments(sinceDate = null) {
   const paymentsQuery = query(collection(db, 'payments'), where('status', '==', 'completed'), orderBy('completedAt', 'desc'), limit(500));
   const snap = await getDocs(paymentsQuery);
