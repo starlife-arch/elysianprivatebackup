@@ -34,7 +34,7 @@
       <div class="modal-handle"></div>
       <div class="modal-title">Edit Profile</div>
       <div class="stack" style="max-height:75vh;overflow-y:auto;padding-right:4px;">
-        <div><label>Display Name</label><input type="text" id="editName"/></div>
+        <div><label>Display Name</label><input type="text" id="editName" readonly aria-describedby="editNameHelp"/><p class="muted" id="editNameHelp" style="font-size:12px;">Contact support to change your name.</p></div>
         <div><label>Bio</label><textarea id="editBio" style="min-height:80px;"></textarea></div>
         <div><label>Phone Number</label><input type="tel" id="editPhone" placeholder="+254 700 000 000"/><p class="muted" style="font-size:12px;">Include your country code.</p></div>
         <div><label>Date of Birth</label><input type="date" id="editDob"/></div>
@@ -68,8 +68,8 @@
         <div id="editError" style="display:none;color:var(--danger);font-size:13px;"></div>
         <div id="editProgress" style="display:none;color:var(--gold);font-size:13px;text-align:center;"></div>
         <div style="display:flex;gap:0.75rem;">
-          <button class="btn btn-outline" onclick="closeEdit()">Cancel</button>
-          <button class="btn btn-gold btn-full" id="saveBtn" onclick="saveProfile()">Save Changes</button>
+          <button class="btn btn-outline" id="closeEditBtn" type="button">Cancel</button>
+          <button class="btn btn-gold btn-full" id="saveBtn" type="button">Save Changes</button>
         </div>
       </div>
     </div>
@@ -156,7 +156,8 @@
       if (!hasActiveMembership(p)) {
         return `<div class="glass-card subscription-panel"><div><div style="font-size:12px;color:var(--muted);">Membership</div><div style="font-weight:700;color:var(--gold);">Locked until approval and payment</div><div style="font-size:12px;color:var(--muted);">Complete your profile and verification before payment.</div></div><button class="btn btn-gold btn-sm" onclick="location.href='${p.profileComplete ? '/account/verification/' : '/app/profile/?edit=1'}'">${p.profileComplete ? 'Start Verification' : 'Complete Profile'}</button></div>`;
       }
-      return `<div class="glass-card subscription-panel"><div><div style="font-size:12px;color:var(--muted);">Current Plan</div><div style="font-weight:700;color:var(--gold);">${planLabel(sub.plan)} ${isVault(p) ? '<span class="vault-badge">VAULT</span>' : ''}</div><div style="font-size:12px;color:var(--muted);">${expired ? 'Expired — renew to restore benefits' : (sub.nextBillingDate ? 'Next billing: '+sub.nextBillingDate : 'Standard benefits active')}</div></div><button class="btn btn-gold btn-sm" onclick="location.href='/pricing.html'">${expired ? 'Renew' : 'Upgrade'}</button></div>`;
+      if (!expired && sub.plan === 'standard') return `<div class="glass-card" style="margin-bottom:0.75rem;"><div style="font-size:12px;color:var(--muted);">Current Plan</div><div style="font-weight:700;color:var(--gold);margin-bottom:0.75rem;">Standard</div><div class="grid-2" style="font-size:12px;gap:0.5rem;"><div><strong>Standard (your plan)</strong><p class="muted">5 likes/day<br/>Matches-only browsing<br/>No super likes<br/>No Explore<br/>No read receipts</p></div><div><strong style="color:var(--gold);">Elite (upgrade)</strong><p class="muted">Unlimited likes<br/>See who liked you<br/>5 super likes/day<br/>Full Explore access<br/>Read receipts</p></div></div><button class="btn btn-gold btn-full" onclick="location.href='/account/pricing/'">Upgrade to Elite — $14.99/mo</button><a href="/account/pricing/" style="display:block;text-align:center;color:var(--gold);font-size:12px;margin-top:0.75rem;">Or go Vault for $29.99/mo</a></div>`;
+      return `<div class="glass-card subscription-panel"><div><div style="font-size:12px;color:var(--muted);">Current Plan</div><div style="font-weight:700;color:var(--gold);">${planLabel(sub.plan)} ${isVault(p) ? '<span class="vault-badge">VAULT</span>' : ''}</div><div style="font-size:12px;color:var(--muted);">${expired ? 'Expired — renew to restore benefits' : (sub.nextBillingDate ? 'Next billing: '+sub.nextBillingDate : 'Standard benefits active')}</div></div><button class="btn btn-gold btn-sm" onclick="location.href='/account/pricing/'">${expired ? 'Renew' : 'Upgrade'}</button></div>`;
     }
 
     function formatBoostTime(milliseconds) {
@@ -166,6 +167,20 @@
     function renderBoostCard(profile) {
       const remaining = getBoostRemainingMs(profile);
       return `<div class="glass-card" style="margin-bottom:0.75rem;display:flex;gap:1rem;align-items:center;justify-content:space-between;"><div><div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.3rem;">PROFILE BOOST</div><div id="boostStatus" style="font-size:14px;">${remaining ? `Boost active — <strong id="boostCountdown">${formatBoostTime(remaining)}</strong> left` : `Appear first within your membership tier for ${BOOST_DURATION_MINUTES} minutes.`}</div><div class="muted" style="font-size:12px;margin-top:0.25rem;">Boosts never move you above a higher subscription tier.</div></div><button class="btn btn-gold btn-sm" id="boostButton" onclick="purchaseProfileBoost()">${remaining ? 'Boost Again' : `Boost · ${BOOST_COST}`}</button></div>`;
+    }
+    function renderActiveAddons(profile) {
+      const addons = profile.addons || {};
+      const items = [
+        ['boost', 'Profile Boost'], ['incognito', 'Incognito Mode'], ['superlikePack', 'Super Like Pack']
+      ].map(([key, label]) => {
+        const addon = addons[key];
+        if (!addon?.active) return '';
+        const expires = addon.expiresAt?.toDate ? addon.expiresAt.toDate() : new Date(addon.expiresAt);
+        if (addon.expiresAt && expires.getTime() <= Date.now()) return '';
+        const detail = key === 'superlikePack' ? `${Number(addon.remainingUses || 0)} remaining` : `active until ${expires.toLocaleString()}`;
+        return `<div style="font-size:13px;padding:0.45rem 0;border-bottom:1px solid var(--border);">${label} <span class="muted">— ${detail}</span></div>`;
+      }).filter(Boolean);
+      return items.length ? `<div class="glass-card" style="margin-bottom:0.75rem;"><div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.4rem;">ACTIVE ADD-ONS</div>${items.join('')}</div>` : '';
     }
     function startBoostCountdown() {
       clearInterval(boostCountdownTimer);
@@ -236,12 +251,12 @@
         <div class="glass-card" style="margin-bottom:0.75rem;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;"><strong>Profile ${completion.percent}% complete</strong><span class="muted">${completion.done}/${completion.total}</span></div>
           <div style="height:8px;background:var(--surface2);border-radius:999px;overflow:hidden;"><div style="height:100%;width:${completion.percent}%;background:var(--gold);border-radius:999px;"></div></div>
-          ${!p.profileComplete ? '<p class="muted" style="font-size:13px;margin-top:0.75rem;">Complete all required fields and upload at least one photo to start verification.</p><button class="btn btn-gold btn-sm" style="margin-top:0.75rem;" onclick="openEdit()">Complete Profile</button>' : '<p style="font-size:13px;color:var(--success);margin-top:0.75rem;">Profile complete. Start identity verification before any payment is requested.</p>'}
+          ${!p.profileComplete ? '<p class="muted" style="font-size:13px;margin-top:0.75rem;">Complete all required fields and upload at least one photo to start verification.</p><button class="btn btn-gold btn-sm" style="margin-top:0.75rem;" type="button" data-open-edit>Complete Profile</button>' : '<p style="font-size:13px;color:var(--success);margin-top:0.75rem;">Profile complete. Start identity verification before any payment is requested.</p>'}
           ${p.profileComplete && !p.verificationSubmitted ? '<button class="btn btn-gold btn-sm" style="margin-top:0.75rem;" onclick="location.href=\'/account/verification/\'">Start Verification</button>' : ''}
         </div>
         <div class="profile-header">
           ${photo?`<img src="${photo}" alt="Profile"/>`:`<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:3rem;"></div>`}
-          <button class="profile-edit-btn" onclick="openEdit()">Edit Profile</button>
+          <button class="profile-edit-btn" type="button" data-open-edit>Edit Profile</button>
           <div class="overlay">
             <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:4px;">
               ${isVault(p)?'<span class="vault-badge">VAULT</span>':''}
@@ -253,6 +268,8 @@
         </div>
 
         ${renderSubscriptionCard(p)}
+
+        ${renderActiveAddons(p)}
 
         ${renderBoostCard(p)}
 
@@ -300,6 +317,9 @@
             ${p.zodiac?`<div class="row"><span class="muted" style="width:130px;">Zodiac</span><span>${zodiacSigns[p.zodiac]||''} ${p.zodiac}</span></div>`:''}
           </div>
         </div>`;
+      content.querySelectorAll('[data-open-edit]').forEach(button => {
+        button.addEventListener('click', window.openEdit);
+      });
       startBoostCountdown();
       loadCounts();
     }
@@ -454,7 +474,6 @@
         }
         const photos = [...editExistingPhotos, ...newURLs].slice(0,6);
         const updates = {
-          displayName: document.getElementById('editName').value.trim(),
           bio:         document.getElementById('editBio').value.trim(),
           phone:       document.getElementById('editPhone').value.trim().replace(/\s/g,''),
           dob:         document.getElementById('editDob').value,
@@ -470,6 +489,8 @@
           photos,
           photosUploaded: photos.length > 0
         };
+        const primaryPhotoChanged = photos[0] !== myProfile.photos?.[0];
+        if (primaryPhotoChanged) updates.verificationStatus = 'reverification_requested';
         const completed = isProfileComplete({ ...myProfile, ...updates });
         const firstCompletion = completed && !myProfile.profileComplete;
         if (firstCompletion) {
@@ -497,6 +518,9 @@
     };
 
     window.doLogout = ()=>logout();
+
+    document.getElementById('closeEditBtn').addEventListener('click', window.closeEdit);
+    document.getElementById('saveBtn').addEventListener('click', window.saveProfile);
 
     function showToast(msg) {
       const t=document.getElementById('toast');
