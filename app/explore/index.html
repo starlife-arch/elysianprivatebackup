@@ -56,6 +56,7 @@
   <script type="module">
     import { requireActiveMember, db } from "../../js/auth.js";
     import { listenForNotifications } from "../../js/notifications.js";
+    import { startCallListener } from "../../js/call-listener.js";
     import { vaultBadge } from "../../js/subscription.js";
     import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { haversineKm, formatDistance, getAdminSettings, resolveVisibility, requestAndSaveLocation } from "../../js/location.js";

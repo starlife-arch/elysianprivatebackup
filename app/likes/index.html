@@ -58,6 +58,7 @@
   <script type="module">
     import { requireMember, db } from "../../js/auth.js";
     import { listenForNotifications } from "../../js/notifications.js";
+    import { startCallListener } from "../../js/call-listener.js";
     import { hasPlan, getSubscription, planLabel, vaultBadge } from "../../js/subscription.js";
     import { recordSwipe } from "../../js/swipe.js";
     import { showError } from "../../js/dialog.js";
@@ -68,7 +69,7 @@
 
     async function init() {
       const { user, profile } = await requireMember();
-      myUser = user; myProfile = profile;
+      myUser = user; myProfile = profile; startCallListener(myUser.uid, myProfile);
       listenForNotifications(myUser.uid, hasSomethingNew => { document.getElementById('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; });
       adminSettings = await getAdminSettings();
       updateExploreNavLock();

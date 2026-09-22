@@ -90,6 +90,7 @@
     import { ICEBREAKER_PROMPTS, ICEBREAKER_ANSWER_MAX_LENGTH } from "../../js/icebreakers.js";
     import { verifiedBadge } from "../../js/icons.js";
     import { listenForNotifications } from "../../js/notifications.js";
+    import { startCallListener } from "../../js/call-listener.js";
     import { getSubscription, planLabel, isVault } from "../../js/subscription.js";
     import { uploadToCloudinary } from "../../js/verification.js";
     import { doc, updateDoc, getDocs, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -114,7 +115,7 @@
 
     async function init() {
       const { user, profile } = await requireMember();
-      myUser = user; myProfile = profile;
+      myUser = user; myProfile = profile; startCallListener(myUser.uid, myProfile);
       listenForNotifications(myUser.uid, hasSomethingNew => { document.getElementById('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; });
       renderProfile();
       updateExploreNavLock();
