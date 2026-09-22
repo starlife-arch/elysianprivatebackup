@@ -219,6 +219,7 @@
 
     const params = new URLSearchParams(location.search);
     const openUID = params.get('uid');
+    const draftMessage = params.get('draft');
 
 
     function isStandardPlan() {
@@ -358,6 +359,12 @@
       if (unsubMessages) unsubMessages();
       applyBlockState();
       unsubMessages = listenMessages(myUser.uid, uid, renderMessages);
+      if (draftMessage && uid === openUID && !blockedByMe && !blockedMe) {
+        const input = document.getElementById('msgInput');
+        input.value = draftMessage;
+        autoResize(input);
+        input.focus();
+      }
     }
 
     async function refreshBlockState(uid) {
