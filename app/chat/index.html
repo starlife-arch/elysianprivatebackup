@@ -415,8 +415,9 @@
         if (m.type === 'call') {
           const duration = Number(m.durationSeconds || 0);
           const label = m.callStatus === 'answered' ? `Video call · ${duration >= 60 ? `${Math.floor(duration / 60)}m ${duration % 60}s` : `${duration}s`}` : m.callStatus === 'declined' ? (isOut ? 'Call declined' : 'You declined a call') : (isOut ? 'No answer' : 'Missed video call');
-          wrap.style.cssText = 'display:block;text-align:center;color:var(--muted);font-size:12px;margin:0.75rem 0;';
-          wrap.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg> ${label}`;
+          wrap.className = `dv-call-label ${m.callStatus === 'answered' ? 'dv-call-answered' : 'dv-call-missed'}`;
+          const time = m.createdAt?.toDate ? m.createdAt.toDate().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' }) : '';
+          wrap.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:5px"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>${label}<span class="dv-call-time">${time}</span>`;
           container.appendChild(wrap); return;
         }
         const bubble = document.createElement('div');

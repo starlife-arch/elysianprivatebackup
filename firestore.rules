@@ -114,10 +114,12 @@ service cloud.firestore {
     }
 
     match /videoCallInvites/{inviteId} {
-      allow read: if isAdmin() || (isAuth() && (resource.data.fromUID == request.auth.uid || resource.data.toUID == request.auth.uid));
-      allow create: if isAdmin() || (isAuth() && request.resource.data.fromUID == request.auth.uid);
+      allow get: if isAdmin() || (isAuth() && (resource.data.fromUID == request.auth.uid || resource.data.toUID == request.auth.uid));
+      allow list: if isAuth();
+      allow create: if isAdmin() || (isAuth() && request.resource.data.fromUID == request.auth.uid)
+        || (isAuth() && request.resource.data.fromUID == 'admin' && isAdmin());
       allow update: if isAdmin() || (isAuth() && (resource.data.fromUID == request.auth.uid || resource.data.toUID == request.auth.uid)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status']));
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'answeredAt', 'endedAt']));
     }
 
     match /swipes_index/{swipeId} {
