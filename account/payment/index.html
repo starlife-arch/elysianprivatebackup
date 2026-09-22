@@ -16,7 +16,7 @@
     <div class="payment-card fade-up">
       <div class="auth-logo" style="font-size:1.25rem;margin-bottom:0.25rem;">DateVault</div>
       <p class="muted" id="paymentSubtitle" style="text-align:center;margin-bottom:1rem;font-size:13px;">Private Membership Access</p>
-      <div class="price-tag" id="paymentPrice">$29.99</div>
+      <div class="price-tag" id="paymentPrice">$9.99</div>
       <p class="price-period" id="paymentPeriod">One-time access fee · Lifetime membership</p>
       <div class="perks-list" id="perksList">
         <div class="perk-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20,6 9,17 4,12"/></svg><span>Unlimited swipes &amp; matches</span></div>
@@ -84,25 +84,31 @@
     let inviteToken = params.get('token') || '';
     const plan = params.get('plan') || 'standard';
     const billing = params.get('billing') || 'monthly';
+    const addon = params.get('addon') || '';
     const pricingCfg = await getPricingConfig();
     const tokenCount = Math.floor(Number(params.get('tokens') || 0));
     const tokenAmount = Number(params.get('amount') || 0);
-    const amountUSD = purpose === 'tokens' ? tokenAmount : (purpose === 'entry' ? pricingCfg.entryUSD : paymentAmountUSD(purpose, plan, billing, pricingCfg));
+    const addonConfigKey = addon === 'superlike_pack' ? 'superlikePack' : addon;
+    const addonDefaults = { boost: 2.99, superlikePack: 4.99, incognito: 3.99 };
+    const addonAmountUSD = Number(pricingCfg?.addons?.[addonConfigKey]?.usd ?? addonDefaults[addonConfigKey] ?? 0);
+    const amountUSD = purpose === 'tokens' ? tokenAmount : (purpose === 'addon' ? addonAmountUSD : (purpose === 'entry' ? pricingCfg.entryUSD : paymentAmountUSD(purpose, plan, billing, pricingCfg)));
     const amountKES = paymentAmountKES(amountUSD);
 
     function paymentTitle() {
       if (purpose === 'subscription') return `${planLabel(plan)} ${billing === 'annual' ? 'Annual' : 'Monthly'} Plan`;
       if (purpose === 'tokens') return `${tokenCount.toLocaleString()} Tokens`;
+      if (purpose === 'addon') return ({ boost: 'Profile Boost', superlike_pack: 'Super Like Pack', incognito: 'Incognito Mode' })[addon] || 'Add-on';
       if (purpose === 'priority_support') return 'Priority Support Request';
       return 'Private Membership Access';
     }
     function paymentPeriod() {
       if (purpose === 'subscription') return billing === 'annual' ? 'Annual subscription · renews yearly' : 'Monthly subscription · renews monthly';
       if (purpose === 'tokens') return `${tokenCount.toLocaleString()} tokens · 100 tokens = $1`;
+      if (purpose === 'addon') return 'One-time add-on purchase';
       if (purpose === 'priority_support') return 'One-time support request · scheduled manually';
       return 'One-time access fee · Lifetime membership';
     }
-    function returnUrl() { return purpose === 'tokens' ? '/app/wallet/' : (purpose === 'entry' ? '/app/dashboard/' : (purpose === 'priority_support' ? '/app/chat/?tab=support' : '/app/dashboard/')); }
+    function returnUrl() { return purpose === 'tokens' ? '/app/wallet/' : (purpose === 'entry' ? '/app/dashboard/' : (purpose === 'priority_support' ? '/app/chat/?tab=support' : '/app/profile/')); }
     function setPaymentVisible(visible) {
       ['paymentPrice','paymentPeriod','perksList','paymentMethodsLabel','pesapalOpt','printpayOpt','paystackOpt','pesapalForm','printpayForm','paystackForm'].forEach(id => {
         const el = document.getElementById(id);
@@ -233,6 +239,10 @@
       if (purpose === 'tokens') {
         const { creditTokens } = await import('../../js/wallet.js');
         await creditTokens(currentUser.uid, tokenCount, 'Token pack purchase', 'credit');
+      } else if (purpose === 'addon') {
+        const duration = addon === 'boost' ? 24 * 60 * 60 * 1000 : addon === 'incognito' ? 7 * 24 * 60 * 60 * 1000 : null;
+        const addonData = { active: true, purchasedAt: serverTimestamp(), expiresAt: duration ? new Date(Date.now() + duration) : null, remainingUses: addon === 'superlike_pack' ? 10 : null };
+        await updateDoc(doc(db, 'users', currentUser.uid), { [`addons.${addonConfigKey}`]: addonData });
       } else if (purpose === 'subscription') {
         const label = planLabel(plan);
         await updateDoc(doc(db, 'users', currentUser.uid), {
