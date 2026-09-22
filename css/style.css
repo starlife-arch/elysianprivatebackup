@@ -166,8 +166,8 @@ select option { background: #0d1120; }
 .profile-page { padding: 0 1rem 1rem; }
 .profile-header { position: relative; height: 280px; border-radius: 24px; overflow: hidden; margin-bottom: 1rem; }
 .profile-header img { width: 100%; height: 100%; object-fit: cover; }
-.profile-header .overlay { position: absolute; inset: 0; background: linear-gradient(transparent 40%, rgba(0,0,0,0.85)); padding: 1.5rem 1.25rem; display: flex; flex-direction: column; justify-content: flex-end; }
-.profile-edit-btn { position: absolute; top: 1rem; right: 1rem; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); border: 1px solid var(--border); color: #fff; padding: 0.5rem 1rem; border-radius: 999px; font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.profile-header .overlay { position: absolute; inset: 0; background: linear-gradient(transparent 40%, rgba(0,0,0,0.85)); padding: 1.5rem 1.25rem; display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; }
+.profile-edit-btn { position: absolute; z-index: 1; top: 1rem; right: 1rem; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); border: 1px solid var(--border); color: #fff; padding: 0.5rem 1rem; border-radius: 999px; font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
 .interests-wrap { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
 .interest-tag { background: rgba(255,255,255,0.06); border: 1px solid var(--border); padding: 0.35rem 0.85rem; border-radius: 999px; font-size: 13px; cursor: pointer; transition: all 0.15s; }
 .interest-tag:hover,.interest-tag.selected { background: var(--gold-dim); border-color: rgba(201,168,76,0.4); color: var(--gold); }

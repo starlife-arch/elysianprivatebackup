@@ -51,12 +51,23 @@ service cloud.firestore {
           && request.resource.data.subscription.expiredBillingDate == resource.data.subscription.nextBillingDate
         );
     }
+    function selfRequestedReverification() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasAll(['photos', 'verificationStatus'])
+        && request.resource.data.verificationStatus == 'reverification_requested'
+        && (!resource.data.keys().hasAny(['photos'])
+          || !request.resource.data.keys().hasAny(['photos'])
+          || resource.data.photos.size() == 0
+          || request.resource.data.photos.size() == 0
+          || request.resource.data.photos[0] != resource.data.photos[0]);
+    }
 
     match /users/{uid} {
       allow read: if isOwner(uid) || isAdmin() || isActiveMember();
       allow create: if isOwner(uid);
       allow update: if isAdmin() || (isOwner(uid)
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'walletFrozen', 'walletFrozenReason', 'walletFrozenAt', 'role', 'verificationStatus'])
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'walletFrozen', 'walletFrozenReason', 'walletFrozenAt', 'role', 'displayName'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['verificationStatus']) || selfRequestedReverification())
         && selfServiceStatus()
         && selfServiceSubscription());
       allow delete: if isAdmin();
