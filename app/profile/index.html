@@ -46,6 +46,11 @@
           <label>Interests</label>
           <div class="interests-selector" id="editInterestSelector" style="margin-top:0.5rem;"></div>
         </div>
+        <div>
+          <label>Icebreakers <span style="color:var(--muted);font-size:11px;">(optional, up to 3)</span></label>
+          <p class="muted" style="font-size:12px;margin:0.25rem 0 0.5rem;">Give matches an easy way to start a conversation.</p>
+          <div id="editIcebreakers" class="stack" style="gap:0.5rem;"></div>
+        </div>
         <!-- Zodiac -->
         <div>
           <label>Zodiac Sign</label>
@@ -82,6 +87,7 @@
 
   <script type="module">
     import { requireMember, logout, db, hasActiveMembership, verificationState } from "../../js/auth.js";
+    import { ICEBREAKER_PROMPTS, ICEBREAKER_ANSWER_MAX_LENGTH } from "../../js/icebreakers.js";
     import { verifiedBadge } from "../../js/icons.js";
     import { listenForNotifications } from "../../js/notifications.js";
     import { getSubscription, planLabel, isVault } from "../../js/subscription.js";
@@ -103,6 +109,7 @@
     let editSelectedZodiac = '';
     let editPhotoFiles = [];
     let editExistingPhotos = [];
+    let editIcebreakers = [];
     let boostCountdownTimer;
 
     async function init() {
@@ -213,9 +220,14 @@
       return '';
     }
 
+    function escapeHtml(value = '') {
+      return String(value).replace(/[&<>'"]/g, character => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[character]);
+    }
+
     function renderProfile() {
       const p = myProfile;
       const photo = p.photos?.[0] || '';
+      const icebreakers = Array.isArray(p.icebreakers) ? p.icebreakers.slice(0, 3).filter(ib => ib?.prompt && ib?.answer) : [];
       const age = p.dob ? Math.floor((Date.now()-new Date(p.dob))/31557600000) : '';
       const zodiacSigns = {'Aries':'','Taurus':'','Gemini':'','Cancer':'','Leo':'','Virgo':'','Libra':'','Scorpio':'','Sagittarius':'','Capricorn':'','Aquarius':'','Pisces':''};
       const content = document.getElementById('profileContent');
@@ -260,13 +272,21 @@
 
         <div class="glass-card" style="margin-bottom:0.75rem;">
           <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.5rem;">ABOUT</div>
-          <p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.8);">${p.bio||'No bio added yet.'}</p>
+          <p style="font-size:14px;line-height:1.6;color:rgba(255,255,255,0.8);">${escapeHtml(p.bio || 'No bio added yet.')}</p>
         </div>
+
+        ${icebreakers.length ? `<div class="glass-card" style="margin-bottom:0.75rem;">
+          ${icebreakers.map(ib => `
+            <div style="margin-bottom:0.75rem;">
+              <div style="font-size:12px;color:var(--gold);font-weight:600;">${escapeHtml(ib.prompt)}</div>
+              <p style="font-size:14px;line-height:1.5;color:rgba(255,255,255,0.85);margin-top:2px;">${escapeHtml(ib.answer)}</p>
+            </div>`).join('')}
+        </div>` : ''}
 
         ${p.interests&&p.interests.length?`
           <div class="glass-card" style="margin-bottom:0.75rem;">
             <div style="font-size:12px;color:var(--gold);font-weight:600;letter-spacing:0.06em;margin-bottom:0.75rem;">INTERESTS</div>
-            <div class="interests-wrap">${p.interests.map(i=>`<span class="interest-tag">${i}</span>`).join('')}</div>
+            <div class="interests-wrap">${p.interests.map(i=>`<span class="interest-tag">${escapeHtml(i)}</span>`).join('')}</div>
           </div>`:''
         }
 
@@ -307,6 +327,10 @@
       editSelectedZodiac = p.zodiac||'';
       editPhotoFiles = [];
       editExistingPhotos = [...(p.photos||[])];
+      editIcebreakers = Array.from({ length: 3 }, (_, index) => {
+        const icebreaker = p.icebreakers?.[index] || {};
+        return { prompt: ICEBREAKER_PROMPTS.includes(icebreaker.prompt) ? icebreaker.prompt : '', answer: icebreaker.answer || '' };
+      });
 
       // Build interest selector
       const iSel = document.getElementById('editInterestSelector');
@@ -321,6 +345,8 @@
         };
         iSel.appendChild(btn);
       });
+
+      buildIcebreakerFields();
 
       // Build zodiac grid
       const zGrid = document.getElementById('editZodiacGrid');
@@ -340,6 +366,34 @@
       buildEditPhotoGrid();
       document.getElementById('editModal').classList.add('open');
     };
+
+    function buildIcebreakerFields() {
+      const container = document.getElementById('editIcebreakers');
+      container.innerHTML = '';
+      editIcebreakers.forEach((icebreaker, index) => {
+        const row = document.createElement('div');
+        row.className = 'stack';
+        row.style.gap = '0.35rem';
+        const select = document.createElement('select');
+        select.setAttribute('aria-label', `Icebreaker prompt ${index + 1}`);
+        const placeholder = new Option(`Prompt ${index + 1} (optional)`, '');
+        select.add(placeholder);
+        const selectedElsewhere = editIcebreakers.filter((_, otherIndex) => otherIndex !== index).map(item => item.prompt);
+        ICEBREAKER_PROMPTS.filter(prompt => prompt === icebreaker.prompt || !selectedElsewhere.includes(prompt)).forEach(prompt => {
+          select.add(new Option(prompt, prompt, false, prompt === icebreaker.prompt));
+        });
+        select.onchange = () => { editIcebreakers[index].prompt = select.value; buildIcebreakerFields(); };
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.maxLength = ICEBREAKER_ANSWER_MAX_LENGTH;
+        input.placeholder = 'Your answer';
+        input.value = icebreaker.answer;
+        input.setAttribute('aria-label', `Icebreaker answer ${index + 1}`);
+        input.oninput = () => { editIcebreakers[index].answer = input.value; };
+        row.append(select, input);
+        container.appendChild(row);
+      });
+    }
 
     function buildEditPhotoGrid() {
       const grid = document.getElementById('editPhotoGrid');
@@ -381,6 +435,16 @@
       err.style.display='none';
       btn.disabled=true; prog.style.display='block'; prog.textContent='Saving...';
       try {
+        const icebreakers = editIcebreakers.map(icebreaker => ({
+          prompt: icebreaker.prompt,
+          answer: icebreaker.answer.trim().slice(0, ICEBREAKER_ANSWER_MAX_LENGTH)
+        })).filter(icebreaker => icebreaker.prompt || icebreaker.answer);
+        if (icebreakers.some(icebreaker => !icebreaker.prompt || !icebreaker.answer)) {
+          throw new Error('Choose a prompt and add an answer for each icebreaker.');
+        }
+        if (new Set(icebreakers.map(icebreaker => icebreaker.prompt)).size !== icebreakers.length) {
+          throw new Error('Choose a different prompt for each icebreaker.');
+        }
         // Upload new photos
         const newURLs = [];
         for (let i=0;i<editPhotoFiles.length;i++) {
@@ -397,6 +461,7 @@
           gender:      document.getElementById('editGender').value,
           interestedIn: document.getElementById('editInterestedIn').value,
           interests:   editSelectedInterests,
+          icebreakers,
           zodiac:      editSelectedZodiac,
           relationshipGoal: document.getElementById('editGoal').value,
           city:        document.getElementById('editCity').value.trim(),

@@ -145,7 +145,7 @@ export async function requireAdmin() {
 
 function initialUserData(user, fullName = '', memberId = genMemberId(), phone = '') {
   const name = fullName || user.displayName || '';
-  return { uid:user.uid, memberId, email:user.email || '', name, displayName:name, phone:phone.replace(/\s/g, ''), status:'signedUp', role:'user', banned:false, paid:false, emailVerified:true, profileComplete:false, photosUploaded:false, verificationSubmitted:false, adminApproved:false, hasPaid:false, plan:'none', likesRemaining:2, likesResetAt:null, lastReminderSent:null, reminderCount:0, reminderType:null, stage:'signedUp', subscription:{ plan:'none', billing:null, status:'inactive', startDate:null, nextBillingDate:null, prioritySupportRequests:0 }, vaultBadge:false, walletBalance:0, createdAt:serverTimestamp(), photos:[], interests:[] };
+  return { uid:user.uid, memberId, email:user.email || '', name, displayName:name, phone:phone.replace(/\s/g, ''), status:'signedUp', role:'user', banned:false, paid:false, emailVerified:true, profileComplete:false, photosUploaded:false, verificationSubmitted:false, adminApproved:false, hasPaid:false, plan:'none', likesRemaining:2, likesResetAt:null, lastReminderSent:null, reminderCount:0, reminderType:null, stage:'signedUp', subscription:{ plan:'none', billing:null, status:'inactive', startDate:null, nextBillingDate:null, prioritySupportRequests:0 }, vaultBadge:false, walletBalance:0, createdAt:serverTimestamp(), photos:[], interests:[], icebreakers:[] };
 }
 
 async function completeGoogleSignIn(user) {
