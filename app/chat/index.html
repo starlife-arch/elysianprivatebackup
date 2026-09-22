@@ -94,6 +94,7 @@
         <div style="font-weight:600;cursor:pointer;" id="chatName" onclick="openMemberProfile()"></div>
         <div id="chatVerification" style="font-size:11px;"></div>
       </div>
+      <button id="videoCallBtn" title="Start video call" aria-label="Start video call" style="background:none;border:none;color:var(--gold);cursor:pointer;display:grid;place-items:center;width:40px;height:40px;"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg></button>
       <button onclick="showChatMenu()" style="background:none;border:none;color:var(--muted);cursor:pointer;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
       </button>
@@ -198,14 +199,17 @@
 
   <div id="toast" class="toast"></div>
 
+  <script src="https://unpkg.com/@daily-co/daily-js"></script>
   <script type="module">
     import { requireMember, verificationState } from "../../js/auth.js";
     import { verifiedBadge } from "../../js/icons.js";
     import { listenForNotifications } from "../../js/notifications.js";
+    import { startCallListener } from "../../js/call-listener.js";
     import { hasPlan, isVault } from "../../js/subscription.js";
     import { db } from "../../js/auth.js";
     import { sendMessage, listenMessages, fetchConversations } from "../../js/chat.js";
     import { uploadToCloudinary } from "../../js/verification.js";
+    import { openSheet } from "../../js/sheet.js";
     import {
       doc, setDoc, getDoc, addDoc, getDocs, updateDoc, deleteDoc,
       serverTimestamp, collection, query, where, orderBy, onSnapshot, limit, arrayUnion
@@ -238,7 +242,7 @@
 
     async function init() {
       const { user, profile } = await requireMember();
-      myUser = user; myProfile = profile;
+      myUser = user; myProfile = profile; startCallListener(myUser.uid, myProfile);
       listenForNotifications(myUser.uid, hasSomethingNew => { document.getElementById('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; });
       updateExploreNavLock();
       document.getElementById('loader').classList.add('hidden');
@@ -408,6 +412,13 @@
         const isOut = m.senderUID === myUser.uid;
         const wrap = document.createElement('div');
         wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
+        if (m.type === 'call') {
+          const duration = Number(m.durationSeconds || 0);
+          const label = m.callStatus === 'answered' ? `Video call · ${duration >= 60 ? `${Math.floor(duration / 60)}m ${duration % 60}s` : `${duration}s`}` : m.callStatus === 'declined' ? (isOut ? 'Call declined' : 'You declined a call') : (isOut ? 'No answer' : 'Missed video call');
+          wrap.style.cssText = 'display:block;text-align:center;color:var(--muted);font-size:12px;margin:0.75rem 0;';
+          wrap.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg> ${label}`;
+          container.appendChild(wrap); return;
+        }
         const bubble = document.createElement('div');
         if (m.type === 'gift') {
           bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in') + ' gift-bubble';
@@ -466,6 +477,17 @@
       catch (e) { console.error('Unable to open gift sheet', e); showToast(e.message || 'Could not open gift.'); }
       finally { button.disabled = false; }
     };
+
+    document.getElementById('videoCallBtn').addEventListener('click', async () => {
+      if (!theirUID) { showToast('Open a match to start a video call.'); return; }
+      if (!isVault(myProfile)) { showToast('Video calls require Vault. Upgrade to unlock.'); return; }
+      const balance = Number(myProfile.walletBalance || 0);
+      const sheet = openSheet({ label: 'Start Video Call', content: `<h2>Start Video Call</h2><p class="muted">This call will cost 50 tokens from your wallet. Your balance: ${balance} tokens.</p><div style="display:flex;gap:.75rem"><button class="btn btn-outline" id="cancelCall">Cancel</button><button class="btn btn-gold btn-full" id="startCall">Start Call</button></div>` });
+      sheet.element.querySelector('#cancelCall').onclick = () => sheet.close();
+      sheet.element.querySelector('#startCall').onclick = async () => {
+        try { const token = await myUser.getIdToken(); const res = await fetch('/.netlify/functions/video-call', { method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify({toUID:theirUID}) }); const data = await res.json(); if (res.status === 402) { showToast('Not enough tokens. You need 50 tokens to start a call. Buy tokens in your wallet.'); return; } if (!res.ok) throw new Error(data.error); myProfile.walletBalance=data.tokenBalance; sheet.close(); const call=openSheet({label:'Video call',content:'<div id="callContainer" style="height:70vh"></div><p class="muted">Wallet: '+data.tokenBalance+' tokens</p><button class="btn btn-danger" id="reportCall">Report or Block</button>'}); const frame=window.DailyIframe.createFrame(call.element.querySelector('#callContainer'),{showLeaveButton:true}); await frame.join({url:data.roomURL,token:data.token}); frame.on('left-meeting',()=>updateDoc(doc(db,'videoCallInvites',data.inviteId),{status:'ended'})); call.element.querySelector('#reportCall').onclick=()=>window.doReport(); } catch(e) { showToast(e.message || 'Could not start video call.'); }
+      };
+    });
 
     window.sendImage = async function(input) {
       const file = input.files[0];

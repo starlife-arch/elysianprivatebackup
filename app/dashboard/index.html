@@ -112,6 +112,7 @@
     import { requireMember, verificationState } from "../../js/auth.js";
     import { verifiedBadge } from "../../js/icons.js";
     import { listenForNotifications } from "../../js/notifications.js";
+    import { startCallListener } from "../../js/call-listener.js";
     import { fetchProfiles, recordSwipe } from "../../js/swipe.js";
     import { db } from "../../js/auth.js";
     import { getSubscription, hasPlan, isVault, planLabel, vaultBadge } from "../../js/subscription.js";
@@ -120,13 +121,15 @@
 
     let profiles = [], allProfiles = [], currentIndex = 0, myProfile = null, myUser = null;
     let matchedUID = null, isDragging = false, startX = 0, currentX = 0, viewerUID = null;
-    let myCoords = null, adminSettings = {};
+    let myCoords = null, adminSettings = {}, standardDailyLikes = 5;
     const photoIndexByUID = {};
     const SWIPE_THRESHOLD = 80;
 
     async function init() {
       const { user, profile } = await requireMember();
-      myUser = user; myProfile = profile;
+      myUser = user; myProfile = profile; startCallListener(myUser.uid, myProfile);
+      const pricingSnap = await getDoc(doc(db, 'config', 'pricing'));
+      standardDailyLikes = Math.max(1, Number(pricingSnap.exists() ? pricingSnap.data().standardDailyLikes : 5) || 5);
       document.getElementById('memberBadge').textContent = profile.memberId || '';
       if (!profile.phone) showToast('Please add your phone number in your profile.');
       renderStageState();
@@ -174,7 +177,7 @@
     function updateLikeButtonState() {
       const btn = document.getElementById('likeActionBtn');
       if (!btn) return;
-      const locked = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? 2) <= 0;
+      const locked = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0;
       btn.title = locked ? `You've used your daily likes. Likes reset in ${likesResetText()}` : 'Like';
       btn.style.opacity = locked ? '0.45' : '';
       btn.style.boxShadow = locked ? 'none' : '';
@@ -316,8 +319,8 @@
     }
     function showLikeLimitNotice() {
       const notice = document.getElementById('likeLimitNotice');
-      const msg = `You've used your daily likes. Likes reset in ${likesResetText()}`;
-      notice.innerHTML = `<div style="color:var(--gold);font-weight:600;margin-bottom:0.75rem;">${msg}</div><button class="btn btn-gold btn-sm" onclick="location.href='/pricing.html'">Upgrade</button>`;
+      const msg = `You've used your ${standardDailyLikes} likes for today. Upgrade to Elite for unlimited likes and see who liked you.`;
+      notice.innerHTML = `<div style="color:var(--gold);font-weight:600;margin-bottom:0.75rem;">${msg}</div><button class="btn btn-gold btn-sm" onclick="location.href='/account/pricing/'">Upgrade to Elite</button>`;
       notice.style.display = 'block';
       showToast(msg);
     }
@@ -330,12 +333,19 @@
       const snap = await getDoc(doc(db, 'users', myUser.uid));
       if (snap.exists()) {
         const data = snap.data();
-        myProfile.likesRemaining = Number(data.likesRemaining ?? 2);
-        myProfile.likesResetAt = data.likesResetAt || null;
+        const reset = data.likesResetAt?.toDate ? data.likesResetAt.toDate() : new Date(data.likesResetAt || 0);
+        if (!data.likesResetAt || reset.getTime() <= Date.now()) {
+          myProfile.likesRemaining = standardDailyLikes;
+          myProfile.likesResetAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+          await updateDoc(doc(db, 'users', myUser.uid), { likesRemaining: myProfile.likesRemaining, likesResetAt: myProfile.likesResetAt });
+        } else {
+          myProfile.likesRemaining = Number(data.likesRemaining ?? standardDailyLikes);
+          myProfile.likesResetAt = data.likesResetAt;
+        }
       }
       renderSubscriptionPanel();
       updateLikeButtonState();
-      if (Number(myProfile.likesRemaining ?? 2) <= 0) {
+      if (Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0) {
         showLikeLimitNotice();
         return { allowed: false, shouldConsume: false };
       }
@@ -343,7 +353,7 @@
       return { allowed: true, shouldConsume: true };
     }
     async function consumeStandardLike() {
-      const remaining = Number(myProfile.likesRemaining ?? 2);
+      const remaining = Number(myProfile.likesRemaining ?? standardDailyLikes);
       const next = remaining - 1;
       const resetAt = myProfile.likesResetAt || new Date(Date.now() + 24 * 60 * 60 * 1000);
       await updateDoc(doc(db, 'users', myUser.uid), {
@@ -384,7 +394,18 @@
       const prof = profiles.find(p => p.id === top.dataset.uid);
       if (!prof) return;
       if (dir === 'superlike') {
-        if (!isPremium()) { showToast('Super Likes are available to Elite and Vault members. Upgrade to unlock.'); return; }
+        if (!hasPlan(myProfile, 'elite')) { showToast('Super likes are an Elite feature. Upgrade to unlock.'); return; }
+        if (!isVault(myProfile)) {
+          const snap = await getDoc(doc(db, 'users', myUser.uid));
+          const data = snap.exists() ? snap.data() : {};
+          const reset = data.superLikesResetAt?.toDate ? data.superLikesResetAt.toDate() : new Date(data.superLikesResetAt || 0);
+          const remaining = !data.superLikesResetAt || reset.getTime() <= Date.now() ? 5 : Number(data.superLikesRemaining ?? 5);
+          if (remaining <= 0) { showToast("You've used today's super likes. Vault members get unlimited — upgrade."); return; }
+          const resetAt = !data.superLikesResetAt || reset.getTime() <= Date.now() ? new Date(Date.now() + 24 * 60 * 60 * 1000) : data.superLikesResetAt;
+          await updateDoc(doc(db, 'users', myUser.uid), { superLikesRemaining: remaining - 1, superLikesResetAt: resetAt, lastSuperLikeAt: serverTimestamp() });
+          myProfile.superLikesRemaining = remaining - 1;
+          myProfile.superLikesResetAt = resetAt;
+        }
         try {
           const isMatch = await recordSwipe(myUser.uid, prof.id, 'superlike');
           top.style.transition = 'transform 0.4s ease, opacity 0.4s';
@@ -453,6 +474,15 @@
       document.getElementById('matchTheirAvatar').src = (prof.photos && prof.photos[0]) ? prof.photos[0] : '';
       document.getElementById('matchName').textContent = prof.displayName || 'them';
       document.getElementById('matchPopup').classList.add('show');
+      let upgrade = document.getElementById('matchUpgradePrompt');
+      if (!upgrade) {
+        upgrade = document.createElement('p');
+        upgrade.id = 'matchUpgradePrompt';
+        upgrade.className = 'muted';
+        upgrade.style.cssText = 'font-size:12px;text-align:center;margin:0.75rem 0 0;';
+        document.getElementById('matchPopup').appendChild(upgrade);
+      }
+      upgrade.innerHTML = isStandardPlan() ? "Want to send a Super Like next time? <a href='/account/pricing/' style='color:var(--gold);'>Upgrade to Elite</a>" : '';
     }
 
     window.closeMatch = () => document.getElementById('matchPopup').classList.remove('show');
@@ -477,8 +507,8 @@
       const previous = sub.previousPlan ? planLabel(sub.previousPlan) : planLabel(sub.plan);
       const expired = sub.status === 'expired';
       const planForDisplay = currentPlan() === 'none' ? 'standard' : currentPlan();
-      const likeText = isPremium() ? 'Unlimited likes' : `${Number(myProfile.likesRemaining ?? 2)} daily likes remaining`;
-      const lockText = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? 2) <= 0 ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your daily likes. Likes reset in ${likesResetText()}</div>` : '';
+      const likeText = isPremium() ? 'Unlimited likes' : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily likes remaining`;
+      const lockText = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0 ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your ${standardDailyLikes} likes for today. Likes reset in ${likesResetText()}</div>` : '';
       document.getElementById('subscriptionBanner').innerHTML = expired ? `<div class="expired-banner">Your ${previous} plan has expired — Renew to restore your benefits.</div>` : '';
       const primaryHref = myProfile.stage === 'signedUp'
         ? '/app/profile/?edit=1'
