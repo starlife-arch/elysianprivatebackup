@@ -4,15 +4,8 @@
 // ════════════════════════════════════════════════
 
 // ── Firebase ──
-const firebaseConfig = {
-  apiKey: "AIzaSyAu-jRmUXHvTr63jAiU9EMT4CgHhJdNM70",
-  authDomain: "date-ce760.firebaseapp.com",
-  projectId: "date-ce760",
-  storageBucket: "date-ce760.firebasestorage.app",
-  messagingSenderId: "147086773962",
-  appId: "1:147086773962:web:4e20b151b6cd7b405cae33",
-  measurementId: "G-4BMV27H0MJ"
-};
+import './firebase-config.js';
+const firebaseConfig = globalThis.DATEVAULT_FIREBASE_CONFIG;
 
 // ── Cloudinary (photo storage) ──
 const CLOUDINARY_CLOUD = "drlbhxwyv";
@@ -61,7 +54,7 @@ export async function getPricingConfig() {
 }
 
 export {
-  auth, db,
+  app, auth, db,
   CLOUDINARY_CLOUD, CLOUDINARY_PRESET,
   PAYSTACK_PUBLIC_KEY,
   MEMBERSHIP_PRICE_USD, MEMBERSHIP_PRICE_KES
