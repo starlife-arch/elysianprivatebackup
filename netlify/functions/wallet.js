@@ -1,8 +1,10 @@
 const { json, parseBody, preflight } = require('./_helpers');
 
 let _db, _admin;
-const BOOST_COST = 200;
-const BOOST_DURATION_MS = 30 * 60 * 1000;
+const BOOST_COST = 299;
+const SUPERLIKE_PACK_COST = 499, SUPERLIKE_PACK_COUNT = 10;
+const INCOGNITO_COST = 399, INCOGNITO_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
+const BOOST_DURATION_MS = 24 * 60 * 60 * 1000;
 
 function admin() {
   if (_admin) return _admin;
@@ -74,11 +76,14 @@ async function boost(uid) {
     if (currentBalance < BOOST_COST) throw new Error(`You need ${BOOST_COST.toLocaleString()} tokens to boost your profile.`);
     balance = currentBalance - BOOST_COST;
     boostExpiresAt = admin().firestore.Timestamp.fromMillis(Date.now() + BOOST_DURATION_MS);
-    tx.update(userRef, { walletBalance: balance, boostActive: true, boostExpiresAt });
-    tx.set(txn(uid), { type: 'boost_purchase', amount: BOOST_COST, note: 'Profile boost — 30 minutes', createdAt: ts(), status: 'completed' });
+    tx.update(userRef, { walletBalance: balance, boostActive: true, boostExpiresAt, 'addons.boost': { active:true, purchasedAt:ts(), expiresAt:boostExpiresAt, remainingUses:null } });
+    tx.set(txn(uid), { type: 'boost_purchase', amount: BOOST_COST, note: 'Profile boost — 24 hours', createdAt: ts(), status: 'completed' });
   });
   return { balance, boostExpiresAt: boostExpiresAt.toDate().toISOString() };
 }
+
+
+async function addon(uid, kind) { const cfg=kind==='superlike_pack'?[SUPERLIKE_PACK_COST,'superlikePack',null,SUPERLIKE_PACK_COUNT,'Super Like Pack — 10 super likes','superlike_pack_purchase']: [INCOGNITO_COST,'incognito',INCOGNITO_DURATION_MS,null,'Incognito Mode — 7 days','incognito_purchase']; let balance,expiresAt; await _db.runTransaction(async tx=>{const ref=_db.collection('users').doc(uid),snap=await tx.get(ref);if(!snap.exists)throw new Error('Member not found.');const data=snap.data(),current=Number(data.walletBalance||0);if(data.walletFrozen||data.banned)throw new Error('This wallet is currently on hold.');if(current<cfg[0])throw new Error(`You need ${cfg[0]} tokens to buy this add-on.`);balance=current-cfg[0];expiresAt=cfg[2]?admin().firestore.Timestamp.fromMillis(Date.now()+cfg[2]):null;const uses=cfg[3]?Number(data.addons?.superlikePack?.remainingUses||0)+cfg[3]:null;tx.update(ref,{walletBalance:balance,[`addons.${cfg[1]}`]:{active:true,purchasedAt:ts(),expiresAt,remainingUses:uses}});tx.set(txn(uid),{type:cfg[5],amount:cfg[0],note:cfg[4],createdAt:ts(),status:'completed'});});return {balance,expiresAt:expiresAt?.toDate().toISOString(),superlikesAdded:cfg[3]};}
 
 exports.handler = async event => {
   const options = preflight(event);
@@ -89,6 +94,8 @@ exports.handler = async event => {
     const data = body.action === 'gift' ? await gift(user.uid, body)
       : body.action === 'withdraw' ? await withdraw(user.uid, body)
       : body.action === 'boost' ? await boost(user.uid)
+      : body.action === 'superlike_pack' ? await addon(user.uid, 'superlike_pack')
+      : body.action === 'incognito' ? await addon(user.uid, 'incognito')
       : null;
     if (!data) return json(400, { error: 'Unknown wallet action' });
     return json(200, data);
