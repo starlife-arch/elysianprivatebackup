@@ -4,8 +4,8 @@ import { doc, getDoc, collection, addDoc, query, orderBy, limit as firestoreLimi
 const MIN_GIFT = 10;
 const WITHDRAWAL_TOKENS = 3000;
 const WITHDRAWAL_PAYOUT = 15;
-const BOOST_COST = 200;
-const BOOST_DURATION_MINUTES = 30;
+const BOOST_COST = 299;
+const BOOST_DURATION_MINUTES = 1440;
 
 const amountOf = value => Math.floor(Number(value));
 
