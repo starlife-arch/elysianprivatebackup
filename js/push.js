@@ -1,14 +1,23 @@
-import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
 import { app, db } from './firebase.js';
 import { doc, getDoc, updateDoc, arrayUnion, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 const VAPID_KEY = 'BNK8xkS7M-5WqNVwohcR6PulT4PT5wPBz3d4jrd4Oa5bpvy4pDHnIKG7MeAv3wvHW-x025kG7gzJ2rKW6YqTVvY';
 
+function waitForServiceWorkerReady() {
+  return Promise.race([
+    navigator.serviceWorker.ready,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Notification service setup timed out.')), 8000))
+  ]);
+}
+
 export async function enablePushNotifications(uid) {
   if (!('serviceWorker' in navigator) || !('Notification' in window)) return false;
   const permission = await Notification.requestPermission();
   if (permission !== 'granted') return false;
-  const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+  const { getMessaging, getToken, isSupported, onMessage } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js');
+  if (!(await isSupported())) return false;
+  const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' });
+  await waitForServiceWorkerReady();
   const messaging = getMessaging(app);
   const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: registration });
   if (!token) return false;
@@ -49,7 +58,7 @@ export async function showPushNotificationNudge(uid, showToast) {
     enable.addEventListener('click', async () => {
       try {
         const enabled = await enablePushNotifications(uid);
-        showToast(enabled ? 'Notifications enabled.' : 'Notifications were not enabled.');
+        showToast(enabled ? 'Notifications enabled.' : 'Notifications are unavailable or blocked in this browser.');
         if (enabled) await dismiss(banner);
       } catch (error) { console.error('Could not enable push notifications', error); showToast('Could not enable notifications.'); }
     });

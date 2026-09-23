@@ -544,7 +544,7 @@
       } catch(e) { showToast('Could not save preference'); }
     };
 
-    init().catch(console.error);
+    init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
 
 </body>

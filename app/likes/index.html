@@ -207,7 +207,7 @@
       if (tab === 'matches' && document.getElementById('matchesGrid').children.length === 0) showEmpty('matches');
     };
 
-    init().catch(console.error);
+    init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
 </body>
 </html>

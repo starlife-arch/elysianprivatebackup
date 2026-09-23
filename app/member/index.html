@@ -178,7 +178,7 @@
       catch (e) { console.error('Unable to open gift sheet', e); }
     };
 
-    init().catch(console.error);
+    init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
 <script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons();</script></body>
 </html>

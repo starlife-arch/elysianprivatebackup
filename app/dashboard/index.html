@@ -142,6 +142,9 @@
       updateLikeButtonState();
       updateSuperLikeCounter();
       document.getElementById('loader').classList.add('hidden');
+      import('../../js/push.js')
+        .then(({ showPushNotificationNudge }) => showPushNotificationNudge(myUser.uid, showToast))
+        .catch(error => console.error('Could not load notification prompt', error));
       // Capture location & admin settings silently
       myCoords = profile._location || null;
       requestAndSaveLocation(user.uid).then(c => { if (c) myCoords = c; });
@@ -617,7 +620,11 @@
       }
     }
 
-    init().catch(console.error);
+    init().catch(error => {
+      console.error('Dashboard initialization failed', error);
+      document.getElementById('loader')?.classList.add('hidden');
+      showToast('Could not finish loading this page. Please refresh.');
+    });
   </script>
 
   <!-- Location Permission Prompt -->

@@ -974,7 +974,7 @@
       setTimeout(()=>t.classList.remove('show'),2400);
     }
 
-    init().catch(console.error);
+    init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
 <script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons(); document.getElementById("giftBtn")?.addEventListener("click", () => window.openGift());</script></body>
 </html>

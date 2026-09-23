@@ -9,7 +9,7 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage(payload => {
   self.registration.showNotification(payload.notification?.title || 'DateVault', {
     body: payload.notification?.body || '',
-    icon: '/icon-192.png',
+    icon: '/favicon.png',
     data: payload.data
   });
 });
