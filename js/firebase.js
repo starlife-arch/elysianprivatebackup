@@ -54,7 +54,7 @@ export async function getPricingConfig() {
 }
 
 export {
-  auth, db,
+  app, auth, db,
   CLOUDINARY_CLOUD, CLOUDINARY_PRESET,
   PAYSTACK_PUBLIC_KEY,
   MEMBERSHIP_PRICE_USD, MEMBERSHIP_PRICE_KES
