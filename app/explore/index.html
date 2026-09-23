@@ -56,6 +56,7 @@
   <script type="module">
     import { requireActiveMember, db } from "../../js/auth.js";
     import { listenForNotifications } from "../../js/notifications.js";
+    import { startCallListener } from "../../js/call-listener.js";
     import { vaultBadge } from "../../js/subscription.js";
     import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { haversineKm, formatDistance, getAdminSettings, resolveVisibility, requestAndSaveLocation } from "../../js/location.js";
@@ -107,8 +108,8 @@
       document.getElementById('exploreGrid').innerHTML = `
         <div class="glass-card locked-state">
           <div class="lock-icon">◇</div>
-          <p style="font-weight:700;color:var(--text);">Explore requires Elite or Vault</p>
-          <p class="muted">Upgrade to browse all members on Explore</p>
+          <p style="font-weight:700;color:var(--text);">Browse all verified members — not just your matches.</p>
+          <p class="muted">Upgrade to Elite to unlock Explore</p>
           <button class="btn btn-gold btn-sm" onclick="location.href='/pricing.html'">View Plans</button>
         </div>`;
     }
