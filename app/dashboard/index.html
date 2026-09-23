@@ -12,6 +12,23 @@
 </head>
 <body>
   <div class="page-loader" id="loader"><div class="loader-logo">DateVault</div></div>
+  <script>
+    (function () {
+      const loader = document.getElementById('loader');
+      let recovered = false;
+      const showRecovery = () => {
+        if (recovered || !loader || loader.classList.contains('hidden')) return;
+        recovered = true;
+        loader.innerHTML = '<div style="max-width:320px;padding:1.5rem;text-align:center"><div class="loader-logo" style="margin-bottom:1rem">DateVault</div><p style="color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 1rem">DateVault is taking longer than expected to load.</p><button type="button" class="btn btn-gold btn-full" onclick="window.location.reload()">Try again</button><a href="/auth/login/" style="display:block;color:var(--gold);font-size:13px;margin-top:1rem">Sign in again</a></div>';
+      };
+      const timeout = window.setTimeout(showRecovery, 12000);
+      window.addEventListener('datevault:ready', () => {
+        recovered = true;
+        window.clearTimeout(timeout);
+        loader?.classList.add('hidden');
+      }, { once: true });
+    }());
+  </script>
   <div class="app-shell">
     <div class="topbar">
       <div class="topbar-title">Discover</div>
@@ -142,6 +159,7 @@
       updateLikeButtonState();
       updateSuperLikeCounter();
       document.getElementById('loader').classList.add('hidden');
+      window.dispatchEvent(new Event('datevault:ready'));
       import('../../js/push.js')
         .then(({ showPushNotificationNudge }) => showPushNotificationNudge(myUser.uid, showToast))
         .catch(error => console.error('Could not load notification prompt', error));
@@ -623,6 +641,7 @@
     init().catch(error => {
       console.error('Dashboard initialization failed', error);
       document.getElementById('loader')?.classList.add('hidden');
+      window.dispatchEvent(new Event('datevault:ready'));
       showToast('Could not finish loading this page. Please refresh.');
     });
   </script>

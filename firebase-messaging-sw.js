@@ -6,6 +6,9 @@ firebase.initializeApp(self.DATEVAULT_FIREBASE_CONFIG);
 
 const messaging = firebase.messaging();
 
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', event => event.waitUntil(clients.claim()));
+
 messaging.onBackgroundMessage(payload => {
   self.registration.showNotification(payload.notification?.title || 'DateVault', {
     body: payload.notification?.body || '',
