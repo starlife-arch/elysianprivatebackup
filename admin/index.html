@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="manifest" href="/manifest.json">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin — DateVault</title>
@@ -638,6 +639,11 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
         let emailRecipientCount=0;
         if(sendEmail) emailRecipientCount=await sendAnnouncementEmails(title,body,includeInactive);
         await addDoc(collection(db,'announcements'),{title,body,type,createdAt:serverTimestamp(),active:true,emailSent:sendEmail,emailRecipientCount});
+        auth.currentUser?.getIdToken().then(token => fetch('/api/send-push', {
+          method:'POST',
+          headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+          body:JSON.stringify({type:'announcement',title,body:body.slice(0,140),url:'/app/chat/?tab=updates'})
+        })).catch(error => console.error('Could not send announcement push notifications', error));
         document.getElementById('annoTitle').value='';
         document.getElementById('annoBody').value='';
         document.getElementById('annoEmailProgress').style.display='none';
