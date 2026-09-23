@@ -75,10 +75,20 @@
       document.getElementById('loader').classList.add('hidden');
       if (isStandardPlan()) { renderStandardLocked(); return; }
       const snap = await getDocs(query(collection(db, 'users'), where('status','==','active_member'), where('banned','==',false)));
-      allProfiles = snap.docs.filter(d => d.id !== myUser.uid).map(d => ({ id: d.id, ...d.data() }));
+      allProfiles = snap.docs
+        .filter(d => d.id !== myUser.uid)
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(profile => !isAddonActive(profile.addons?.incognito));
       renderGrid(allProfiles);
     }
 
+
+    function isAddonActive(addon) {
+      if (!addon?.active) return false;
+      if (!addon.expiresAt) return true;
+      const expiresAt = addon.expiresAt?.toDate?.() ? addon.expiresAt.toDate() : new Date(addon.expiresAt);
+      return expiresAt > new Date();
+    }
 
     function isStandardPlan() {
       return (myProfile?.stage === 'paid' || myProfile?.hasPaid || myProfile?.paid) && (myProfile?.plan || myProfile?.subscription?.plan) === 'standard';

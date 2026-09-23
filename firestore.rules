@@ -70,6 +70,10 @@ service cloud.firestore {
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['verificationStatus']) || selfRequestedReverification())
         && selfServiceStatus()
         && selfServiceSubscription());
+      // Allow members to update their own add-ons and location fields only.
+      allow update: if isOwner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['addons', '_location', '_privacyPrefs']);
       allow delete: if isAdmin();
 
       match /swipes/{swipedUID} {
