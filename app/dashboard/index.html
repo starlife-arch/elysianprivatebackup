@@ -41,6 +41,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
       </button>
     </div>
+    <div id="superLikeCounter" class="muted" style="text-align:center;font-size:11px;margin-top:0.25rem;"></div>
     <div id="likeLimitNotice" class="glass-card" style="display:none;margin:0 1rem 5rem;text-align:center;font-size:13px;color:var(--muted);"></div>
   </div>
 
@@ -136,6 +137,7 @@
       updateExploreNavLock();
       renderSubscriptionPanel();
       updateLikeButtonState();
+      updateSuperLikeCounter();
       document.getElementById('loader').classList.add('hidden');
       // Capture location & admin settings silently
       myCoords = profile._location || null;
@@ -209,8 +211,29 @@
       document.querySelector('.action-btns').style.pointerEvents = 'none';
     }
 
+    function isAddonActive(addon) {
+      if (!addon?.active) return false;
+      if (!addon.expiresAt) return true;
+      const expiresAt = addon.expiresAt?.toDate?.() ? addon.expiresAt.toDate() : new Date(addon.expiresAt);
+      return expiresAt > new Date();
+    }
+
+    function updateSuperLikeCounter() {
+      const el = document.getElementById('superLikeCounter');
+      if (!el) return;
+      const plan = getSubscription(myProfile).plan;
+      if (plan === 'vault') { el.textContent = 'Unlimited super likes'; return; }
+      if (plan === 'standard') { el.textContent = ''; return; }
+      const reset = myProfile.superLikesResetAt?.toDate ? myProfile.superLikesResetAt.toDate() : new Date(myProfile.superLikesResetAt || 0);
+      const dailyRemaining = (!myProfile.superLikesResetAt || reset <= new Date()) ? 5 : Number(myProfile.superLikesRemaining ?? 5);
+      const pack = myProfile.addons?.superlikePack;
+      const packRemaining = isAddonActive(pack) ? Number(pack.remainingUses || 0) : 0;
+      const total = dailyRemaining > 0 ? dailyRemaining : packRemaining;
+      el.textContent = total > 0 ? `${total} super like${total === 1 ? '' : 's'} remaining` : '0 super likes remaining';
+    }
+
     async function loadProfiles() {
-      allProfiles = await fetchProfiles(myUser, myProfile);
+      allProfiles = (await fetchProfiles(myUser, myProfile)).filter(profile => !isAddonActive(profile.addons?.incognito));
       profiles = [...allProfiles];
       currentIndex = 0;
       renderDeck();
@@ -400,11 +423,30 @@
           const data = snap.exists() ? snap.data() : {};
           const reset = data.superLikesResetAt?.toDate ? data.superLikesResetAt.toDate() : new Date(data.superLikesResetAt || 0);
           const remaining = !data.superLikesResetAt || reset.getTime() <= Date.now() ? 5 : Number(data.superLikesRemaining ?? 5);
-          if (remaining <= 0) { showToast("You've used today's super likes. Vault members get unlimited — upgrade."); return; }
-          const resetAt = !data.superLikesResetAt || reset.getTime() <= Date.now() ? new Date(Date.now() + 24 * 60 * 60 * 1000) : data.superLikesResetAt;
-          await updateDoc(doc(db, 'users', myUser.uid), { superLikesRemaining: remaining - 1, superLikesResetAt: resetAt, lastSuperLikeAt: serverTimestamp() });
-          myProfile.superLikesRemaining = remaining - 1;
-          myProfile.superLikesResetAt = resetAt;
+          if (remaining > 0) {
+            const resetAt = !data.superLikesResetAt || reset.getTime() <= Date.now() ? new Date(Date.now() + 24 * 60 * 60 * 1000) : data.superLikesResetAt;
+            await updateDoc(doc(db, 'users', myUser.uid), { superLikesRemaining: remaining - 1, superLikesResetAt: resetAt, lastSuperLikeAt: serverTimestamp() });
+            myProfile.superLikesRemaining = remaining - 1;
+            myProfile.superLikesResetAt = resetAt;
+          } else {
+            const pack = data.addons?.superlikePack;
+            const packUses = isAddonActive(pack) ? Number(pack.remainingUses || 0) : 0;
+            if (packUses <= 0) {
+              showToast('Buy a Super Like Pack in your wallet for more super likes');
+              updateSuperLikeCounter();
+              return;
+            }
+            const newPackUses = packUses - 1;
+            await updateDoc(doc(db, 'users', myUser.uid), {
+              'addons.superlikePack.remainingUses': newPackUses,
+              ...(newPackUses === 0 ? { 'addons.superlikePack.active': false } : {}),
+              'addons.superlikePack.updatedAt': serverTimestamp(),
+              lastSuperLikeAt: serverTimestamp()
+            });
+            myProfile.addons = myProfile.addons || {};
+            myProfile.addons.superlikePack = { ...pack, remainingUses: newPackUses, active: newPackUses > 0 };
+          }
+          updateSuperLikeCounter();
         }
         try {
           const isMatch = await recordSwipe(myUser.uid, prof.id, 'superlike');
