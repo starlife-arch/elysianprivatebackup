@@ -299,7 +299,7 @@
     import { openSheet } from "../js/sheet.js";
     import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport, fetchPayments, computeRiskScore } from "../js/admin.js";
     import * as adminApi from "../js/admin.js";
-    import { collection, getDocs, doc, addDoc, updateDoc, query, where, orderBy, limit, serverTimestamp, arrayUnion, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { collection, getDocs, doc, addDoc, updateDoc, query, where, orderBy, limit, serverTimestamp, arrayUnion, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAdminSettings, setAdminGlobalSetting, setMemberOverride } from "../js/location.js";
 
     let allUsers=[], allReports=[], allCalls=[], allTickets=[];
@@ -457,7 +457,7 @@
             ${u.status!=='active_member'&&u.status!=='pending_admin_review'?`<button class="btn btn-sm btn-gold" onclick="openGrantModal('${u.id}')">Grant Access</button>`:''}
             ${u.status==='active_member'?`<button class="btn btn-sm" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--muted);" onclick="openGrantModal('${u.id}')">Extend/Change Access</button><button class="btn btn-sm btn-danger" onclick="doRevokeAccess('${u.id}')">Revoke Access</button>`:''}
             <button class="btn btn-sm" style="background:rgba(201,168,76,0.12);border:1px solid rgba(201,168,76,0.3);color:var(--gold);" onclick="openAssignPlanModal('${u.id}','${u.displayName||u.name||'Member'}')"> Assign Plan</button>
-            <button class="btn btn-sm" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--muted);" onclick="openDMToUser('${u.id}')">Message</button>
+            <button class="btn btn-sm" style="background:rgba(255,255,255,0.05);border:1px solid var(--border);color:var(--muted);" onclick="openDMToUser('${u.id}')">Message</button>${u.status === 'active_member' ? `<button class="btn btn-sm" style="background:rgba(24,119,242,.1);border:1px solid rgba(24,119,242,.3);color:#60a5fa;" onclick="adminStartCall('${u.id}','${u.displayName||u.name||'Member'}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg>Video Call</button>` : ''}
             ${(verification === 'verified' || verification === 'stale') ? `<button class="btn btn-sm btn-outline" onclick="requestReverification('${u.id}')">Request re-verification</button>` : ''}
             ${u.banned?`<button class="btn btn-sm btn-outline" onclick="doUnban('${u.id}')">Unban</button>`:`<button class="btn btn-sm btn-danger" onclick="doBan('${u.id}')">Ban</button>`}
           </div>
@@ -1067,6 +1067,18 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
       } finally {
         if (btn) { btn.disabled = false; btn.textContent = originalText; }
       }
+    };
+
+
+    window.adminStartCall = async function(toUID, memberName) {
+      const sheet = openSheet({ label:'Video Call', content:`<div style="text-align:center;padding:1rem 0"><h3>${memberName}</h3><p class="muted">Start a support video call with this member.<br>Admin calls are free and do not deduct tokens.</p><button id="dv-admin-call-confirm" class="btn btn-gold btn-full">Start Call</button><button id="dv-admin-call-cancel" class="btn btn-outline btn-full">Cancel</button></div>` });
+      await new Promise(r=>requestAnimationFrame(r));
+      document.getElementById('dv-admin-call-cancel')?.addEventListener('click',()=>sheet.close());
+      document.getElementById('dv-admin-call-confirm')?.addEventListener('click',async()=>{sheet.close();await adminInitiateCall(toUID,memberName);});
+    };
+    async function adminInitiateCall(toUID, memberName) {
+      const calling = openSheet({label:'Calling',content:`<div style="text-align:center;padding:1rem 0"><div class="dv-call-avatar-ring"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg></div><h3>${memberName}</h3><p class="muted">Calling...</p></div>`});
+      try { const token=await auth.currentUser.getIdToken(), res=await fetch('/.netlify/functions/video-call',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({toUID,adminCall:true})}),data=await res.json(); if(!res.ok)throw new Error(data.error); const unsub=onSnapshot(doc(db,'videoCallInvites',data.inviteId),async snap=>{if(snap.data()?.status!=='answered')return;unsub();calling.close();if(!window.DailyIframe){const script=document.createElement('script');script.src='https://unpkg.com/@daily-co/daily-js';await new Promise(resolve=>{script.onload=resolve;document.head.appendChild(script)});}try{window.DailyIframe.getCallInstance?.()?.destroy()}catch(_){}const call=openSheet({label:'Support Call — '+memberName,content:'<div id="adminCallContainer" style="height:65vh"></div>'});await new Promise(r=>requestAnimationFrame(r));const frame=window.DailyIframe.createFrame(document.getElementById('adminCallContainer'),{showLeaveButton:true});await frame.join({url:data.roomURL,token:data.token});frame.on('left-meeting',async()=>{await updateDoc(doc(db,'videoCallInvites',data.inviteId),{status:'ended',endedAt:serverTimestamp()});call.close();});}); } catch(e) { calling.close();showToast(e.message||'Could not start call'); }
     };
 
     init().catch(console.error);
