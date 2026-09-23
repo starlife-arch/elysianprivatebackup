@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="manifest" href="/manifest.json">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Admin — DateVault</title>
@@ -638,6 +639,11 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
         let emailRecipientCount=0;
         if(sendEmail) emailRecipientCount=await sendAnnouncementEmails(title,body,includeInactive);
         await addDoc(collection(db,'announcements'),{title,body,type,createdAt:serverTimestamp(),active:true,emailSent:sendEmail,emailRecipientCount});
+        auth.currentUser?.getIdToken().then(token => fetch('/api/send-push', {
+          method:'POST',
+          headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+          body:JSON.stringify({type:'announcement',title,body:body.slice(0,140),url:'/app/chat/?tab=updates'})
+        })).catch(error => console.error('Could not send announcement push notifications', error));
         document.getElementById('annoTitle').value='';
         document.getElementById('annoBody').value='';
         document.getElementById('annoEmailProgress').style.display='none';
@@ -1081,7 +1087,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
       try { const token=await auth.currentUser.getIdToken(), res=await fetch('/.netlify/functions/video-call',{method:'POST',headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},body:JSON.stringify({toUID,adminCall:true})}),data=await res.json(); if(!res.ok)throw new Error(data.error); const unsub=onSnapshot(doc(db,'videoCallInvites',data.inviteId),async snap=>{if(snap.data()?.status!=='answered')return;unsub();calling.close();if(!window.DailyIframe){const script=document.createElement('script');script.src='https://unpkg.com/@daily-co/daily-js';await new Promise(resolve=>{script.onload=resolve;document.head.appendChild(script)});}try{window.DailyIframe.getCallInstance?.()?.destroy()}catch(_){}const call=openSheet({label:'Support Call — '+memberName,content:'<div id="adminCallContainer" style="height:65vh"></div>'});await new Promise(r=>requestAnimationFrame(r));const frame=window.DailyIframe.createFrame(document.getElementById('adminCallContainer'),{showLeaveButton:true});await frame.join({url:data.roomURL,token:data.token});frame.on('left-meeting',async()=>{await updateDoc(doc(db,'videoCallInvites',data.inviteId),{status:'ended',endedAt:serverTimestamp()});call.close();});}); } catch(e) { calling.close();showToast(e.message||'Could not start call'); }
     };
 
-    init().catch(console.error);
+    init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
 
   <!-- Assign Plan Modal -->

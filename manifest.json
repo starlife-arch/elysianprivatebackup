@@ -1,0 +1,11 @@
+{
+  "name": "DateVault",
+  "short_name": "DateVault",
+  "start_url": "/app/dashboard/",
+  "display": "standalone",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "icons": [
+    { "src": "/favicon.png", "sizes": "389x420", "type": "image/png" }
+  ]
+}

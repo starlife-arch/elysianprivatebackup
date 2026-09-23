@@ -70,10 +70,10 @@ service cloud.firestore {
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['verificationStatus']) || selfRequestedReverification())
         && selfServiceStatus()
         && selfServiceSubscription());
-      // Allow members to update their own add-ons and location fields only.
+      // Allow members to update their own add-ons, location, and notification device fields only.
       allow update: if isOwner(uid)
         && request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['addons', '_location', '_privacyPrefs']);
+          .hasOnly(['addons', '_location', '_privacyPrefs', 'fcmTokens', 'fcmTokensUpdatedAt', 'pushNotificationsEnabledAt', 'seenAddToHomeScreenPrompt', 'seenAddToHomeScreenPromptAt']);
       allow delete: if isAdmin();
 
       match /swipes/{swipedUID} {

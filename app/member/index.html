@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <link rel="manifest" href="/manifest.json">
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Member Profile — DateVault</title>
@@ -177,7 +178,7 @@
       catch (e) { console.error('Unable to open gift sheet', e); }
     };
 
-    init().catch(console.error);
+    init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
 <script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons();</script></body>
 </html>

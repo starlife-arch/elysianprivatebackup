@@ -1,4 +1,4 @@
-import { db } from "./auth.js";
+import { auth, db } from "./auth.js";
 import {
   collection, addDoc, query, orderBy, onSnapshot,
   doc, updateDoc, serverTimestamp, getDoc, getDocs, where, limit, runTransaction
@@ -30,6 +30,15 @@ export async function sendMessage(myUID, theirUID, text, imageURL = null) {
     read: false
   };
   await addDoc(collection(db, "matches", matchId, "messages"), msg);
+  const preview = imageURL && !text ? 'Sent you a photo' : String(text || 'Sent you a message').trim().slice(0, 100);
+  auth.currentUser?.getIdToken().then(token => fetch('/api/send-push', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      type: 'message', toUID: theirUID, matchId,
+      title: 'New message', body: preview, url: `/app/chat/?uid=${encodeURIComponent(myUID)}`
+    })
+  })).catch(error => console.error('Could not send message push notification', error));
   // Update last message on match doc
   await updateDoc(doc(db, "matches", matchId), {
     lastMessage: text || "Photo",
