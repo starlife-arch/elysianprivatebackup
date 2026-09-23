@@ -115,6 +115,7 @@
     import { verifiedBadge } from "../../js/icons.js";
     import { listenForNotifications } from "../../js/notifications.js";
     import { startCallListener } from "../../js/call-listener.js";
+    import { showPushNotificationNudge } from "../../js/push.js";
     import { fetchProfiles, recordSwipe } from "../../js/swipe.js";
     import { db } from "../../js/auth.js";
     import { getSubscription, hasPlan, isVault, planLabel, vaultBadge } from "../../js/subscription.js";
@@ -130,6 +131,7 @@
     async function init() {
       const { user, profile } = await requireMember();
       myUser = user; myProfile = profile; startCallListener(myUser.uid, myProfile);
+      showPushNotificationNudge(myUser.uid, showToast).catch(error => console.error('Could not show notification prompt', error));
       const pricingSnap = await getDoc(doc(db, 'config', 'pricing'));
       standardDailyLikes = Math.max(1, Number(pricingSnap.exists() ? pricingSnap.data().standardDailyLikes : 5) || 5);
       document.getElementById('memberBadge').textContent = profile.memberId || '';
