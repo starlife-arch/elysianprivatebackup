@@ -3,8 +3,8 @@ import { doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebas
 
 export const SUBSCRIPTION_PLANS = {
   standard: { label: "Standard", rank: 0, monthly: 0, annual: 0 },
-  elite: { label: "Elite", rank: 1, monthly: 9.99, annual: 95.88 },
-  vault: { label: "Vault", rank: 2, monthly: 24.99, annual: 239.88 }
+  elite: { label: "Elite", rank: 1, monthly: 14.99, annual: 119.99 },
+  vault: { label: "Vault", rank: 2, monthly: 29.99, annual: 239.99 }
 };
 
 export const PRIORITY_SUPPORT_PRICE = 100;
@@ -85,7 +85,7 @@ export function paymentAmountUSD(purpose, plan = 'standard', billing = 'monthly'
     if (pricingCfg?.[plan]) return Number(pricingCfg[plan][billing] || 0);
     return Number(SUBSCRIPTION_PLANS[plan]?.[billing] || 0);
   }
-  return pricingCfg?.entryUSD ?? 29.99;
+  return pricingCfg?.entryUSD ?? 9.99;
 }
 
 export function paymentAmountKES(usd) {

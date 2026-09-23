@@ -58,6 +58,7 @@
   <script type="module">
     import { requireMember, db } from "../../js/auth.js";
     import { listenForNotifications } from "../../js/notifications.js";
+    import { startCallListener } from "../../js/call-listener.js";
     import { hasPlan, getSubscription, planLabel, vaultBadge } from "../../js/subscription.js";
     import { recordSwipe } from "../../js/swipe.js";
     import { showError } from "../../js/dialog.js";
@@ -68,7 +69,7 @@
 
     async function init() {
       const { user, profile } = await requireMember();
-      myUser = user; myProfile = profile;
+      myUser = user; myProfile = profile; startCallListener(myUser.uid, myProfile);
       listenForNotifications(myUser.uid, hasSomethingNew => { document.getElementById('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; });
       adminSettings = await getAdminSettings();
       updateExploreNavLock();
@@ -102,7 +103,7 @@
     function showLockedLikes() {
       const sub = getSubscription(myProfile);
       const label = sub.status === 'expired' ? 'Renew to unlock' : 'Upgrade to unlock';
-      document.getElementById('likedMeGrid').innerHTML = `<div class="glass-card locked-state" style="grid-column:1/-1;"><div class="lock-icon">◇</div><p style="font-weight:700;color:var(--text);">Upgrade to Elite to see who liked you</p><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:1rem 0;filter:blur(3px);opacity:0.55;"><div style="height:120px;background:var(--surface2);border-radius:14px;"></div><div style="height:120px;background:var(--surface2);border-radius:14px;"></div><div style="height:120px;background:var(--surface2);border-radius:14px;"></div></div><p class="muted">${sub.status === 'expired' ? 'Your '+planLabel(sub.previousPlan || 'elite')+' plan expired.' : 'Standard members can browse Discover and chat with mutual matches. Upgrade to reveal incoming likes.'}</p><button class="btn btn-gold btn-sm" onclick="location.href='/pricing.html'">${label}</button></div>`;
+      document.getElementById('likedMeGrid').innerHTML = `<div class="glass-card locked-state" style="grid-column:1/-1;"><div class="lock-icon">◇</div><p style="font-weight:700;color:var(--text);">3 people liked your profile this week.</p><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.5rem;margin:1rem 0;filter:blur(3px);opacity:0.55;"><div style="height:120px;background:var(--surface2);border-radius:14px;"></div><div style="height:120px;background:var(--surface2);border-radius:14px;"></div><div style="height:120px;background:var(--surface2);border-radius:14px;"></div></div><p class="muted">${sub.status === 'expired' ? 'Your '+planLabel(sub.previousPlan || 'elite')+' plan expired.' : 'Upgrade to Elite to see who.'}</p><button class="btn btn-gold btn-sm" onclick="location.href='/pricing.html'">${label}</button></div>`;
     }
 
     async function loadLikes() {
