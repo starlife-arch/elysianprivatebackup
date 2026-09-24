@@ -58,7 +58,7 @@
     import { requireActiveMember, db } from "../../js/auth.js";
     import { listenForNotifications } from "../../js/notifications.js";
     import { startCallListener } from "../../js/call-listener.js";
-    import { vaultBadge } from "../../js/subscription.js";
+    import { hasPlan, isVault, vaultBadge } from "../../js/subscription.js";
     import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { haversineKm, formatDistance, getAdminSettings, resolveVisibility, requestAndSaveLocation } from "../../js/location.js";
 
@@ -79,7 +79,8 @@
       allProfiles = snap.docs
         .filter(d => d.id !== myUser.uid)
         .map(d => ({ id: d.id, ...d.data() }))
-        .filter(profile => !isAddonActive(profile.addons?.incognito));
+        .filter(profile => !isAddonActive(profile.addons?.incognito))
+        .sort((a, b) => profileSortScore(b) - profileSortScore(a));
       renderGrid(allProfiles);
     }
 
@@ -89,6 +90,19 @@
       if (!addon.expiresAt) return true;
       const expiresAt = addon.expiresAt?.toDate?.() ? addon.expiresAt.toDate() : new Date(addon.expiresAt);
       return expiresAt > new Date();
+    }
+
+    // Sort boosted members first, then Vault, Elite, and Standard members.
+    function profileSortScore(profile) {
+      let score = 0;
+      const boost = profile.addons?.boost;
+      if (boost?.active) {
+        const expiresAt = boost.expiresAt?.toDate?.() ? boost.expiresAt.toDate() : new Date(boost.expiresAt || 0);
+        if (expiresAt > new Date()) score += 1000;
+      }
+      if (isVault(profile)) score += 100;
+      else if (hasPlan(profile, 'elite')) score += 50;
+      return score;
     }
 
     function isStandardPlan() {

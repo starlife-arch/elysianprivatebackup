@@ -18,7 +18,9 @@ export function dateOnly(value) {
 }
 
 export function hasActiveMembership(profile = {}) {
-  return profile.status === 'active_member' && (profile.hasPaid === true || profile.paid === true || profile.stage === 'paid' || ['standard', 'elite', 'vault'].includes(profile.plan));
+  // A plan alone does not prove that a membership payment succeeded.
+  return profile.status === 'active_member'
+    && (profile.hasPaid === true || profile.paid === true);
 }
 
 export function getSubscription(profile = {}) {

@@ -7,7 +7,9 @@ import {
 import {
   doc, getDoc, setDoc, updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { expireSubscriptionIfNeeded } from "./subscription.js";
+import { expireSubscriptionIfNeeded, hasActiveMembership } from "./subscription.js";
+
+export { hasActiveMembership };
 
 
 const VERIFICATION_FRESHNESS_DAYS = 90;
@@ -47,10 +49,6 @@ export function genMemberId() {
   let id = "MBR-";
   for (let i = 0; i < 6; i++) id += c[Math.floor(Math.random() * c.length)];
   return id;
-}
-
-export function hasActiveMembership(profile = {}) {
-  return profile.status === "active_member" && (profile.hasPaid === true || profile.paid === true || profile.stage === "paid" || ["standard", "elite", "vault"].includes(profile.plan));
 }
 
 export function deriveStage(profile = {}) {

@@ -309,15 +309,12 @@ export async function grantAccess(uid, days = null) {
     status: "active_member",
     paid: true,
     hasPaid: true,
-    plan: "standard",
-    stage: "paid",
     reminderCount: 0,
     lastReminderSent: null,
     reminderType: null,
     adminOverride: true,
     accessRevoked: false,
     activatedAt: serverTimestamp(),
-    subscription: { plan: "standard", billing: "included", status: "active", startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 },
     vaultBadge: false
   };
   if (days) {
