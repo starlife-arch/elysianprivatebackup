@@ -31,7 +31,7 @@ async function start(event) {
 
 async function notifyTokenPurchase(payment, user) {
   if (payment.purpose !== 'tokens') return;
-  const base = process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://elysiandate.site';
+  const base = (process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://elysiandate.site').replace('https://elysiandate.netlify.app', 'https://elysiandate.site');
   const payload = { uid: payment.uid, name: user.displayName || user.name || 'Member', email: user.email || '', amountUSD: payment.amountUSD, tokens: payment.tokens, method: 'M-Pesa Africa' };
   await Promise.all([
     fetch(`${base}/api/telegram-notify`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'token_purchase', ...payload, message:`Token purchase\n${payload.name}\n${Number(payment.tokens).toLocaleString()} tokens · $${Number(payment.amountUSD).toFixed(2)} · M-Pesa Africa`}) }),

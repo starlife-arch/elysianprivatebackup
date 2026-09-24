@@ -11,37 +11,37 @@ function copyFor(type, data, appUrl) {
       subject: "DateVault access granted",
       title: "Your access has been granted.",
       body: `Your DateVault member access is active${data.days ? ` for ${escapeHTML(data.days)} days` : ""}. You can now return to the member dashboard.`,
-      cta: "Open Dashboard", url: `${appUrl}/dashboard.html`
+      cta: "Open Dashboard", url: `${appUrl}/app/dashboard/`
     },
     plan_assigned: {
       subject: `${plan} plan assigned — DateVault`,
       title: `Your ${plan} plan has been assigned.`,
       body: `An admin has assigned your DateVault account to the ${plan} plan. Your plan benefits are available immediately.`,
-      cta: "Open Dashboard", url: `${appUrl}/dashboard.html`
+      cta: "Open Dashboard", url: `${appUrl}/app/dashboard/`
     },
     access_revoked: {
       subject: "DateVault access revoked",
       title: "Your access has been revoked.",
       body: "Your DateVault member access has been moved back to payment-required status. If you believe this is a mistake, contact support.",
-      cta: "Review Payment", url: `${appUrl}/payment.html`
+      cta: "Review Payment", url: `${appUrl}/account/payment/`
     },
     user_banned: {
       subject: "DateVault account suspended",
       title: "Your account has been suspended.",
       body: "Your DateVault account has been suspended due to an account or community issue. If you believe this is an error, contact support for review.",
-      cta: "Contact Support", url: `${appUrl}/login.html`
+      cta: "Contact Support", url: `${appUrl}/auth/login/`
     },
     user_unbanned: {
       subject: "DateVault account restored",
       title: "Your account has been restored.",
       body: "Your DateVault account suspension has been lifted. You can sign in again and continue using your available member features.",
-      cta: "Sign In", url: `${appUrl}/login.html`
+      cta: "Sign In", url: `${appUrl}/auth/login/`
     },
     reapply_allowed: {
       subject: "You can reapply to DateVault",
       title: "Your reapply chance is open.",
       body: "The DateVault team has reopened your application. Sign in and complete verification again when you are ready.",
-      cta: "Complete Verification", url: `${appUrl}/verification.html`
+      cta: "Complete Verification", url: `${appUrl}/account/verification/`
     },
     subscription_expired: {
       subject: `${plan} plan expired — DateVault`,
@@ -53,13 +53,13 @@ function copyFor(type, data, appUrl) {
       subject: `${plan} plan active — DateVault`,
       title: `Your ${plan} plan is active.`,
       body: `Your DateVault ${plan} benefits have been restored and are available immediately.`,
-      cta: "Open Dashboard", url: `${appUrl}/dashboard.html`
+      cta: "Open Dashboard", url: `${appUrl}/app/dashboard/`
     },
     verification_submitted: {
       subject: "DateVault verification received",
       title: "Your verification was submitted.",
       body: "Your profile and identity verification are now with the DateVault review team. We will notify you after review before asking for the entry payment.",
-      cta: "Check Status", url: `${appUrl}/status.html`
+      cta: "Check Status", url: `${appUrl}/account/status/`
     },
     wallet_credit: { subject: 'Tokens added to your DateVault wallet', title: 'Tokens were added to your wallet.', body: `${Number(data.amount||0).toLocaleString()} tokens were added by the DateVault team.${data.reason ? ` Reason: ${escapeHTML(data.reason)}` : ''}`, cta: 'Open Token Wallet', url: `${appUrl}/app/wallet/` },
     wallet_debit: { subject: 'DateVault wallet adjustment', title: 'Tokens were deducted from your wallet.', body: `${Number(data.amount||0).toLocaleString()} tokens were deducted by the DateVault team.${data.reason ? ` Reason: ${escapeHTML(data.reason)}` : ''}`, cta: 'Open Token Wallet', url: `${appUrl}/app/wallet/` },
@@ -76,7 +76,7 @@ function copyFor(type, data, appUrl) {
       subject: "DateVault payment received",
       title: "Your payment was received.",
       body: "Your DateVault entry payment has been confirmed. Your Standard membership benefits are active now.",
-      cta: "Open Dashboard", url: `${appUrl}/dashboard.html`
+      cta: "Open Dashboard", url: `${appUrl}/app/dashboard/`
     },
     priority_support_requested: {
       subject: "Priority Support request received — DateVault",
@@ -104,7 +104,7 @@ exports.handler = async function(event) {
       ? (process.env.EMAIL_ADMIN || process.env.FROM_EMAIL || "noreply@datevault.com")
       : (process.env.EMAIL_ALERTS || process.env.FROM_EMAIL || "noreply@datevault.com");
   const FROM_NAME = process.env.FROM_NAME || "DateVault";
-  const APP_URL = process.env.APP_URL || "https://elysiandate.netlify.app";
+  const APP_URL = (process.env.APP_URL || "https://elysiandate.site").replace("https://elysiandate.netlify.app", "https://elysiandate.site");
   if (!BREVO_API_KEY) return json(500, { error: "Brevo not configured" });
 
   const safeName = escapeHTML(data.name || "Member");
