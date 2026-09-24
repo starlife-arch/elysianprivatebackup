@@ -12,7 +12,7 @@ exports.handler = async function(event) {
   const BREVO_API_KEY = process.env.BREVO_API_KEY;
   const FROM_EMAIL = process.env.EMAIL_ADMIN || process.env.FROM_EMAIL || "noreply@datevault.com";
   const FROM_NAME = process.env.FROM_NAME || "DateVault";
-  const APP_URL = process.env.APP_URL || "https://elysiandate.netlify.app";
+  const APP_URL = (process.env.APP_URL || "https://elysiandate.site").replace("https://elysiandate.netlify.app", "https://elysiandate.site");
 
   if (!BREVO_API_KEY) return json(500, { error: "Brevo not configured" });
 
