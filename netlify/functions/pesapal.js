@@ -1,6 +1,6 @@
 const { json, text, redirect, parseBody, preflight, fetchJSON } = require("./_helpers");
 
-const APP_URL = process.env.APP_URL || "https://elysiandate.netlify.app";
+const APP_URL = (process.env.APP_URL || "https://elysiandate.site").replace("https://elysiandate.netlify.app", "https://elysiandate.site");
 const SANDBOX = process.env.PESAPAL_SANDBOX === "true";
 const PESAPAL_BASE = SANDBOX ? "https://cybqa.pesapal.com/pesapalv3" : "https://pay.pesapal.com/v3";
 
@@ -260,7 +260,7 @@ function handleCallback(event) {
   const orderTrackingId = params.OrderTrackingId || "";
   const merchantReference = params.merchantReference || params.OrderMerchantReference || "";
   const token = params.token || "";
-  return redirect(`${APP_URL}/payment.html?pesapal=callback&OrderTrackingId=${encodeURIComponent(orderTrackingId)}&OrderMerchantReference=${encodeURIComponent(merchantReference)}${token ? `&token=${encodeURIComponent(token)}` : ""}`);
+  return redirect(`${APP_URL}/account/payment/?pesapal=callback&OrderTrackingId=${encodeURIComponent(orderTrackingId)}&OrderMerchantReference=${encodeURIComponent(merchantReference)}${token ? `&token=${encodeURIComponent(token)}` : ""}`);
 }
 
 exports.handler = async function(event) {

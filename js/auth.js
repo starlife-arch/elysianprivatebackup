@@ -93,7 +93,7 @@ export async function routeUser(user) {
   if (d.status === "rejected") { window.location.href = "/account/status/"; return; }
   if (d.status === "approved_pending_payment") {
     const token = d.inviteToken || d.inviteCode || "";
-    window.location.href = token ? `/account/payment/?token=${encodeURIComponent(token)}` : "/app/dashboard/";
+    window.location.href = `/account/payment/${token ? `?token=${encodeURIComponent(token)}` : ""}`;
     return;
   }
   if (isAccessExpired(d)) {

@@ -130,7 +130,7 @@ async function sendApprovalInvite(user, token, meetLink = "") {
       memberId: user.memberId,
       inviteCode: token,
       inviteToken: token,
-      paymentUrl: `https://elysiandate.netlify.app/payment.html?token=${encodeURIComponent(token)}`,
+      paymentUrl: `https://elysiandate.site/account/payment/?token=${encodeURIComponent(token)}`,
       meetLink,
       videoAvailability: user.videoAvailability || ""
     })
@@ -143,7 +143,12 @@ async function sendApprovalInvite(user, token, meetLink = "") {
 // ── Approve: generate invite code, send email, notify Telegram ──
 export async function approveUser(uid, meetLink = "") {
   const existingSnap = await getDoc(doc(db, "users", uid));
-  const isReverification = existingSnap.exists() && existingSnap.data().verificationStatus === "reverification_requested";
+  const existingProfile = existingSnap.exists() ? existingSnap.data() : {};
+  // Only restore an already-paid active member after re-verification. A pending
+  // applicant must always proceed to the entry-fee payment page after approval.
+  const isReverification = existingProfile.status === "active_member"
+    && existingProfile.verificationStatus === "reverification_requested"
+    && (existingProfile.hasPaid === true || existingProfile.paid === true);
   const code = await genUniqueInviteToken();
   const approvalUpdates = {
     status: isReverification ? "active_member" : "approved_pending_payment",
@@ -160,6 +165,17 @@ export async function approveUser(uid, meetLink = "") {
     approvedAt: serverTimestamp(),
     verificationStatus: null
   };
+  // A first approval only issues an entry-fee invitation. It must not retain
+  // payment or plan fields from an earlier incomplete application attempt.
+  if (!isReverification) {
+    Object.assign(approvalUpdates, {
+      paid: false,
+      hasPaid: false,
+      plan: "none",
+      vaultBadge: false,
+      subscription: { plan: "none", billing: null, status: "inactive", startDate: null, nextBillingDate: null, prioritySupportRequests: 0 }
+    });
+  }
   if (meetLink) approvalUpdates.verificationMeetLink = meetLink;
   await updateDoc(doc(db, "users", uid), approvalUpdates);
 
