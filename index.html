@@ -47,5 +47,18 @@
     </div>
   </div>
   <script>setTimeout(()=>document.getElementById('loader').classList.add('hidden'),600)</script>
+  <script type="module">
+    // If a member opens the installed app / site while already signed in,
+    // route them straight into the app instead of showing the sign-in page.
+    import { auth, onAuthStateChanged, routeUser } from "/js/auth.js";
+    let settled = false;
+    onAuthStateChanged(auth, user => {
+      settled = true;
+      if (user) routeUser(user);
+    });
+    // Safety net: if Firebase can't initialize (offline/blocked), hide the loader
+    // so the Apply / Sign In buttons remain usable.
+    setTimeout(() => { if (!settled) document.getElementById('loader')?.classList.add('hidden'); }, 5000);
+  </script>
 </body>
 </html>
