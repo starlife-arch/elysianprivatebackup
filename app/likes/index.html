@@ -119,8 +119,21 @@
       const swipedSnap = await getDocs(collection(db, 'users', myUser.uid, 'swipes'));
       const swipedUIDs = new Set(swipedSnap.docs.map(d => d.id));
 
-      // Get people who swiped me. Hide anyone I already matched with, liked back, or passed.
-      const likedMeSnap = await getDocs(query(collection(db, 'swipes_index'), where('theirUID', '==', myUser.uid), where('direction', 'in', ['like','superlike'])));
+      // Get people who liked/superliked me. Super likes are stored as direction 'like'
+      // plus an isSuperLike flag; also accept legacy 'superlike' docs so old data still shows.
+      // Hide anyone I already matched with, liked back, or passed.
+      let likedMeSnap;
+      try {
+        likedMeSnap = await getDocs(query(
+          collection(db, 'swipes_index'),
+          where('theirUID', '==', myUser.uid),
+          where('direction', 'in', ['like', 'superlike'])
+        ));
+      } catch (e) {
+        console.error('Could not load who liked you:', e);
+        showEmpty('likedMe');
+        return;
+      }
       const likedMe = likedMeSnap.docs.filter(d => !matchedUIDs.has(d.data().myUID) && !swipedUIDs.has(d.data().myUID));
 
       if (likedMe.length === 0) {
@@ -128,8 +141,9 @@
       } else {
         for (const d of likedMe) {
           const uid = d.data().myUID;
+          const isSuper = d.data().isSuperLike === true || d.data().direction === 'superlike';
           const snap = await getDoc(doc(db, 'users', uid));
-          if (snap.exists()) renderTile(grid, uid, snap.data(), false);
+          if (snap.exists()) renderTile(grid, uid, snap.data(), false, isSuper);
         }
       }
     }
@@ -147,7 +161,7 @@
       }
     }
 
-    function renderTile(grid, uid, profile, isMatch) {
+    function renderTile(grid, uid, profile, isMatch, isSuper = false) {
       const photo = profile.photos && profile.photos[0] ? profile.photos[0] : '';
       const age = profile.dob ? Math.floor((Date.now() - new Date(profile.dob)) / 31557600000) : '';
       const vis = resolveVisibility(profile, myProfile, adminSettings);
@@ -158,6 +172,7 @@
       tile.innerHTML = `
         ${photo ? `<img src="${photo}" alt="${profile.displayName}" loading="lazy"/>` : `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:2rem;"></div>`}
         ${isMatch ? '<div class="match-badge">MATCH</div>' : ''}
+        ${(!isMatch && isSuper) ? '<div class="match-badge" style="background:var(--gold);color:#1a1200;">SUPER LIKE</div>' : ''}
         <div class="tile-info">
           <div class="tile-name">${profile.displayName || profile.name || 'Member'}${ageDisplay} ${vaultBadge(profile)}</div>
           <div class="tile-meta">${locationDisplay}</div>
