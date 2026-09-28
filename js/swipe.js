@@ -61,17 +61,25 @@ export async function fetchProfiles(currentUser, profile) {
 }
 
 // ── Record a swipe and check for match ──
+// Super likes count as likes everywhere in the app (likes tab, profile stats,
+// match logic); the `isSuperLike` flag is only used to show a "Super Like" badge.
 export async function recordSwipe(myUID, theirUID, direction) {
+  const isSuperLike = direction === "superlike";
+  const storedDirection = isSuperLike ? "like" : direction;
+
   // Save to user subcollection
   await setDoc(doc(db, "users", myUID, "swipes", theirUID), {
-    direction, swipedAt: serverTimestamp()
+    direction: storedDirection,
+    isSuperLike,
+    swipedAt: serverTimestamp()
   });
 
   // Save to top-level swipes_index for reverse lookup ("who liked me")
   await setDoc(doc(db, "swipes_index", `${myUID}_${theirUID}`), {
     myUID,
     theirUID,
-    direction,
+    direction: storedDirection,
+    isSuperLike,
     swipedAt: serverTimestamp()
   });
 
