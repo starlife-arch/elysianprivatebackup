@@ -330,7 +330,9 @@
       const ms = await getDocs(collection(db,'users',myUser.uid,'matches'));
       document.getElementById('matchCount').textContent = ms.size;
       const sw = await getDocs(collection(db,'users',myUser.uid,'swipes'));
-      document.getElementById('likesCount').textContent = sw.docs.filter(d=>d.data().direction==='like').length;
+      // Super likes count as likes (new data stores direction 'like' + isSuperLike;
+      // legacy rows may still have direction 'superlike').
+      document.getElementById('likesCount').textContent = sw.docs.filter(d=>{const x=d.data();return x.direction==='like'||x.direction==='superlike'||x.isSuperLike===true;}).length;
     }
 
     window.openEdit = function() {
