@@ -9,7 +9,80 @@ function getAdmin() {
 }
 function db() { return adminDb || (adminDb = getAdmin().firestore()); }
 function nextBillingDate(billing = 'monthly') { const date = new Date(); billing === 'annual' ? date.setFullYear(date.getFullYear() + 1) : date.setMonth(date.getMonth() + 1); return date.toISOString().slice(0, 10); }
+function planLabel(plan = 'standard') { return ({ standard: 'Standard', elite: 'Elite', vault: 'Vault' })[plan] || 'Standard'; }
 
+const BASE_URL = (process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://elysiandate.site').replace('https://elysiandate.netlify.app', 'https://elysiandate.site');
+
+// ─── Unified notification helper ───────────────────────────────────────────
+async function sendNotifications(payment, user) {
+  const name = user.displayName || user.name || 'Member';
+  const email = user.email || '';
+  const memberId = user.memberId || '';
+
+  const telegramBase = { uid: payment.uid, name, email, method: 'M-Pesa Africa' };
+  const emailBase = { email, name, memberId };
+
+  let telegramPayload, emailPayload;
+
+  if (payment.purpose === 'tokens') {
+    telegramPayload = {
+      event: 'token_purchase', ...telegramBase,
+      message: `Token purchase\n${name}\n${Number(payment.tokens).toLocaleString()} tokens · $${Number(payment.amountUSD).toFixed(2)} · M-Pesa Africa`
+    };
+    emailPayload = { type: 'token_purchase', ...emailBase, tokens: payment.tokens, amountUSD: payment.amountUSD };
+
+  } else if (payment.purpose === 'subscription') {
+    telegramPayload = {
+      event: 'subscription_payment_received', ...telegramBase,
+      plan: payment.plan, billing: payment.billing, amountUSD: payment.amountUSD
+    };
+    emailPayload = { type: 'subscription_renewed', ...emailBase, plan: planLabel(payment.plan) };
+
+  } else if (payment.purpose === 'priority_support') {
+    telegramPayload = {
+      event: 'priority_support_requested', ...telegramBase,
+      amountUSD: payment.amountUSD || 100
+    };
+    emailPayload = { type: 'priority_support_requested', ...emailBase };
+
+  } else {
+    // entry
+    telegramPayload = { event: 'payment_received', ...telegramBase };
+    emailPayload = { type: 'payment_received', ...emailBase };
+  }
+
+  await Promise.allSettled([
+    fetch(`${BASE_URL}/api/telegram-notify`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(telegramPayload)
+    }),
+    email ? fetch(`${BASE_URL}/api/send-member-notification-email`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(emailPayload)
+    }) : Promise.resolve()
+  ]);
+}
+
+// ─── Write invoice record to Firestore ─────────────────────────────────────
+async function writeInvoice(tx, payment, checkoutId) {
+  const now = getAdmin().firestore.FieldValue.serverTimestamp();
+  const invoiceRef = db().collection('invoices').doc(`printpay_${checkoutId}`);
+  tx.set(invoiceRef, {
+    uid: payment.uid,
+    provider: 'printpay',
+    purpose: payment.purpose || 'entry',
+    plan: payment.plan || 'standard',
+    billing: payment.billing || 'included',
+    amountKes: payment.amountKes || 0,
+    amountUSD: Number(payment.amountUSD || 0),
+    tokens: Number(payment.tokens || 0),
+    status: 'paid',
+    checkoutId,
+    createdAt: now
+  });
+}
+
+// ─── Start STK push ────────────────────────────────────────────────────────
 async function start(event) {
   const { phone_number, amount, uid, purpose = 'entry', plan = 'standard', billing = 'monthly', tokens = 0, amountUSD = 0 } = parseBody(event);
   let phone = String(phone_number || '').replace(/[^0-9]/g, '');
@@ -20,28 +93,29 @@ async function start(event) {
   if (purpose === 'tokens' && tokenPacks[Number(tokens)] !== Number(amountUSD)) return json(400, { error: 'Invalid token pack.' });
   if (!process.env.PRINTPAY_API_KEY) return json(503, { error: 'PrintPay is not configured', code: 'misconfigured' });
   let upstream = await fetchJSON(PRINTPAY_URL, { method: 'POST', headers: { Accept: 'application/json' }, form: true }, { x_api_key: process.env.PRINTPAY_API_KEY, phone_number: phone, amount: kes });
-  if (upstream.status >= 400) { console.warn('PrintPay form response', upstream.status, upstream.body); upstream = await fetchJSON(PRINTPAY_URL, { method: 'POST', headers: { Accept: 'application/json' } }, { x_api_key: process.env.PRINTPAY_API_KEY, phone_number: phone, amount: kes }); console.info('PrintPay JSON fallback response', upstream.status); }
+  if (upstream.status >= 400) {
+    console.warn('PrintPay form response', upstream.status, upstream.body);
+    upstream = await fetchJSON(PRINTPAY_URL, { method: 'POST', headers: { Accept: 'application/json' } }, { x_api_key: process.env.PRINTPAY_API_KEY, phone_number: phone, amount: kes });
+    console.info('PrintPay JSON fallback response', upstream.status);
+  }
   const result = upstream.data || {};
   if (upstream.status >= 400) return json(upstream.status, { error: result.message || result.error || 'M-Pesa is temporarily unavailable — try Card or contact support.', code: 'provider_error' });
   const checkout_id = result.checkout_id || result.checkoutId || result.id || result.data?.checkout_id;
   if (!checkout_id) throw new Error(result.message || 'PrintPay did not return a checkout ID.');
-  await db().collection('payments').doc(`printpay_${checkout_id}`).set({ uid, phone, amountKes: kes, amountUSD: Number(amountUSD || 0), purpose, plan, billing, tokens: Number(tokens || 0), checkout_id, provider: 'printpay', status: 'pending', createdAt: getAdmin().firestore.FieldValue.serverTimestamp() });
+  await db().collection('payments').doc(`printpay_${checkout_id}`).set({
+    uid, phone, amountKes: kes, amountUSD: Number(amountUSD || 0),
+    purpose, plan, billing, tokens: Number(tokens || 0),
+    checkout_id, provider: 'printpay', status: 'pending',
+    createdAt: getAdmin().firestore.FieldValue.serverTimestamp()
+  });
   return json(200, { checkout_id });
 }
 
-async function notifyTokenPurchase(payment, user) {
-  if (payment.purpose !== 'tokens') return;
-  const base = (process.env.URL || process.env.DEPLOY_PRIME_URL || 'https://elysiandate.site').replace('https://elysiandate.netlify.app', 'https://elysiandate.site');
-  const payload = { uid: payment.uid, name: user.displayName || user.name || 'Member', email: user.email || '', amountUSD: payment.amountUSD, tokens: payment.tokens, method: 'M-Pesa Africa' };
-  await Promise.all([
-    fetch(`${base}/api/telegram-notify`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({event:'token_purchase', ...payload, message:`Token purchase\n${payload.name}\n${Number(payment.tokens).toLocaleString()} tokens · $${Number(payment.amountUSD).toFixed(2)} · M-Pesa Africa`}) }),
-    payload.email ? fetch(`${base}/api/send-member-notification-email`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({type:'token_purchase', ...payload}) }) : Promise.resolve()
-  ]).catch(error => console.error('Token purchase notification failed', error));
-}
-
+// ─── Complete payment (called when STK poll returns SUCCESS) ───────────────
 async function complete(checkoutId, statusData) {
   let completedPayment, completedUser;
   const paymentRef = db().collection('payments').doc(`printpay_${checkoutId}`);
+
   await db().runTransaction(async tx => {
     const paymentDoc = await tx.get(paymentRef);
     if (!paymentDoc.exists) throw new Error('Payment was not found.');
@@ -49,25 +123,69 @@ async function complete(checkoutId, statusData) {
     if (payment.status === 'completed') return;
     completedPayment = payment;
     const userRef = db().collection('users').doc(payment.uid);
-    const user = await tx.get(userRef);
-    if (!user.exists) throw new Error('Member not found.');
-    completedUser = user.data();
+    const userDoc = await tx.get(userRef);
+    if (!userDoc.exists) throw new Error('Member not found.');
+    completedUser = userDoc.data();
     const now = getAdmin().firestore.FieldValue.serverTimestamp();
+
     tx.update(paymentRef, { status: 'completed', printpayStatus: statusData, completedAt: now });
+
+    // Write invoice for all payment types
+    await writeInvoice(tx, payment, checkoutId);
+
     if (payment.purpose === 'tokens') {
       const tokens = Math.floor(Number(payment.tokens));
       if (!tokens) throw new Error('Invalid token pack.');
       tx.set(userRef, { walletBalance: getAdmin().firestore.FieldValue.increment(tokens) }, { merge: true });
-      tx.set(db().collection('users').doc(payment.uid).collection('walletTransactions').doc(), { type: 'credit', amount: tokens, note: 'Token pack purchase', createdAt: now, status: 'completed' });
+      tx.set(db().collection('users').doc(payment.uid).collection('walletTransactions').doc(), {
+        type: 'credit', amount: tokens, note: 'Token pack purchase',
+        createdAt: now, status: 'completed'
+      });
+
     } else if (payment.purpose === 'subscription') {
-      tx.update(userRef, { subscription: { plan: payment.plan, billing: payment.billing, status: 'active', startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(payment.billing), prioritySupportRequests: user.data().subscription?.prioritySupportRequests || 0 }, vaultBadge: payment.plan === 'vault', lastSubscriptionPaymentAt: now, lastSubscriptionPaymentMethod: 'printpay' });
+      tx.update(userRef, {
+        subscription: {
+          plan: payment.plan, billing: payment.billing, status: 'active',
+          startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(payment.billing),
+          prioritySupportRequests: completedUser.subscription?.prioritySupportRequests || 0
+        },
+        vaultBadge: payment.plan === 'vault',
+        subscriptionExpirationEmailSentFor: null,
+        lastSubscriptionPaymentAt: now,
+        lastSubscriptionPaymentMethod: 'printpay'
+      });
+
+    } else if (payment.purpose === 'priority_support') {
+      const reqRef = db().collection('priority_support_requests').doc();
+      tx.set(reqRef, {
+        uid: payment.uid, email: completedUser.email || '',
+        memberName: completedUser.displayName || completedUser.name || 'Member',
+        memberId: completedUser.memberId || '', amountUSD: payment.amountUSD || 100,
+        status: 'paid_pending_admin_confirmation', paymentMethod: 'printpay',
+        paymentReference: `printpay_${checkoutId}`, createdAt: now
+      });
+      tx.update(userRef, { 'subscription.prioritySupportRequests': getAdmin().firestore.FieldValue.increment(1) });
+
     } else {
-      tx.update(userRef, { paid: true, hasPaid: true, plan: 'standard', stage: 'paid', inviteTokenUsed: true, inviteUsed: true, paymentMethod: 'printpay', status: 'active_member', activatedAt: now, reminderCount: 0, lastReminderSent: null, reminderType: null, subscription: { plan: 'standard', billing: 'included', status: 'active', startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 }, vaultBadge: false });
+      // entry
+      tx.update(userRef, {
+        paid: true, hasPaid: true, plan: 'standard', stage: 'paid',
+        inviteTokenUsed: true, inviteUsed: true,
+        paymentMethod: 'printpay', status: 'active_member',
+        activatedAt: now, reminderCount: 0, lastReminderSent: null, reminderType: null,
+        subscription: { plan: 'standard', billing: 'included', status: 'active', startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 },
+        vaultBadge: false
+      });
     }
   });
-  if (completedPayment && completedUser) await notifyTokenPurchase(completedPayment, completedUser);
+
+  // Send email + telegram after transaction commits
+  if (completedPayment && completedUser) {
+    await sendNotifications(completedPayment, completedUser);
+  }
 }
 
+// ─── Poll status ────────────────────────────────────────────────────────────
 async function status(event) {
   const checkout_id = event.queryStringParameters?.checkout_id;
   if (!checkout_id) return json(400, { error: 'checkout_id is required' });
