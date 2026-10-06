@@ -20,7 +20,9 @@ async function sendNotifications(payment, user) {
   const memberId = user.memberId || '';
 
   const telegramBase = { uid: payment.uid, name, email, method: 'M-Pesa Africa' };
-  const emailBase = { email, name, memberId };
+  const method = 'M-Pesa Africa';
+  const reference = payment.checkout_id || '';
+  const emailBase = { email, name, memberId, method, reference };
 
   let telegramPayload, emailPayload;
 
@@ -29,26 +31,27 @@ async function sendNotifications(payment, user) {
       event: 'token_purchase', ...telegramBase,
       message: `Token purchase\n${name}\n${Number(payment.tokens).toLocaleString()} tokens · $${Number(payment.amountUSD).toFixed(2)} · M-Pesa Africa`
     };
-    emailPayload = { type: 'token_purchase', ...emailBase, tokens: payment.tokens, amountUSD: payment.amountUSD };
+    emailPayload = { type: 'token_purchase', ...emailBase, tokens: payment.tokens, amountUSD: payment.amountUSD, amountKes: payment.amountKes };
 
   } else if (payment.purpose === 'subscription') {
     telegramPayload = {
       event: 'subscription_payment_received', ...telegramBase,
       plan: payment.plan, billing: payment.billing, amountUSD: payment.amountUSD
     };
-    emailPayload = { type: 'subscription_renewed', ...emailBase, plan: planLabel(payment.plan) };
+    const nbd = nextBillingDate(payment.billing);
+    emailPayload = { type: 'subscription_renewed', ...emailBase, plan: planLabel(payment.plan), billing: payment.billing, amountUSD: payment.amountUSD, amountKes: payment.amountKes, nextBillingDate: nbd };
 
   } else if (payment.purpose === 'priority_support') {
     telegramPayload = {
       event: 'priority_support_requested', ...telegramBase,
       amountUSD: payment.amountUSD || 100
     };
-    emailPayload = { type: 'priority_support_requested', ...emailBase };
+    emailPayload = { type: 'priority_support_requested', ...emailBase, amountUSD: payment.amountUSD || 100, amountKes: payment.amountKes };
 
   } else {
     // entry
     telegramPayload = { event: 'payment_received', ...telegramBase };
-    emailPayload = { type: 'payment_received', ...emailBase };
+    emailPayload = { type: 'payment_received', ...emailBase, amountUSD: payment.amountUSD, amountKes: payment.amountKes };
   }
 
   await Promise.allSettled([
