@@ -76,7 +76,7 @@
   <script type="module">
     import { auth, db, onAuthStateChanged } from "../../js/auth.js";
     import { PAYSTACK_PUBLIC_KEY, getPricingConfig } from "../../js/firebase.js";
-    import { getDoc, doc, updateDoc, serverTimestamp, addDoc, collection, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getDoc, doc, updateDoc, serverTimestamp, addDoc, setDoc, collection, increment } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { planLabel, nextBillingDate, paymentAmountUSD, paymentAmountKES } from "../../js/subscription.js";
 
     let currentUser = null, userEmail = '', userName = '', profile = {};
@@ -236,32 +236,64 @@
       handler.openIframe();
     };
 
+    // ─── Write invoice/log record to Firestore ────────────────────────────────
+    async function writeInvoice(method, reference = '') {
+      try {
+        const invoiceRef = doc(collection(db, 'invoices'));
+        await setDoc(invoiceRef, {
+          uid: currentUser.uid,
+          memberId: profile.memberId || '',
+          provider: method,
+          purpose,
+          plan: plan || 'standard',
+          billing: billing || 'included',
+          amountUSD,
+          reference: reference || '',
+          status: 'paid',
+          createdAt: serverTimestamp()
+        });
+      } catch (e) {
+        console.error('Invoice write failed:', e);
+      }
+    }
+
     async function activatePayment(method, reference = '') {
       if (purpose === 'tokens') {
         const { creditTokens } = await import('../../js/wallet.js');
         await creditTokens(currentUser.uid, tokenCount, 'Token pack purchase', 'credit');
+        await writeInvoice(method, reference);
       } else if (purpose === 'addon') {
         const duration = addon === 'boost' ? 24 * 60 * 60 * 1000 : addon === 'incognito' ? 7 * 24 * 60 * 60 * 1000 : null;
         const addonData = { active: true, purchasedAt: serverTimestamp(), expiresAt: duration ? new Date(Date.now() + duration) : null, remainingUses: addon === 'superlike_pack' ? 10 : null };
         await updateDoc(doc(db, 'users', currentUser.uid), { [`addons.${addonConfigKey}`]: addonData });
+        await writeInvoice(method, reference);
       } else if (purpose === 'subscription') {
         const label = planLabel(plan);
         await updateDoc(doc(db, 'users', currentUser.uid), {
           subscription: { plan, billing, status: 'active', startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(billing), prioritySupportRequests: profile.subscription?.prioritySupportRequests || 0 },
           vaultBadge: plan === 'vault', subscriptionExpirationEmailSentFor: null, lastSubscriptionPaymentAt: serverTimestamp(), lastSubscriptionPaymentMethod: method
         });
-        await notify('subscription_payment_received', method, { plan, billing, amountUSD });
-        await email('subscription_renewed', { plan: label });
+        await writeInvoice(method, reference);
+        await Promise.allSettled([
+          notify('subscription_payment_received', method, { plan, billing, amountUSD }),
+          email('subscription_renewed', { plan: label })
+        ]);
       } else if (purpose === 'priority_support') {
         await addDoc(collection(db, 'priority_support_requests'), { uid: currentUser.uid, email: userEmail, memberName: userName, memberId: profile.memberId || '', amountUSD: 100, status: 'paid_pending_admin_confirmation', paymentMethod: method, paymentReference: reference, createdAt: serverTimestamp() });
         await updateDoc(doc(db, 'users', currentUser.uid), { 'subscription.prioritySupportRequests': increment(1) });
-        await notify('priority_support_requested', method, { amountUSD: 100 });
-        await email('priority_support_requested');
+        await writeInvoice(method, reference);
+        await Promise.allSettled([
+          notify('priority_support_requested', method, { amountUSD: 100 }),
+          email('priority_support_requested')
+        ]);
       } else {
         await updateDoc(doc(db, 'users', currentUser.uid), { paid: true, hasPaid: true, plan: 'standard', stage: 'paid', inviteTokenUsed: true, inviteUsed: true, paymentMethod: method, status: 'active_member', activatedAt: serverTimestamp(), reminderCount: 0, lastReminderSent: null, reminderType: null, subscription: { plan: 'standard', billing: 'included', status: 'active', startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 }, vaultBadge: false });
         await markInviteTokenUsed();
-        await notify('payment_received', method);
-        await email('payment_received');
+        await writeInvoice(method, reference);
+        await Promise.allSettled([
+          notify('payment_received', method),
+          email('payment_received')
+        ]);
       }
       window.location.href = returnUrl();
     }
