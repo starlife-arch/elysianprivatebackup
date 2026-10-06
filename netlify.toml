@@ -1,6 +1,9 @@
 [build]
   publish = "."
 
+[build.environment]
+  NODE_VERSION = "18"
+
 # Folder routes resolve naturally to each directory's index.html. Do not add an
 # SPA catch-all, which would prevent direct page routes from loading.
 # Redirect only the legacy root filenames.
