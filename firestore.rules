@@ -12,7 +12,13 @@ service cloud.firestore {
     }
     function isActiveMember() {
       let u = signedInUser();
-      return isAuth() && u.status == 'active_member' && u.banned != true;
+      let trial = u.get('freeTrial', {});
+      let hasTrial = u.keys().hasAny(['freeTrial']);
+      let trialValid = trial.get('status', '') == 'active'
+        && trial.get('expiresAt', request.time) > request.time;
+      let paid = u.get('paid', false) == true || u.get('hasPaid', false) == true || u.get('adminOverride', false) == true;
+      return isAuth() && u.status == 'active_member' && u.banned != true
+        && (!hasTrial || trialValid || paid);
     }
     function isParticipant(matchId) {
       let users = get(/databases/$(database)/documents/matches/$(matchId)).data.users;
@@ -81,9 +87,11 @@ service cloud.firestore {
       let trial = b.get('freeTrial', {});
       let trialActive = trial.get('status', '') == 'active'
         && trial.get('expiresAt', request.time) > request.time;
+      let hasTrial = b.keys().hasAny(['freeTrial']);
       return !keys.hasAny(['likesRemaining', 'likesResetAt', 'freeTrial'])
-        || (trialActive
-            ? (!keys.hasAny(['likesResetAt'])
+        || (hasTrial
+            ? (trialActive
+               && !keys.hasAny(['likesResetAt'])
                && a.likesRemaining >= 0
                && a.likesRemaining == b.get('likesRemaining', 1) - 1
                && a.freeTrial.likesUsed == trial.get('likesUsed', 0) + 1)
@@ -108,9 +116,13 @@ service cloud.firestore {
       let trialActive = trial.get('status', '') == 'active'
         && trial.get('expiresAt', request.time) > request.time;
       let trialLikeExpected = b.get('likesRemaining', 1) - 1;
-      return (trialActive && request.resource.data.direction == 'like'
-          ? (trialLikeExpected >= 0 && getAfter(userPath).data.get('likesRemaining', -1) == trialLikeExpected
-             && getAfter(userPath).data.freeTrial.likesUsed == trial.get('likesUsed', 0) + 1)
+      let hasTrial = b.keys().hasAny(['freeTrial']);
+      return (hasTrial
+          ? (trialActive
+             && (request.resource.data.direction != 'like'
+               || (trialLikeExpected >= 0
+                 && getAfter(userPath).data.get('likesRemaining', -1) == trialLikeExpected
+                 && getAfter(userPath).data.freeTrial.likesUsed == trial.get('likesUsed', 0) + 1)))
           : (!isPaidStandardUser(b)
              || request.resource.data.get('isSuperLike', false) == true
              || (expected >= 0 && getAfter(userPath).data.get('likesRemaining', -1) == expected)));
