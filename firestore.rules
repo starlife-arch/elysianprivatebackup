@@ -88,10 +88,11 @@ service cloud.firestore {
       let trialActive = trial.get('status', '') == 'active'
         && trial.get('expiresAt', request.time) > request.time;
       let hasTrial = b.keys().hasAny(['freeTrial']);
+      let afterTrial = a.get('freeTrial', {});
       let likeSpent = a.get('likesRemaining', b.get('likesRemaining', 1)) == b.get('likesRemaining', 1) - 1
-        && a.freeTrial.likesUsed == trial.get('likesUsed', 0) + 1;
+        && afterTrial.get('likesUsed', 0) == trial.get('likesUsed', 0) + 1;
       let passSpent = a.get('passesRemaining', b.get('passesRemaining', 1)) == b.get('passesRemaining', 1) - 1
-        && a.freeTrial.passesUsed == trial.get('passesUsed', 0) + 1;
+        && afterTrial.get('passesUsed', 0) == trial.get('passesUsed', 0) + 1;
       return !keys.hasAny(['likesRemaining', 'passesRemaining', 'likesResetAt', 'freeTrial'])
         || (hasTrial
             ? (trialActive
