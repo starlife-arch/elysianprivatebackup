@@ -177,7 +177,7 @@
     }
 
     function currentPlan() { return myProfile.plan || myProfile.subscription?.plan || 'none'; }
-    function isPaidStage() { return ['paid','elite','vault'].includes(myProfile.stage) || myProfile.hasPaid || myProfile.paid; }
+    function isPaidStage() { return isFreeTrialMember() || ['paid','elite','vault'].includes(myProfile.stage) || myProfile.hasPaid || myProfile.paid; }
     function isPremium() { return ['elite','vault'].includes(currentPlan()) || ['elite','vault'].includes(myProfile.stage); }
 
     function isStandardPlan() { return isPaidStage() && currentPlan() === 'standard'; }
@@ -390,6 +390,17 @@
     function isStandardMember() {
       return myProfile.hasPaid === true && currentPlan() === 'standard' && !isFreeTrialMember();
     }
+    function updateLikeButtonState() {
+      if (!myProfile) return;
+      const trial = isFreeTrialMember();
+      const likeLocked = trial && Number(myProfile.likesRemaining ?? 1) <= 0;
+      const passLocked = trial && Number(myProfile.passesRemaining ?? 1) <= 0;
+      const standardLocked = !trial && isStandardMember() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0;
+      const like = document.getElementById('likeActionBtn');
+      const pass = document.getElementById('passActionBtn');
+      if (like) { like.disabled = likeLocked || standardLocked; like.style.opacity = like.disabled ? '0.45' : ''; like.title = likeLocked ? 'Your one trial like has been used' : standardLocked ? 'Daily swipes used' : 'Like'; }
+      if (pass) { pass.disabled = passLocked || standardLocked; pass.style.opacity = pass.disabled ? '0.45' : ''; pass.title = passLocked ? 'Your one trial pass has been used' : standardLocked ? 'Daily swipes used' : 'Pass'; }
+    }
     function showLikeLimitNotice() {
       const notice = document.getElementById('likeLimitNotice');
       const msg = isFreeTrialMember()
@@ -434,6 +445,7 @@
       if (snap.exists()) {
         const data = snap.data();
         myProfile.likesRemaining = Number(data.likesRemaining ?? standardDailyLikes);
+        myProfile.passesRemaining = Number(data.passesRemaining ?? 1);
         myProfile.likesResetAt = data.likesResetAt;
       }
       renderSubscriptionPanel();
@@ -441,6 +453,8 @@
     }
 
     async function animateSwipe(card, dir, prof) {
+      if (isFreeTrialMember() && dir === 'left' && Number(myProfile.passesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
+      if (isFreeTrialMember() && dir === 'right' && Number(myProfile.likesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
       const likeState = await getStandardLikeState();
       if (!likeState.allowed) return;
       const x = dir === 'right' ? window.innerWidth + 200 : -(window.innerWidth + 200);
@@ -457,9 +471,7 @@
       } catch (e) {
         card.style.transform = '';
         if (e instanceof SwipeLimitError) {
-          myProfile.likesRemaining = 0;
-          renderSubscriptionPanel();
-          updateLikeButtonState();
+          await refreshStandardLikeState();
           showLikeLimitNotice();
           return;
         }
@@ -473,6 +485,8 @@
       if (!top) return;
       const prof = profiles.find(p => p.id === top.dataset.uid);
       if (!prof) return;
+      if (dir === 'left' && isFreeTrialMember() && Number(myProfile.passesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
+      if (dir === 'right' && isFreeTrialMember() && Number(myProfile.likesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
       if (dir === 'superlike') {
         const plan = getSubscription(myProfile).plan;
         if (isFreeTrialMember() && Number(myProfile.likesRemaining ?? 1) <= 0) {
