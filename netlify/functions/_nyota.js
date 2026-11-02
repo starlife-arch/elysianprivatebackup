@@ -27,7 +27,11 @@ async function sendNyotaSms({ recipients, recipient, message, idempotencyKey }) 
     }
   }, payload);
   if (response.status < 200 || response.status >= 300) {
-    throw new Error((response.data && (response.data.message || response.data.error)) || response.body || "Nyota SMS request failed.");
+    const detail = (response.data && (response.data.message || response.data.error || response.data.detail)) || response.body || "Nyota SMS request failed.";
+    const error = new Error(`Nyota returned HTTP ${response.status}: ${detail}`);
+    error.code = response.status === 401 || response.status === 403 ? 'NYOTA_AUTH_FAILED' : response.status === 402 ? 'NYOTA_INSUFFICIENT_CREDIT' : response.status === 429 ? 'NYOTA_RATE_LIMITED' : 'NYOTA_PROVIDER_ERROR';
+    error.statusCode = response.status;
+    throw error;
   }
   return response.data || {};
 }

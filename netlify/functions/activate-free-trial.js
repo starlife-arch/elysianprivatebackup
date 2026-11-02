@@ -46,6 +46,9 @@ exports.handler = async event => {
           });
           return { granted: false, expired: true };
         }
+        if (existingTrial.status === 'active' && expiryMs > nowMs) {
+          tx.update(userRef, { plan: 'free_trial', stage: 'trial', 'subscription.plan': 'free_trial', 'subscription.billing': 'trial', 'subscription.status': 'active', 'subscription.nextBillingDate': null });
+        }
         return { granted: false, reason: 'already_granted', status: existingTrial.status };
       }
 
@@ -59,7 +62,7 @@ exports.handler = async event => {
         status: 'active_member',
         paid: false,
         hasPaid: false,
-        plan: 'standard',
+        plan: 'free_trial',
         stage: 'trial',
         likesRemaining: 1,
         likesResetAt: null,
@@ -73,7 +76,7 @@ exports.handler = async event => {
         },
         subscription: {
           ...(user.subscription || {}),
-          plan: 'standard',
+          plan: 'free_trial',
           billing: 'trial',
           status: 'active',
           startDate: now,

@@ -119,8 +119,9 @@ service cloud.firestore {
       let hasTrial = b.keys().hasAny(['freeTrial']);
       return (hasTrial
           ? (trialActive
-             && (request.resource.data.direction != 'like'
-               || (trialLikeExpected >= 0
+             && (request.resource.data.direction == 'nope'
+               || (request.resource.data.direction == 'like'
+                 && trialLikeExpected >= 0
                  && getAfter(userPath).data.get('likesRemaining', -1) == trialLikeExpected
                  && getAfter(userPath).data.freeTrial.likesUsed == trial.get('likesUsed', 0) + 1)))
           : (!isPaidStandardUser(b)

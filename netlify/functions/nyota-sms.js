@@ -36,6 +36,9 @@ exports.handler = async event => {
     const { admin } = await authenticatedAdmin(event);
     const body = parseBody(event);
     const db = admin.firestore();
+    if (body.action === "health") {
+      return json(200, { success: true, firebaseAdmin: true, nyotaApiKeyConfigured: Boolean(process.env.NYOTA_API_KEY), senderIdConfigured: Boolean(process.env.NYOTA_SENDER_ID), senderId: process.env.NYOTA_SENDER_ID ? 'configured' : 'Nyota default' });
+    }
     if (body.action === "send") {
       const allowed = ["user_banned", "user_unbanned", "plan_assigned", "access_granted", "kyc_approved"];
       if (!allowed.includes(body.event) || !body.uid) return json(400, { error: "Invalid notification event or user." });
@@ -74,8 +77,10 @@ exports.handler = async event => {
     }
     return json(400, { error: "Unknown action." });
   } catch (error) {
-    const status = /Authentication required|Administrator access required/.test(error.message) ? 403 : 500;
-    console.error("Nyota SMS error:", error);
-    return json(status, { error: error.message || "SMS request failed." });
+    const message = error.message || "SMS request failed.";
+    const status = /Authentication required/.test(message) ? 401 : /Administrator access required/.test(message) ? 403 : /NYOTA_API_KEY is not configured/.test(message) ? 503 : error.statusCode ? 502 : 500;
+    const code = error.code || (/NYOTA_API_KEY is not configured/.test(message) ? 'NYOTA_CONFIG_MISSING' : status === 401 ? 'AUTH_REQUIRED' : status === 403 ? 'ADMIN_REQUIRED' : status === 502 ? 'NYOTA_PROVIDER_ERROR' : 'NYOTA_SMS_INTERNAL_ERROR');
+    console.error("Nyota SMS error:", { code, status, message, stack: error.stack });
+    return json(status, { success: false, code, error: message });
   }
 };

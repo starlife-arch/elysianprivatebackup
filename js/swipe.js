@@ -15,7 +15,7 @@ function matchesInterestedIn(myProfile = {}, candidate = {}) {
 function subscriptionRank(profile = {}) {
   const sub = profile.subscription || {};
   if (sub.status !== 'active') return 0;
-  return ({ vault: 2, elite: 1, standard: 0 })[sub.plan] || 0;
+  return ({ vault: 2, elite: 1, standard: 0, free_trial: -1 })[sub.plan] ?? 0;
 }
 
 function createdAtMillis(profile = {}) {
@@ -60,11 +60,10 @@ export async function fetchProfiles(currentUser, profile) {
   return profiles.sort((a, b) => subscriptionRank(b) - subscriptionRank(a) || (isBoosted(b) - isBoosted(a)) || createdAtMillis(a) - createdAtMillis(b));
 }
 
-// ── Standard-plan daily swipe allowance ──
-// On the Standard plan a like AND a pass (dislike) both use up the same daily
-// allowance. The daily number is set by the admin in config/pricing
-// (standardDailyLikes). Other plans are unlimited. Super likes use the
-// Super Like Pack instead, so they never touch this allowance.
+// ── Swipe allowances ──
+// Free Trial: one like total (including a Super Like); passes are unlimited.
+// Paid Standard: likes AND passes share the configured daily allowance.
+// Elite/Vault: unlimited regular swipes. Super Likes follow their pack rules.
 export class SwipeLimitError extends Error {
   constructor(message = "You've used all your daily swipes.") {
     super(message);

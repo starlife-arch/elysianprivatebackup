@@ -2,6 +2,7 @@ import { db } from "./firebase.js";
 import { doc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 export const SUBSCRIPTION_PLANS = {
+  free_trial: { label: "Free Trial", rank: -1, monthly: 0, annual: 0 },
   standard: { label: "Standard", rank: 0, monthly: 0, annual: 0 },
   elite: { label: "Elite", rank: 1, monthly: 14.99, annual: 119.99 },
   vault: { label: "Vault", rank: 2, monthly: 29.99, annual: 239.99 }
@@ -32,6 +33,11 @@ export function hasActiveMembership(profile = {}) {
 
 export function getSubscription(profile = {}) {
   const sub = profile.subscription || {};
+  const trial = profile.freeTrial || {};
+  const expiryMs = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
+  if (profile.status === 'active_member' && trial.status === 'active' && expiryMs > Date.now()) {
+    return { plan: 'free_trial', billing: 'trial', status: 'active', startDate: trial.startedAt || profile.activatedAt || null, nextBillingDate: null, prioritySupportRequests: sub.prioritySupportRequests || 0, previousPlan: sub.previousPlan || null };
+  }
   if (!hasActiveMembership(profile)) {
     return {
       plan: 'none',
@@ -65,6 +71,7 @@ export function planRank(plan) {
 }
 
 export function hasPlan(profile, minimumPlan) {
+  if (getSubscription(profile).plan === 'free_trial') return false;
   const sub = getSubscription(profile);
   return sub.status === 'active' && planRank(sub.plan) >= planRank(minimumPlan) && !isSubscriptionExpired(profile);
 }
