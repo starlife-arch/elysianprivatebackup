@@ -75,7 +75,7 @@
       catch (_) {
         // Hosting providers can return an HTML 5xx page instead of our JSON API response.
         // Never surface that full HTML document in the admin interface or console.
-        const rayId = responseText.match(/Cloudflare Ray ID:\s*<strong[^>]*>([^<]+)<\\/strong>/i)?.[1]
+        const rayId = responseText.match(/Cloudflare Ray ID:\\s*<strong[^>]*>([^<]+)/i)?.[1]
           || response.headers.get("cf-ray")
           || "";
         const error = new Error(response.status >= 500
