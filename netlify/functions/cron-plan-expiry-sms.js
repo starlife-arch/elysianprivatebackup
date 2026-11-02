@@ -8,9 +8,17 @@ exports.handler = async () => {
   const db = admin.firestore();
   const now = new Date();
   const reminderDate = new Date(now.getTime() + 3 * 86400000).toISOString().slice(0, 10);
-  const users = await db.collection("users").where("subscription.nextBillingDate", "==", reminderDate).get();
+  const [billingUsers, assignedPlanUsers, accessExpiryUsers] = await Promise.all([
+    db.collection("users").where("subscription.nextBillingDate", "==", reminderDate).get(),
+    db.collection("users").where("subscription.expiresAt", "==", reminderDate).get(),
+    db.collection("users").where("accessExpiry", "==", reminderDate).get()
+  ]);
+  const uniqueUsers = new Map();
+  for (const snapshot of [billingUsers, assignedPlanUsers, accessExpiryUsers]) {
+    for (const userDoc of snapshot.docs) uniqueUsers.set(userDoc.id, userDoc);
+  }
   const results = [];
-  for (const doc of users.docs) {
+  for (const doc of uniqueUsers.values()) {
     const user = doc.data();
     const phone = normalizeKenyanPhone(user.phone);
     const sentFor = user.smsPlanExpiryReminderFor || "";
