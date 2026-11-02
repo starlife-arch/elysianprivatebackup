@@ -169,7 +169,7 @@
       requestAndSaveLocation(user.uid).then(c => { if (c) myCoords = c; });
       adminSettings = await getAdminSettings();
       if (isDiscoverUnlocked()) {
-        if (isStandardPlan() && !myCoords) renderLocationRequiredDeck();
+        if (isStandardMember() && !myCoords) renderLocationRequiredDeck();
         else await loadProfiles();
       } else renderLockedDeck(stageMessage());
       listenForNotifications(myUser.uid, hasSomethingNew => { document.getElementById('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; });
@@ -585,7 +585,7 @@
         upgrade.style.cssText = 'font-size:12px;text-align:center;margin:0.75rem 0 0;';
         document.getElementById('matchPopup').appendChild(upgrade);
       }
-      upgrade.innerHTML = isStandardPlan() ? "Want to send a Super Like next time? <a href='/account/pricing/' style='color:var(--gold);'>Upgrade to Elite</a>" : '';
+      upgrade.innerHTML = isStandardMember() ? "Want to send a Super Like next time? <a href='/account/pricing/' style='color:var(--gold);'>Upgrade to Elite</a>" : '';
     }
 
     window.closeMatch = () => document.getElementById('matchPopup').classList.remove('show');
@@ -664,18 +664,18 @@
     }
     window.allowLocation = function() {
       document.getElementById('locationPromptModal').classList.remove('open');
-      requestAndSaveLocation(myUser.uid).then(c => { if (c) { myCoords = c; localStorage.removeItem('dv_location_denied'); if (isStandardPlan()) loadProfiles(); } else if (isStandardPlan()) renderLocationRequiredDeck(); });
+      requestAndSaveLocation(myUser.uid).then(c => { if (c) { myCoords = c; localStorage.removeItem('dv_location_denied'); if (isStandardMember()) loadProfiles(); } else if (isStandardMember()) renderLocationRequiredDeck(); });
     };
     window.denyLocation = function() {
       document.getElementById('locationPromptModal').classList.remove('open');
       localStorage.setItem('dv_location_denied', '1');
-      if (isStandardPlan()) renderLocationRequiredDeck();
+      if (isStandardMember()) renderLocationRequiredDeck();
     };
 
     // Show prompt if no location saved and not previously denied
     function maybeShowLocationPrompt() {
       const denied = localStorage.getItem('dv_location_denied');
-      if (!myCoords && (!denied || isStandardPlan())) {
+      if (!myCoords && (!denied || isStandardMember())) {
         setTimeout(showLocationPrompt, 1500);
       }
     }
