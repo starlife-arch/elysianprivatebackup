@@ -17,7 +17,7 @@ exports.handler = async function() {
     const user = doc.data();
     const plan = user.plan || user.subscription?.plan;
     const paid = user.hasPaid === true || user.paid === true || user.status === "active_member";
-    if (plan === "standard" && paid) {
+    if (plan === "standard" && paid && user.freeTrial?.status !== "active") {
       batch.update(doc.ref, { likesRemaining: dailyLikes, likesResetAt: null });
       reset++;
     }

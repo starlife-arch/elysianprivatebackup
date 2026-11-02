@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase.js";
 import {
-  createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, signInWithEmailAndPassword, getIdToken,
   sendPasswordResetEmail, signOut, onAuthStateChanged, GoogleAuthProvider, signInWithPopup,
   signInWithRedirect, getRedirectResult
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -85,6 +85,19 @@ export function normalizeProfile(profile = {}) {
 
 export async function routeUser(user) {
   if (!user) { window.location.href = "/auth/login/"; return; }
+  // Activate eligible existing accounts before routing; otherwise legacy
+  // approved_pending_payment accounts would be sent back to checkout first.
+  try {
+    const token = await getIdToken(user);
+    const response = await fetch('/api/activate-free-trial', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!response.ok) console.warn('Free-trial activation was not completed:', await response.text());
+  } catch (trialError) {
+    console.warn('Free-trial activation check failed:', trialError);
+  }
   const snap = await getDoc(doc(db, "users", user.uid));
   if (!snap.exists()) { window.location.href = "/auth/signup/"; return; }
   const d = normalizeProfile(snap.data());
@@ -106,6 +119,19 @@ export async function requireMember() {
   return new Promise(resolve => {
     onAuthStateChanged(auth, async user => {
       if (!user) { window.location.href = "/auth/login/"; return; }
+      // Ask the trusted server to grant the one-time trial. This is idempotent,
+      // so existing accounts are activated once and later logins cannot restart it.
+      try {
+        const token = await getIdToken(user);
+        const response = await fetch('/api/activate-free-trial', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        if (!response.ok) console.warn('Free-trial activation was not completed:', await response.text());
+      } catch (trialError) {
+        console.warn('Free-trial activation check failed:', trialError);
+      }
       const snap = await getDoc(doc(db, "users", user.uid));
       let profile = snap.exists() ? normalizeProfile(snap.data()) : null;
       if (!profile || profile.banned || isAccessExpired(profile)) {

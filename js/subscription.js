@@ -18,7 +18,14 @@ export function dateOnly(value) {
 }
 
 export function hasActiveMembership(profile = {}) {
-  // A plan alone does not prove that a membership payment succeeded.
+  // A one-time free trial grants temporary membership without pretending a
+  // payment occurred. Paid membership checks remain unchanged for everyone else.
+  const trial = profile.freeTrial || {};
+  const expiry = trial.expiresAt;
+  const expiryMs = expiry?.toMillis ? expiry.toMillis()
+    : expiry?.toDate ? expiry.toDate().getTime()
+    : new Date(expiry || 0).getTime();
+  if (profile.status === 'active_member' && trial.status === 'active' && expiryMs > Date.now()) return true;
   return profile.status === 'active_member'
     && (profile.hasPaid === true || profile.paid === true);
 }

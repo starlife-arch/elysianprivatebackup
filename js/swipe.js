@@ -73,10 +73,16 @@ export class SwipeLimitError extends Error {
   }
 }
 
+function isFreeTrialActive(user = {}) {
+  const trial = user.freeTrial || {};
+  return trial.status === 'active' && toMillis(trial.expiresAt) > Date.now();
+}
+
 function isPaidStandard(user = {}) {
   const plan = user.plan || user.subscription?.plan;
-  const paid = user.hasPaid === true || user.paid === true || user.status === "active_member";
-  return paid && plan === "standard";
+  const paid = user.hasPaid === true || user.paid === true
+    || (user.status === "active_member" && !user.freeTrial);
+  return paid && plan === "standard" && !isFreeTrialActive(user);
 }
 
 function toMillis(value) {
@@ -107,6 +113,16 @@ export async function recordSwipe(myUID, theirUID, direction) {
     ]);
     const user = userSnap.exists() ? userSnap.data() : {};
     const alreadySwiped = swipeSnap.exists();
+
+    if (!alreadySwiped && isFreeTrialActive(user) && storedDirection === 'like') {
+      const remaining = Math.max(0, Number(user.likesRemaining ?? 1));
+      if (remaining < 1) throw new SwipeLimitError("Your free trial includes exactly one like. Upgrade to continue liking profiles.");
+      tx.update(userRef, {
+        likesRemaining: remaining - 1,
+        'freeTrial.likesUsed': Math.min(1, Number(user.freeTrial?.likesUsed || 0) + 1),
+        lastLikeAt: serverTimestamp()
+      });
+    }
 
     if (!isSuperLike && !alreadySwiped && isPaidStandard(user)) {
       const cfg = pricingSnap.exists() ? pricingSnap.data() : {};
