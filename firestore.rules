@@ -98,7 +98,7 @@ service cloud.firestore {
             ? (trialActive
                && !keys.hasAny(['likesResetAt'])
                && ((likeSpent && a.likesRemaining >= 0 && a.get('passesRemaining', 1) == b.get('passesRemaining', 1))
-                 || (passSpent && a.passesRemaining >= 0 && a.get('likesRemaining', 1) == b.get('likesRemaining', 1)))
+                 || (passSpent && a.passesRemaining >= 0 && a.get('likesRemaining', 1) == b.get('likesRemaining', 1))))
             : (!isPaidStandardUser(b)
                || (likesWindowExpired(b)
                  ? (a.get('likesRemaining', lim) in [lim, lim - 1]
