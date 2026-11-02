@@ -134,7 +134,7 @@ export async function requireMember() {
       }
       const snap = await getDoc(doc(db, "users", user.uid));
       let profile = snap.exists() ? normalizeProfile(snap.data()) : null;
-      if (!profile || profile.banned || isAccessExpired(profile)) {
+      if (!profile || profile.banned || profile.status === "approved_pending_payment" || isAccessExpired(profile)) {
         if (profile && isAccessExpired(profile)) await expireAccess(user.uid);
         routeUser(user); return;
       }
