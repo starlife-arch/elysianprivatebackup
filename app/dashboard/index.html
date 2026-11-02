@@ -201,19 +201,6 @@
       if (myProfile.stage === 'adminApproved') return "You're approved! Complete your membership to unlock DateVault.";
       return '';
     }
-    function updateLikeButtonState() {
-      const exhausted = Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0;
-      const trialLikeLocked = isFreeTrialMember() && exhausted;
-      const standardSwipesLocked = !isFreeTrialMember() && isPaidStage() && !isPremium() && exhausted;
-      [['likeActionBtn', 'Like', trialLikeLocked || standardSwipesLocked], ['passActionBtn', 'Pass', standardSwipesLocked]].forEach(([id, label, locked]) => {
-        const btn = document.getElementById(id);
-        if (!btn) return;
-        btn.title = locked ? (trialLikeLocked ? 'Your free-trial like has been used. Passing remains unlimited.' : `You've used your daily swipes. Swipes reset in ${likesResetText()}`) : label;
-        btn.style.opacity = locked ? '0.45' : '';
-        btn.style.boxShadow = locked ? 'none' : '';
-      });
-    }
-
     function renderStageState() {
       const banner = document.getElementById('stageBanner');
       const msg = stageMessage();
