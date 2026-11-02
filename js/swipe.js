@@ -146,20 +146,22 @@ export async function recordSwipe(myUID, theirUID, direction) {
       });
     }
 
+    const swipedAt = serverTimestamp();
     tx.set(swipeRef, {
       direction: storedDirection,
       isSuperLike,
-      swipedAt: serverTimestamp()
+      swipedAt
     });
-  });
 
-  // Save to top-level swipes_index for reverse lookup ("who liked me")
-  await setDoc(doc(db, "swipes_index", `${myUID}_${theirUID}`), {
-    myUID,
-    theirUID,
-    direction: storedDirection,
-    isSuperLike,
-    swipedAt: serverTimestamp()
+    // Keep the reverse-lookup index in the same transaction. If either write
+    // is denied, the swipe and its trial allowance are rolled back together.
+    tx.set(doc(db, "swipes_index", `${myUID}_${theirUID}`), {
+      myUID,
+      theirUID,
+      direction: storedDirection,
+      isSuperLike,
+      swipedAt
+    });
   });
 
   if (direction !== "like" && direction !== "superlike") return false;
