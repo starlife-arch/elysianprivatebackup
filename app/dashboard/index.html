@@ -55,7 +55,7 @@
       <button class="action-btn like" id="likeActionBtn" onclick="swipeAction('right')" title="Like">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></svg>
       </button>
-      <button class="action-btn super" onclick="swipeAction('superlike')" title="Super Like">
+      <button class="action-btn super" id="superLikeActionBtn" onclick="swipeAction('superlike')" title="Super Like">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/></svg>
       </button>
     </div>
@@ -177,7 +177,7 @@
     }
 
     function currentPlan() { return myProfile.plan || myProfile.subscription?.plan || 'none'; }
-    function isPaidStage() { return ['paid','elite','vault'].includes(myProfile.stage) || myProfile.hasPaid || myProfile.paid; }
+    function isPaidStage() { return isFreeTrialMember() || ['paid','elite','vault'].includes(myProfile.stage) || myProfile.hasPaid || myProfile.paid; }
     function isPremium() { return ['elite','vault'].includes(currentPlan()) || ['elite','vault'].includes(myProfile.stage); }
 
     function isStandardPlan() { return isPaidStage() && currentPlan() === 'standard'; }
@@ -390,10 +390,27 @@
     function isStandardMember() {
       return myProfile.hasPaid === true && currentPlan() === 'standard' && !isFreeTrialMember();
     }
+    function updateLikeButtonState() {
+      if (!myProfile) return;
+      const trial = isFreeTrialMember();
+      const likeLocked = trial && Number(myProfile.likesRemaining ?? 1) <= 0;
+      const passLocked = trial && Number(myProfile.passesRemaining ?? 1) <= 0;
+      const standardLocked = !trial && isStandardMember() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0;
+      const like = document.getElementById('likeActionBtn');
+      const pass = document.getElementById('passActionBtn');
+      const superLike = document.getElementById('superLikeActionBtn');
+      if (like) { like.disabled = likeLocked || standardLocked; like.style.opacity = like.disabled ? '0.45' : ''; like.title = likeLocked ? 'Your one trial like has been used' : standardLocked ? 'Daily swipes used' : 'Like'; }
+      if (pass) { pass.disabled = passLocked || standardLocked; pass.style.opacity = pass.disabled ? '0.45' : ''; pass.title = passLocked ? 'Your one trial pass has been used' : standardLocked ? 'Daily swipes used' : 'Pass'; }
+      if (superLike) { superLike.disabled = likeLocked; superLike.style.opacity = superLike.disabled ? '0.45' : ''; superLike.title = likeLocked ? 'Your one trial like has been used' : 'Super Like'; }
+    }
     function showLikeLimitNotice() {
       const notice = document.getElementById('likeLimitNotice');
       const msg = isFreeTrialMember()
-        ? 'You have used your one free-trial like. Upgrade to continue liking profiles.'
+        ? (Number(myProfile.likesRemaining ?? 1) <= 0 && Number(myProfile.passesRemaining ?? 1) <= 0
+          ? 'You have used your one trial like and one trial pass. Upgrade to continue swiping.'
+          : Number(myProfile.likesRemaining ?? 1) <= 0
+            ? 'You have used your one free-trial like. Your one pass is still available.'
+            : 'You have used your one free-trial pass. Your one like is still available.')
         : `You've used your ${standardDailyLikes} swipes for today (likes and passes both count). Upgrade to Elite for unlimited swipes and see who liked you.`;
       notice.innerHTML = `<div style="color:var(--gold);font-weight:600;margin-bottom:0.75rem;">${msg}</div><button class="btn btn-gold btn-sm" onclick="location.href='/account/pricing/'">Upgrade to Elite</button>`;
       notice.style.display = 'block';
@@ -434,6 +451,7 @@
       if (snap.exists()) {
         const data = snap.data();
         myProfile.likesRemaining = Number(data.likesRemaining ?? standardDailyLikes);
+        myProfile.passesRemaining = Number(data.passesRemaining ?? 1);
         myProfile.likesResetAt = data.likesResetAt;
       }
       renderSubscriptionPanel();
@@ -441,6 +459,8 @@
     }
 
     async function animateSwipe(card, dir, prof) {
+      if (isFreeTrialMember() && dir === 'left' && Number(myProfile.passesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
+      if (isFreeTrialMember() && dir === 'right' && Number(myProfile.likesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
       const likeState = await getStandardLikeState();
       if (!likeState.allowed) return;
       const x = dir === 'right' ? window.innerWidth + 200 : -(window.innerWidth + 200);
@@ -457,9 +477,7 @@
       } catch (e) {
         card.style.transform = '';
         if (e instanceof SwipeLimitError) {
-          myProfile.likesRemaining = 0;
-          renderSubscriptionPanel();
-          updateLikeButtonState();
+          await refreshStandardLikeState();
           showLikeLimitNotice();
           return;
         }
@@ -473,6 +491,8 @@
       if (!top) return;
       const prof = profiles.find(p => p.id === top.dataset.uid);
       if (!prof) return;
+      if (dir === 'left' && isFreeTrialMember() && Number(myProfile.passesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
+      if (dir === 'right' && isFreeTrialMember() && Number(myProfile.likesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
       if (dir === 'superlike') {
         const plan = getSubscription(myProfile).plan;
         if (isFreeTrialMember() && Number(myProfile.likesRemaining ?? 1) <= 0) {
@@ -503,6 +523,7 @@
 
         try {
           const isMatch = await recordSwipe(myUser.uid, prof.id, 'superlike');
+          if (isFreeTrialMember()) await refreshStandardLikeState();
           updateSuperLikeCounter();
           top.style.transition = 'transform 0.4s ease, opacity 0.4s';
           top.style.transform = 'translateY(-120%) scale(0.8)';
@@ -602,11 +623,11 @@
       const previous = sub.previousPlan ? planLabel(sub.previousPlan) : planLabel(sub.plan);
       const expired = sub.status === 'expired';
       const planForDisplay = currentPlan() === 'none' ? 'standard' : currentPlan();
-      const likeText = isPremium() ? 'Unlimited likes' : isFreeTrialMember()
-        ? `${Number(myProfile.likesRemaining ?? 1)} free-trial like remaining`
-        : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily swipes remaining`;
-      const lockText = isFreeTrialMember() && Number(myProfile.likesRemaining ?? 1) <= 0
-        ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">Your one trial like has been used. You can still pass unlimited profiles.</div>`
+      const likeText = isFreeTrialMember()
+        ? `${Number(myProfile.likesRemaining ?? 1)} trial like · ${Number(myProfile.passesRemaining ?? 1)} trial pass remaining`
+        : isPremium() ? 'Unlimited likes' : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily swipes remaining`;
+      const lockText = isFreeTrialMember() && (Number(myProfile.likesRemaining ?? 1) <= 0 || Number(myProfile.passesRemaining ?? 1) <= 0)
+        ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">${Number(myProfile.likesRemaining ?? 1) <= 0 ? 'Trial like used' : 'One trial like available'} · ${Number(myProfile.passesRemaining ?? 1) <= 0 ? 'trial pass used' : 'one trial pass available'}.</div>`
         : isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0
           ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your ${standardDailyLikes} swipes for today. Swipes reset in ${likesResetText()}</div>` : '';
       document.getElementById('subscriptionBanner').innerHTML = expired ? `<div class="expired-banner">Your ${previous} plan has expired — Renew to restore your benefits.</div>` : '';

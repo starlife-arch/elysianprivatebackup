@@ -61,7 +61,7 @@ export async function fetchProfiles(currentUser, profile) {
 }
 
 // ── Swipe allowances ──
-// Free Trial: one like total (including a Super Like); passes are unlimited.
+// Free Trial: one like total (including a Super Like) and one pass total.
 // Paid Standard: likes AND passes share the configured daily allowance.
 // Elite/Vault: unlimited regular swipes. Super Likes follow their pack rules.
 export class SwipeLimitError extends Error {
@@ -115,12 +115,13 @@ export async function recordSwipe(myUID, theirUID, direction) {
 
     if (!alreadySwiped && isFreeTrialActive(user) && storedDirection === 'like') {
       const remaining = Math.max(0, Number(user.likesRemaining ?? 1));
-      if (remaining < 1) throw new SwipeLimitError("Your free trial includes exactly one like. Upgrade to continue liking profiles.");
-      tx.update(userRef, {
-        likesRemaining: remaining - 1,
-        'freeTrial.likesUsed': Math.min(1, Number(user.freeTrial?.likesUsed || 0) + 1),
-        lastLikeAt: serverTimestamp()
-      });
+      if (remaining < 1) throw new SwipeLimitError("Your free trial includes one like total. Upgrade to continue liking profiles.");
+      tx.update(userRef, { likesRemaining: remaining - 1, 'freeTrial.likesUsed': Math.min(1, Number(user.freeTrial?.likesUsed || 0) + 1), lastLikeAt: serverTimestamp() });
+    }
+    if (!alreadySwiped && isFreeTrialActive(user) && storedDirection === 'nope') {
+      const remaining = Math.max(0, Number(user.passesRemaining ?? 1));
+      if (remaining < 1) throw new SwipeLimitError("Your free trial includes one pass total. Upgrade to continue passing profiles.");
+      tx.update(userRef, { passesRemaining: remaining - 1, 'freeTrial.passesUsed': Math.min(1, Number(user.freeTrial?.passesUsed || 0) + 1), lastPassAt: serverTimestamp() });
     }
 
     if (!isSuperLike && !alreadySwiped && isPaidStandard(user)) {

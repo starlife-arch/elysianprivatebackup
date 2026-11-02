@@ -88,13 +88,17 @@ service cloud.firestore {
       let trialActive = trial.get('status', '') == 'active'
         && trial.get('expiresAt', request.time) > request.time;
       let hasTrial = b.keys().hasAny(['freeTrial']);
-      return !keys.hasAny(['likesRemaining', 'likesResetAt', 'freeTrial'])
+      let afterTrial = a.get('freeTrial', {});
+      let likeSpent = a.get('likesRemaining', b.get('likesRemaining', 1)) == b.get('likesRemaining', 1) - 1
+        && afterTrial.get('likesUsed', 0) == trial.get('likesUsed', 0) + 1;
+      let passSpent = a.get('passesRemaining', b.get('passesRemaining', 1)) == b.get('passesRemaining', 1) - 1
+        && afterTrial.get('passesUsed', 0) == trial.get('passesUsed', 0) + 1;
+      return !keys.hasAny(['likesRemaining', 'passesRemaining', 'likesResetAt', 'freeTrial'])
         || (hasTrial
             ? (trialActive
                && !keys.hasAny(['likesResetAt'])
-               && a.likesRemaining >= 0
-               && a.likesRemaining == b.get('likesRemaining', 1) - 1
-               && a.freeTrial.likesUsed == trial.get('likesUsed', 0) + 1)
+               && ((likeSpent && a.likesRemaining >= 0 && a.get('passesRemaining', 1) == b.get('passesRemaining', 1))
+                 || (passSpent && a.passesRemaining >= 0 && a.get('likesRemaining', 1) == b.get('likesRemaining', 1))))
             : (!isPaidStandardUser(b)
                || (likesWindowExpired(b)
                  ? (a.get('likesRemaining', lim) in [lim, lim - 1]
@@ -116,10 +120,14 @@ service cloud.firestore {
       let trialActive = trial.get('status', '') == 'active'
         && trial.get('expiresAt', request.time) > request.time;
       let trialLikeExpected = b.get('likesRemaining', 1) - 1;
+      let trialPassExpected = b.get('passesRemaining', 1) - 1;
       let hasTrial = b.keys().hasAny(['freeTrial']);
       return (hasTrial
           ? (trialActive
-             && (request.resource.data.direction == 'nope'
+             && ((request.resource.data.direction == 'nope'
+                  && trialPassExpected >= 0
+                  && getAfter(userPath).data.get('passesRemaining', -1) == trialPassExpected
+                  && getAfter(userPath).data.freeTrial.passesUsed == trial.get('passesUsed', 0) + 1)
                || (request.resource.data.direction == 'like'
                  && trialLikeExpected >= 0
                  && getAfter(userPath).data.get('likesRemaining', -1) == trialLikeExpected
