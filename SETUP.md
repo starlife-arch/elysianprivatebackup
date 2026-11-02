@@ -115,6 +115,8 @@ PESAPAL_CONSUMER_SECRET
 PESAPAL_SANDBOX
 PAYSTACK_SECRET_KEY
 FIREBASE_SERVICE_ACCOUNT
+NYOTA_API_KEY
+NYOTA_SENDER_ID (optional, approved Nyota sender ID)
 ```
 
 **APP_URL**: your Netlify URL, e.g. `https://elysiandate.netlify.app`
@@ -160,6 +162,8 @@ https://your-site.netlify.app/api/pesapal?action=ipn
 | `PESAPAL_SANDBOX` | `true` or `false` | `false` |
 | `PAYSTACK_SECRET_KEY` | Paystack dashboard | `sk_live_...` |
 | `FIREBASE_SERVICE_ACCOUNT` | Firebase service account JSON | `{"type":"service_account"...}` |
+| `NYOTA_API_KEY` | Nyota SMS dashboard/API credentials | `ny_live_...` |
+| `NYOTA_SENDER_ID` | Optional approved Nyota sender ID | `DATEVAULT` |
 
 ---
 
