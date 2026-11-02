@@ -56,7 +56,7 @@ exports.handler = async event => {
       const message = String(body.message || "").trim();
       if (!message || message.length > 1000) return json(400, { error: "Message must contain 1–1000 characters." });
       const users = await db.collection("users").get();
-      const recipients = [...new Set(users.docs.map(d => normalizeKenyanPhone(d.data().phone)).filter(Boolean))];
+      const recipients = [...new Set(users.docs.filter(d => d.data().smsOptOut !== true).map(d => normalizeKenyanPhone(d.data().phone)).filter(Boolean))];
       if (!recipients.length) return json(200, { success: true, recipientCount: 0, batches: [] });
       const batches = [];
       for (let i = 0; i < recipients.length; i += 1000) {
