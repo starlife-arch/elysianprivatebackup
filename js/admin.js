@@ -1,8 +1,21 @@
-import { db } from "./auth.js";
+import { db, auth } from "./auth.js";
 import {
   collection, getDocs, doc, updateDoc, query,
   where, serverTimestamp, addDoc, orderBy, limit, getDoc, Timestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+async function notifyNyota(event, uid, extra = {}) {
+  if (!auth.currentUser) throw new Error("Admin session expired. Please sign in again.");
+  const token = await auth.currentUser.getIdToken();
+  const response = await fetch("/api/nyota-sms", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ action: "send", event, uid, ...extra, eventId: `${event}-${Date.now()}` })
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || data.success === false) throw new Error(data.error || "SMS notification failed.");
+  return data;
+}
+
 
 
 async function sendMemberNotification(type, user = {}, extra = {}) {
@@ -220,6 +233,7 @@ export async function approveUser(uid, meetLink = "") {
     if (!telegramRes.ok || telegramData.success === false) notices.push(`Telegram failed: ${telegramData.error || telegramRes.status}`);
   } catch(e) { notices.push(`Telegram failed: ${e.message}`); }
 
+  try { await notifyNyota("kyc_approved", uid); } catch(e) { notices.push(`SMS failed: ${e.message}`); }
   return { code, notices };
 }
 
@@ -306,6 +320,7 @@ export async function banUser(uid) {
   const notices = [];
   try { await sendMemberNotification("user_banned", user); } catch(e) { notices.push(`Email failed: ${e.message}`); }
   try { await notifyTelegram("user_banned", uid, user); } catch(e) { notices.push(`Telegram failed: ${e.message}`); }
+  try { await notifyNyota("user_banned", uid); } catch(e) { notices.push(`SMS failed: ${e.message}`); }
   return { notices };
 }
 
@@ -316,6 +331,7 @@ export async function unbanUser(uid) {
   const notices = [];
   try { await sendMemberNotification("user_unbanned", user); } catch(e) { notices.push(`Email failed: ${e.message}`); }
   try { await notifyTelegram("user_unbanned", uid, user); } catch(e) { notices.push(`Telegram failed: ${e.message}`); }
+  try { await notifyNyota("user_unbanned", uid); } catch(e) { notices.push(`SMS failed: ${e.message}`); }
   return { notices };
 }
 
@@ -348,6 +364,7 @@ export async function grantAccess(uid, days = null) {
   const notices = [];
   try { await sendMemberNotification("access_granted", user, { days: days || "lifetime" }); } catch(e) { notices.push(`Email failed: ${e.message}`); }
   try { await notifyTelegram("access_granted", uid, user, { days: days || "lifetime" }); } catch(e) { notices.push(`Telegram failed: ${e.message}`); }
+  try { await notifyNyota("access_granted", uid); } catch(e) { notices.push(`SMS failed: ${e.message}`); }
   return { notices };
 }
 
@@ -396,6 +413,7 @@ export async function assignPlan(uid, plan, expiry = null) {
   const notices = [];
   try { await sendMemberNotification("plan_assigned", user, { plan: assignedPlanLabel }); } catch(e) { notices.push(`Email failed: ${e.message}`); }
   try { await notifyTelegram("plan_assigned", uid, user, { plan: assignedPlanLabel }); } catch(e) { notices.push(`Telegram failed: ${e.message}`); }
+  try { await notifyNyota("plan_assigned", uid, { plan: assignedPlanLabel }); } catch(e) { notices.push(`SMS failed: ${e.message}`); }
   return { notices };
 }
 
