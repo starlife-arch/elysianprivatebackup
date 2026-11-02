@@ -48,6 +48,10 @@ exports.handler = async event => {
       const result = await sendNyotaSms({ recipient, message, idempotencyKey: `dv-${body.event}-${body.uid}-${body.eventId || Date.now()}` });
       return json(200, { success: true, result });
     }
+    if (body.action === "history") {
+      const history = await db.collection("sms_broadcasts").orderBy("createdAt", "desc").limit(25).get();
+      return json(200, { success: true, broadcasts: history.docs.map(doc => ({ id: doc.id, ...doc.data(), createdAt: doc.data().createdAt?.toDate?.().toISOString?.() || null })) });
+    }
     if (body.action === "broadcast") {
       const message = String(body.message || "").trim();
       if (!message || message.length > 1000) return json(400, { error: "Message must contain 1–1000 characters." });
