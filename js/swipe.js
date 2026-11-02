@@ -15,7 +15,7 @@ function matchesInterestedIn(myProfile = {}, candidate = {}) {
 function subscriptionRank(profile = {}) {
   const sub = profile.subscription || {};
   if (sub.status !== 'active') return 0;
-  return ({ vault: 2, elite: 1, standard: 0 })[sub.plan] || 0;
+  return ({ vault: 2, elite: 1, standard: 0, free_trial: -1 })[sub.plan] ?? 0;
 }
 
 function createdAtMillis(profile = {}) {
