@@ -380,12 +380,19 @@
       const ms = Math.max(0, reset.getTime() - Date.now());
       return `${Math.floor(ms / 3600000)}h ${Math.ceil((ms % 3600000) / 60000)}m`;
     }
+    function isFreeTrialMember() {
+      const trial = myProfile?.freeTrial || {};
+      const expiry = trial.expiresAt?.toDate ? trial.expiresAt.toDate() : new Date(trial.expiresAt || 0);
+      return trial.status === 'active' && expiry.getTime() > Date.now();
+    }
     function isStandardMember() {
-      return myProfile.hasPaid === true && currentPlan() === 'standard';
+      return myProfile.hasPaid === true && currentPlan() === 'standard' && !isFreeTrialMember();
     }
     function showLikeLimitNotice() {
       const notice = document.getElementById('likeLimitNotice');
-      const msg = `You've used your ${standardDailyLikes} swipes for today (likes and passes both count). Upgrade to Elite for unlimited swipes and see who liked you.`;
+      const msg = isFreeTrialMember()
+        ? 'You have used your one free-trial like. Upgrade to continue liking profiles.'
+        : `You've used your ${standardDailyLikes} swipes for today (likes and passes both count). Upgrade to Elite for unlimited swipes and see who liked you.`;
       notice.innerHTML = `<div style="color:var(--gold);font-weight:600;margin-bottom:0.75rem;">${msg}</div><button class="btn btn-gold btn-sm" onclick="location.href='/account/pricing/'">Upgrade to Elite</button>`;
       notice.style.display = 'block';
       showToast(msg);
@@ -439,7 +446,7 @@
       await new Promise(r => setTimeout(r, 300));
       try {
         const isMatch = await recordSwipe(myUser.uid, prof.id, dir === 'right' ? 'like' : 'nope');
-        if (likeState.shouldConsume) await refreshStandardLikeState();
+        if (likeState.shouldConsume || isFreeTrialMember()) await refreshStandardLikeState();
         card.remove();
         currentIndex++;
         if (currentIndex >= profiles.length) await loadProfiles();
@@ -589,7 +596,9 @@
       const previous = sub.previousPlan ? planLabel(sub.previousPlan) : planLabel(sub.plan);
       const expired = sub.status === 'expired';
       const planForDisplay = currentPlan() === 'none' ? 'standard' : currentPlan();
-      const likeText = isPremium() ? 'Unlimited likes' : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily swipes remaining`;
+      const likeText = isPremium() ? 'Unlimited likes' : isFreeTrialMember()
+        ? `${Number(myProfile.likesRemaining ?? 1)} free-trial like remaining`
+        : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily swipes remaining`;
       const lockText = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0 ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your ${standardDailyLikes} likes for today. Likes reset in ${likesResetText()}</div>` : '';
       document.getElementById('subscriptionBanner').innerHTML = expired ? `<div class="expired-banner">Your ${previous} plan has expired — Renew to restore your benefits.</div>` : '';
       const primaryHref = myProfile.stage === 'signedUp'
