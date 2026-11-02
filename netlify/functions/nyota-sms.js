@@ -9,6 +9,7 @@ function eventMessage(event, data = {}) {
     user_banned: `DateVault: Hello ${name}, your account has been suspended. Contact support if you believe this is an error.`,
     user_unbanned: `DateVault: Hello ${name}, your account suspension has been lifted. You can sign in again.`,
     plan_assigned: `DateVault: ${name}, an administrator has assigned you the ${plan} plan. Sign in to enjoy your membership.`,
+    access_granted: `DateVault: Hello ${name}, an administrator has granted you membership access. Sign in to get started.`,
     kyc_approved: `DateVault: Hello ${name}, your identity verification has been approved. Thank you.`,
     purchase_plan: `DateVault: Payment confirmed. Your ${plan} plan is active.${amount} Thank you.`,
     purchase_tokens: `DateVault: Payment confirmed. ${Number(data.tokens || 0).toLocaleString()} tokens have been added to your wallet.${amount}`,
@@ -36,7 +37,7 @@ exports.handler = async event => {
     const body = parseBody(event);
     const db = admin.firestore();
     if (body.action === "send") {
-      const allowed = ["user_banned", "user_unbanned", "plan_assigned", "kyc_approved"];
+      const allowed = ["user_banned", "user_unbanned", "plan_assigned", "access_granted", "kyc_approved"];
       if (!allowed.includes(body.event) || !body.uid) return json(400, { error: "Invalid notification event or user." });
       const snap = await db.collection("users").doc(String(body.uid)).get();
       if (!snap.exists) return json(404, { error: "User not found." });
