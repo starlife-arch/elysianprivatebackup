@@ -5,6 +5,9 @@ exports.handler = async function() {
   const admin = getAdmin();
   const db = getAdminDb();
   const now = admin.firestore.Timestamp.now();
+  // The daily allowance is set by the admin (config/pricing.standardDailyLikes).
+  const pricingSnap = await db.collection("config").doc("pricing").get();
+  const dailyLikes = Math.max(1, Number(pricingSnap.exists ? pricingSnap.data().standardDailyLikes : 0) || 5);
   const snap = await db.collection("users")
     .where("likesResetAt", "<=", now)
     .get();
@@ -15,7 +18,7 @@ exports.handler = async function() {
     const plan = user.plan || user.subscription?.plan;
     const paid = user.hasPaid === true || user.paid === true || user.status === "active_member";
     if (plan === "standard" && paid) {
-      batch.update(doc.ref, { likesRemaining: 2, likesResetAt: null });
+      batch.update(doc.ref, { likesRemaining: dailyLikes, likesResetAt: null });
       reset++;
     }
   });

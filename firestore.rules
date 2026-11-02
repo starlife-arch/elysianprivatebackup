@@ -51,6 +51,53 @@ service cloud.firestore {
           && request.resource.data.subscription.expiredBillingDate == resource.data.subscription.nextBillingDate
         );
     }
+    // ── Standard plan daily swipe allowance (likes AND passes share it) ──
+    // The daily number is set by the admin in config/pricing.standardDailyLikes.
+    function standardDailyLimit() {
+      let path = /databases/$(database)/documents/config/pricing;
+      let n = exists(path) ? get(path).data.get('standardDailyLikes', 5) : 5;
+      return n == 0 ? 5 : (n < 1 ? 1 : n);
+    }
+    function isPaidStandardUser(u) {
+      let plan = u.get('plan', u.get('subscription', {}).get('plan', null));
+      let paid = u.get('hasPaid', false) == true
+        || u.get('paid', false) == true
+        || u.get('status', '') == 'active_member';
+      return paid && plan == 'standard';
+    }
+    function likesWindowExpired(u) {
+      return u.get('likesResetAt', null) == null || u.likesResetAt <= request.time;
+    }
+    // Members may not raise their own counter: it can only go down, or be
+    // reset to the admin's number when the 24h window has really expired.
+    function likesChangeOk() {
+      let keys = request.resource.data.diff(resource.data).affectedKeys();
+      let b = resource.data;
+      let a = request.resource.data;
+      let lim = standardDailyLimit();
+      return !keys.hasAny(['likesRemaining', 'likesResetAt'])
+        || !isPaidStandardUser(b)
+        || (likesWindowExpired(b)
+            ? (a.get('likesRemaining', lim) in [lim, lim - 1]
+               && a.likesResetAt > request.time + duration.value(20, 'h')
+               && a.likesResetAt <= request.time + duration.value(30, 'h'))
+            : (!keys.hasAny(['likesResetAt'])
+               && a.likesRemaining >= 0
+               && a.likesRemaining <= b.get('likesRemaining', lim)));
+    }
+    // A new like/pass by a paid Standard member must come with exactly one
+    // swipe being used from the allowance, in the same write. Super likes use
+    // the Super Like Pack instead.
+    function swipeChargeOk(uid) {
+      let userPath = /databases/$(database)/documents/users/$(uid);
+      let b = get(userPath).data;
+      let lim = standardDailyLimit();
+      let expected = likesWindowExpired(b) ? lim - 1 : b.get('likesRemaining', lim) - 1;
+      return !isPaidStandardUser(b)
+        || request.resource.data.get('isSuperLike', false) == true
+        || (expected >= 0 && getAfter(userPath).data.get('likesRemaining', -1) == expected);
+    }
+
     function selfRequestedReverification() {
       let changed = request.resource.data.diff(resource.data).affectedKeys();
       return changed.hasAll(['photos', 'verificationStatus'])
@@ -69,7 +116,8 @@ service cloud.firestore {
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['walletBalance', 'walletFrozen', 'walletFrozenReason', 'walletFrozenAt', 'role', 'displayName'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['verificationStatus']) || selfRequestedReverification())
         && selfServiceStatus()
-        && selfServiceSubscription());
+        && selfServiceSubscription()
+        && likesChangeOk());
       // Allow members to update their own add-ons, location, and notification device fields only.
       allow update: if isOwner(uid)
         && request.resource.data.diff(resource.data).affectedKeys()
@@ -78,7 +126,10 @@ service cloud.firestore {
 
       match /swipes/{swipedUID} {
         allow read: if isOwner(uid) || isOwner(swipedUID) || isAdmin();
-        allow create, update: if isOwner(uid)
+        allow create: if isOwner(uid)
+          && request.resource.data.direction in ['like', 'superlike', 'nope']
+          && swipeChargeOk(uid);
+        allow update: if isOwner(uid)
           && request.resource.data.direction in ['like', 'superlike', 'nope'];
         allow delete: if isOwner(uid) || isAdmin();
       }

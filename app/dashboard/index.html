@@ -49,7 +49,7 @@
       <button class="action-btn rewind" onclick="rewindCard()" title="Undo">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 00-4-4H4"/></svg>
       </button>
-      <button class="action-btn nope" onclick="swipeAction('left')" title="Pass">
+      <button class="action-btn nope" id="passActionBtn" onclick="swipeAction('left')" title="Pass">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
       <button class="action-btn like" id="likeActionBtn" onclick="swipeAction('right')" title="Like">
@@ -133,7 +133,7 @@
     import { listenForNotifications } from "../../js/notifications.js";
     import { startCallListener } from "../../js/call-listener.js";
     import { showPushNotificationNudge } from "../../js/push.js";
-    import { fetchProfiles, recordSwipe } from "../../js/swipe.js";
+    import { fetchProfiles, recordSwipe, SwipeLimitError } from "../../js/swipe.js";
     import { db } from "../../js/auth.js";
     import { getSubscription, hasPlan, isVault, planLabel, vaultBadge } from "../../js/subscription.js";
     import { collection, onSnapshot, query, where, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -202,12 +202,14 @@
       return '';
     }
     function updateLikeButtonState() {
-      const btn = document.getElementById('likeActionBtn');
-      if (!btn) return;
       const locked = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0;
-      btn.title = locked ? `You've used your daily likes. Likes reset in ${likesResetText()}` : 'Like';
-      btn.style.opacity = locked ? '0.45' : '';
-      btn.style.boxShadow = locked ? 'none' : '';
+      [['likeActionBtn', 'Like'], ['passActionBtn', 'Pass']].forEach(([id, label]) => {
+        const btn = document.getElementById(id);
+        if (!btn) return;
+        btn.title = locked ? `You've used your daily swipes. Swipes reset in ${likesResetText()}` : label;
+        btn.style.opacity = locked ? '0.45' : '';
+        btn.style.boxShadow = locked ? 'none' : '';
+      });
     }
 
     function renderStageState() {
@@ -383,7 +385,7 @@
     }
     function showLikeLimitNotice() {
       const notice = document.getElementById('likeLimitNotice');
-      const msg = `You've used your ${standardDailyLikes} likes for today. Upgrade to Elite for unlimited likes and see who liked you.`;
+      const msg = `You've used your ${standardDailyLikes} swipes for today (likes and passes both count). Upgrade to Elite for unlimited swipes and see who liked you.`;
       notice.innerHTML = `<div style="color:var(--gold);font-weight:600;margin-bottom:0.75rem;">${msg}</div><button class="btn btn-gold btn-sm" onclick="location.href='/account/pricing/'">Upgrade to Elite</button>`;
       notice.style.display = 'block';
       showToast(msg);
@@ -416,30 +418,28 @@
       hideLikeLimitNotice();
       return { allowed: true, shouldConsume: true };
     }
-    async function consumeStandardLike() {
-      const remaining = Number(myProfile.likesRemaining ?? standardDailyLikes);
-      const next = remaining - 1;
-      const resetAt = myProfile.likesResetAt || new Date(Date.now() + 24 * 60 * 60 * 1000);
-      await updateDoc(doc(db, 'users', myUser.uid), {
-        likesRemaining: next,
-        likesResetAt: resetAt,
-        lastLikeAt: serverTimestamp()
-      });
-      myProfile.likesRemaining = next;
-      myProfile.likesResetAt = resetAt;
+    // The daily counter is decremented inside recordSwipe (js/swipe.js) so likes
+    // and passes share one allowance. This just re-reads it to update the screen.
+    async function refreshStandardLikeState() {
+      const snap = await getDoc(doc(db, 'users', myUser.uid));
+      if (snap.exists()) {
+        const data = snap.data();
+        myProfile.likesRemaining = Number(data.likesRemaining ?? standardDailyLikes);
+        myProfile.likesResetAt = data.likesResetAt;
+      }
       renderSubscriptionPanel();
       updateLikeButtonState();
     }
 
     async function animateSwipe(card, dir, prof) {
-      const likeState = dir === 'right' ? await getStandardLikeState() : { allowed: true, shouldConsume: false };
+      const likeState = await getStandardLikeState();
       if (!likeState.allowed) return;
       const x = dir === 'right' ? window.innerWidth + 200 : -(window.innerWidth + 200);
       card.style.transform = `translateX(${x}px) rotate(${dir === 'right' ? 20 : -20}deg)`;
       await new Promise(r => setTimeout(r, 300));
       try {
         const isMatch = await recordSwipe(myUser.uid, prof.id, dir === 'right' ? 'like' : 'nope');
-        if (likeState.shouldConsume) await consumeStandardLike();
+        if (likeState.shouldConsume) await refreshStandardLikeState();
         card.remove();
         currentIndex++;
         if (currentIndex >= profiles.length) await loadProfiles();
@@ -447,6 +447,13 @@
         if (isMatch) showMatch(prof);
       } catch (e) {
         card.style.transform = '';
+        if (e instanceof SwipeLimitError) {
+          myProfile.likesRemaining = 0;
+          renderSubscriptionPanel();
+          updateLikeButtonState();
+          showLikeLimitNotice();
+          return;
+        }
         showToast('Could not save swipe. Please try again.');
         console.error(e);
       }
@@ -582,7 +589,7 @@
       const previous = sub.previousPlan ? planLabel(sub.previousPlan) : planLabel(sub.plan);
       const expired = sub.status === 'expired';
       const planForDisplay = currentPlan() === 'none' ? 'standard' : currentPlan();
-      const likeText = isPremium() ? 'Unlimited likes' : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily likes remaining`;
+      const likeText = isPremium() ? 'Unlimited likes' : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily swipes remaining`;
       const lockText = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0 ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your ${standardDailyLikes} likes for today. Likes reset in ${likesResetText()}</div>` : '';
       document.getElementById('subscriptionBanner').innerHTML = expired ? `<div class="expired-banner">Your ${previous} plan has expired — Renew to restore your benefits.</div>` : '';
       const primaryHref = myProfile.stage === 'signedUp'

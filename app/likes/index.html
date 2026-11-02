@@ -61,7 +61,7 @@
     import { listenForNotifications } from "../../js/notifications.js";
     import { startCallListener } from "../../js/call-listener.js";
     import { hasPlan, getSubscription, planLabel, vaultBadge } from "../../js/subscription.js";
-    import { recordSwipe } from "../../js/swipe.js";
+    import { recordSwipe, SwipeLimitError } from "../../js/swipe.js";
     import { showError } from "../../js/dialog.js";
     import { collection, getDocs, getDoc, doc, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getAdminSettings, resolveVisibility } from "../../js/location.js";
@@ -200,6 +200,10 @@
         else showEmpty('likedMe');
       } catch (e) {
         console.error(e);
+        if (e instanceof SwipeLimitError) {
+          showError("You've used all your daily swipes (likes and passes both count). Upgrade to Elite for unlimited swipes, or come back after your swipes reset.");
+          return;
+        }
         showError('Could not save your response. Please try again.');
       }
     };

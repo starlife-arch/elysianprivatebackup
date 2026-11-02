@@ -34,7 +34,7 @@
     import { verifiedBadge } from "../../js/icons.js";
     import { vaultBadge } from "../../js/subscription.js";
     import { haversineKm, formatDistance, getAdminSettings, resolveVisibility, requestAndSaveLocation } from "../../js/location.js";
-    import { recordSwipe } from "../../js/swipe.js";
+    import { recordSwipe, SwipeLimitError } from "../../js/swipe.js";
     import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const zodiacSigns = {'Aries':'','Taurus':'','Gemini':'','Cancer':'','Leo':'','Virgo':'','Libra':'','Scorpio':'','Sagittarius':'','Capricorn':'','Aquarius':'','Pisces':''};
@@ -169,6 +169,10 @@
       } catch (e) {
         console.error(e);
         alreadyResponded = false;
+        if (e instanceof SwipeLimitError) {
+          actions.innerHTML = renderActionState() + '<div style="text-align:center;color:var(--danger);font-size:12px;margin-top:0.75rem;">You\'ve used all your daily swipes (likes and passes both count). Upgrade to Elite for unlimited swipes, or come back after your swipes reset.</div>';
+          return;
+        }
         actions.innerHTML = renderActionState() + '<div style="text-align:center;color:var(--danger);font-size:12px;margin-top:0.75rem;">Could not save your response. Please try again.</div>';
       }
     };
