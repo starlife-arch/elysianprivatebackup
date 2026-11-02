@@ -52,6 +52,9 @@ export function genMemberId() {
 }
 
 export function deriveStage(profile = {}) {
+  const trial = profile.freeTrial || {};
+  const trialExpiry = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
+  if (profile.status === 'active_member' && trial.status === 'active' && trialExpiry > Date.now()) return 'freeTrial';
   const plan = profile.plan || profile.subscription?.plan || "none";
   if ((plan === "elite" || plan === "vault" || profile.stage === "elite" || profile.stage === "vault") && hasActiveMembership(profile)) return plan === "vault" ? "vault" : "elite";
   if (hasActiveMembership(profile)) return "paid";
@@ -64,7 +67,10 @@ export function deriveStage(profile = {}) {
 export function normalizeProfile(profile = {}) {
   const stage = deriveStage(profile);
   const activeMembership = hasActiveMembership({ ...profile, stage });
-  const plan = activeMembership ? (profile.plan || profile.subscription?.plan || "standard") : "none";
+  const trial = profile.freeTrial || {};
+  const trialExpiry = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
+  const isTrial = profile.status === 'active_member' && trial.status === 'active' && trialExpiry > Date.now();
+  const plan = isTrial ? 'free_trial' : activeMembership ? (profile.plan || profile.subscription?.plan || "standard") : "none";
   return {
     ...profile,
     stage,
