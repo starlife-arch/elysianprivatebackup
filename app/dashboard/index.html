@@ -180,11 +180,11 @@
     function isPaidStage() { return isFreeTrialMember() || ['paid','elite','vault'].includes(myProfile.stage) || myProfile.hasPaid || myProfile.paid; }
     function isPremium() { return ['elite','vault'].includes(currentPlan()) || ['elite','vault'].includes(myProfile.stage); }
 
-    function isStandardPlan() { return isPaidStage() && currentPlan() === 'standard'; }
+    function hasExploreAccess() { return isPremium(); }
     function updateExploreNavLock() {
       const nav = document.getElementById('exploreNavItem');
       const lock = document.getElementById('exploreNavLock');
-      if (!nav || !lock || !isStandardPlan()) return;
+      if (!nav || !lock || hasExploreAccess()) return;
       lock.style.display = 'block';
       nav.onclick = (event) => {
         event.preventDefault();
