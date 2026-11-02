@@ -48,7 +48,7 @@ exports.handler = async event => {
       }
 
       // Never replace a paid membership or an admin-granted active membership.
-      if (user.paid === true || user.hasPaid === true) return { granted: false, reason: 'already_paid' };
+      if (user.paid === true || user.hasPaid === true || user.adminOverride === true) return { granted: false, reason: 'already_paid_or_admin_granted' };
       const eligibleStatuses = ['signedUp', 'profileComplete', 'approved_pending_invite', 'approved_pending_payment', 'active_member'];
       if (!eligibleStatuses.includes(user.status)) return { granted: false, reason: 'not_eligible' };
 
