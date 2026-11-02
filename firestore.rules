@@ -17,7 +17,7 @@ service cloud.firestore {
       let trialValid = trial.get('status', '') == 'active'
         && trial.get('expiresAt', request.time) > request.time;
       let paid = u.get('paid', false) == true || u.get('hasPaid', false) == true || u.get('adminOverride', false) == true;
-      return isAuth() && u.status == 'active_member' && u.banned != true
+      return isAuth() && u.get('status', '') == 'active_member' && u.get('banned', false) != true
         && (!hasTrial || trialValid || paid);
     }
     function isParticipant(matchId) {
