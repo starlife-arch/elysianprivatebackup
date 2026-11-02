@@ -406,7 +406,11 @@
     function showLikeLimitNotice() {
       const notice = document.getElementById('likeLimitNotice');
       const msg = isFreeTrialMember()
-        ? 'You have used your one free-trial like. Upgrade to continue liking profiles.'
+        ? (Number(myProfile.likesRemaining ?? 1) <= 0 && Number(myProfile.passesRemaining ?? 1) <= 0
+          ? 'You have used your one trial like and one trial pass. Upgrade to continue swiping.'
+          : Number(myProfile.likesRemaining ?? 1) <= 0
+            ? 'You have used your one free-trial like. Your one pass is still available.'
+            : 'You have used your one free-trial pass. Your one like is still available.')
         : `You've used your ${standardDailyLikes} swipes for today (likes and passes both count). Upgrade to Elite for unlimited swipes and see who liked you.`;
       notice.innerHTML = `<div style="color:var(--gold);font-weight:600;margin-bottom:0.75rem;">${msg}</div><button class="btn btn-gold btn-sm" onclick="location.href='/account/pricing/'">Upgrade to Elite</button>`;
       notice.style.display = 'block';
