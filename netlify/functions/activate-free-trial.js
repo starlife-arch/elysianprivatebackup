@@ -36,7 +36,9 @@ exports.handler = async event => {
           tx.update(userRef, {
             'freeTrial.status': 'expired',
             freeTrialExpiredAt: now,
-            status: 'trial_expired',
+            status: 'approved_pending_payment',
+            stage: 'adminApproved',
+            adminApproved: true,
             paid: false,
             hasPaid: false,
             plan: 'none',
@@ -49,8 +51,8 @@ exports.handler = async event => {
 
       // Never replace a paid membership or an admin-granted active membership.
       if (user.paid === true || user.hasPaid === true || user.adminOverride === true) return { granted: false, reason: 'already_paid_or_admin_granted' };
-      const eligibleStatuses = ['signedUp', 'profileComplete', 'approved_pending_invite', 'approved_pending_payment', 'active_member'];
-      if (!eligibleStatuses.includes(user.status)) return { granted: false, reason: 'not_eligible' };
+      const approvedForTrial = user.profileComplete === true && user.adminApproved === true && ['approved_pending_invite', 'approved_pending_payment'].includes(user.status);
+      if (!approvedForTrial) return { granted: false, reason: 'profile_and_kyc_approval_required' };
 
       const expiresAt = admin.firestore.Timestamp.fromMillis(nowMs + 7 * 24 * 60 * 60 * 1000);
       tx.update(userRef, {
