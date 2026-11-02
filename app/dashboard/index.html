@@ -457,6 +457,8 @@
     }
 
     async function animateSwipe(card, dir, prof) {
+      if (isFreeTrialMember() && dir === 'left' && Number(myProfile.passesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
+      if (isFreeTrialMember() && dir === 'right' && Number(myProfile.likesRemaining ?? 1) <= 0) { showLikeLimitNotice(); return; }
       const likeState = await getStandardLikeState();
       if (!likeState.allowed) return;
       const x = dir === 'right' ? window.innerWidth + 200 : -(window.innerWidth + 200);
@@ -473,9 +475,7 @@
       } catch (e) {
         card.style.transform = '';
         if (e instanceof SwipeLimitError) {
-          myProfile.likesRemaining = 0;
-          renderSubscriptionPanel();
-          updateLikeButtonState();
+          await refreshStandardLikeState();
           showLikeLimitNotice();
           return;
         }
