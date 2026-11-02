@@ -1,4 +1,5 @@
 const { json, parseBody, preflight, fetchJSON } = require('./_helpers');
+const { sendNyotaSms, normalizeKenyanPhone } = require('./_nyota');
 
 const PRINTPAY_URL = 'https://printpay.site/api/stk_push';
 let adminDb;
@@ -64,6 +65,20 @@ async function sendNotifications(payment, user) {
       body: JSON.stringify(emailPayload)
     }) : Promise.resolve()
   ]);
+
+  const phone = normalizeKenyanPhone(user.phone || payment.phone);
+  if (phone) {
+    const smsMessage = payment.purpose === 'tokens'
+      ? `DateVault: Payment confirmed. ${Number(payment.tokens || 0).toLocaleString()} tokens have been added to your wallet.`
+      : payment.purpose === 'subscription'
+        ? `DateVault: Payment confirmed. Your ${planLabel(payment.plan)} plan is now active.`
+        : payment.purpose === 'priority_support'
+          ? 'DateVault: Your priority support purchase was confirmed. Thank you.'
+          : 'DateVault: Your membership payment was confirmed. Thank you.';
+    try {
+      await sendNyotaSms({ recipient: phone, message: smsMessage, idempotencyKey: `dv-printpay-purchase-${payment.checkout_id || payment.uid}` });
+    } catch (error) { console.error('Purchase SMS failed:', error.message); }
+  }
 }
 
 // ─── Write invoice record to Firestore ─────────────────────────────────────
