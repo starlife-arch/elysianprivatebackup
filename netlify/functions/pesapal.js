@@ -1,4 +1,5 @@
 const { json, text, redirect, parseBody, preflight, fetchJSON } = require("./_helpers");
+const { sendNyotaSms, normalizeKenyanPhone } = require("./_nyota");
 
 const APP_URL = (process.env.APP_URL || "https://elysiandate.site").replace("https://elysiandate.netlify.app", "https://elysiandate.site");
 const SANDBOX = process.env.PESAPAL_SANDBOX === "true";
@@ -206,6 +207,18 @@ async function approveMembership(orderTrackingId, merchantReference, statusData)
       notifyTelegram(uid, "payment_received"),
       sendMemberEmail("payment_received", user)
     ]);
+  }
+
+  const phone = normalizeKenyanPhone(user.phone || payment.phone);
+  if (phone) {
+    const smsMessage = purpose === "subscription"
+      ? `DateVault: Payment confirmed. Your ${planLabel(payment.plan)} plan is now active.`
+      : purpose === "priority_support"
+        ? "DateVault: Your priority support purchase was confirmed. Thank you."
+        : "DateVault: Your membership payment was confirmed. Thank you.";
+    try {
+      await sendNyotaSms({ recipient: phone, message: smsMessage, idempotencyKey: `dv-pesapal-purchase-${merchantReference}` });
+    } catch (error) { console.error("Purchase SMS failed:", error.message); }
   }
 
   return uid;
