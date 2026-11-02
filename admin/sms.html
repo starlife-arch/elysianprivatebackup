@@ -56,13 +56,40 @@
     }
     async function api(body) {
       const token = await auth.currentUser.getIdToken();
-      const response = await fetch("/api/nyota-sms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
-        body: JSON.stringify(body)
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.success === false) { const error = new Error(data.error || `SMS request failed (HTTP ${response.status}).`); error.code = data.code || `HTTP_${response.status}`; throw error; }
+      let response;
+      try {
+        response = await fetch("/api/nyota-sms", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+          body: JSON.stringify(body)
+        });
+      } catch (networkError) {
+        const error = new Error("Could not reach the SMS service. Check the site hosting/function deployment and try again.");
+        error.code = "SMS_NETWORK_ERROR";
+        throw error;
+      }
+
+      const responseText = await response.text();
+      let data = {};
+      try { data = responseText ? JSON.parse(responseText) : {}; }
+      catch (_) {
+        // Hosting providers can return an HTML 5xx page instead of our JSON API response.
+        // Never surface that full HTML document in the admin interface or console.
+        const rayId = responseText.match(/Cloudflare Ray ID:\s*<strong[^>]*>([^<]+)<\\/strong>/i)?.[1]
+          || response.headers.get("cf-ray")
+          || "";
+        const error = new Error(response.status >= 500
+          ? "The SMS endpoint is unavailable at the hosting layer (HTTP " + response.status + "). This is not a Nyota delivery response. Check the Netlify deploy/function logs before retrying."
+          : "The SMS endpoint returned an unexpected response (HTTP " + response.status + ").");
+        error.code = response.status >= 500 ? "SMS_HOSTING_ERROR" : "SMS_INVALID_RESPONSE";
+        error.rayId = rayId;
+        throw error;
+      }
+      if (!response.ok || data.success === false) {
+        const error = new Error(data.error || "SMS request failed (HTTP " + response.status + ").");
+        error.code = data.code || "HTTP_" + response.status;
+        throw error;
+      }
       return data;
     }
     function esc(value="") {
@@ -86,12 +113,12 @@
     $("checkSmsConfig").addEventListener("click", async () => {
       $("checkSmsConfig").disabled = true;
       try { await checkSmsConfig(); }
-      catch (error) { $("sendStatus").textContent = `Configuration check failed [${error.code || "ERROR"}]: ${error.message}`; }
+      catch (error) { $("sendStatus").textContent = `Configuration check failed [${error.code || "ERROR"}]: ${error.message}` + (error.rayId ? " Cloudflare Ray ID: " + error.rayId : ""); }
       finally { $("checkSmsConfig").disabled = false; }
     });
     async function init() {
       await requireAdmin();
-      try { await checkSmsConfig(); } catch (error) { $("sendStatus").textContent = `SMS diagnostic failed [${error.code || "ERROR"}]: ${error.message}`; }
+      try { await checkSmsConfig(); } catch (error) { $("sendStatus").textContent = `SMS diagnostic failed [${error.code || "ERROR"}]: ${error.message}` + (error.rayId ? " Cloudflare Ray ID: " + error.rayId : ""); }
       const snap = await getDocs(collection(db, "users"));
       const recipients = new Set(snap.docs.filter(d => d.data().smsOptOut !== true).map(d => normalizePhone(d.data().phone)).filter(Boolean));
       $("recipientCount").textContent = recipients.size.toLocaleString();
@@ -117,7 +144,7 @@
         $("characterCount").textContent = "0 / 1,000 characters";
         await loadHistory();
       } catch (error) {
-        $("sendStatus").textContent = `Broadcast failed [${error.code || "ERROR"}]: ${error.message}`;
+        $("sendStatus").textContent = `Broadcast failed [${error.code || "ERROR"}]: ${error.message}` + (error.rayId ? " Cloudflare Ray ID: " + error.rayId : "");
       } finally {
         $("sendBroadcast").disabled = false;
       }
