@@ -23,7 +23,7 @@
     <section class="sms-card">
       <div class="muted">Eligible unique phone numbers</div>
       <div class="sms-stat" id="recipientCount">Checking…</div>
-      <p class="muted" id="countNote">Only valid Kenyan mobile numbers are included.</p>
+      <p class="muted" id="countNote">Valid Kenyan numbers are included; users who have opted out of SMS are excluded.</p>
       <label for="broadcastMessage">SMS message</label>
       <textarea id="broadcastMessage" maxlength="1000" placeholder="Write your announcement (maximum 1,000 characters)…"></textarea>
       <div style="display:flex;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin:.5rem 0 1rem;">
@@ -76,7 +76,7 @@
     async function init() {
       await requireAdmin();
       const snap = await getDocs(collection(db, "users"));
-      const recipients = new Set(snap.docs.map(d => normalizePhone(d.data().phone)).filter(Boolean));
+      const recipients = new Set(snap.docs.filter(d => d.data().smsOptOut !== true).map(d => normalizePhone(d.data().phone)).filter(Boolean));
       $("recipientCount").textContent = recipients.size.toLocaleString();
       $("countNote").textContent = recipients.size ? "Unique valid Kenyan mobile numbers found across all accounts." : "No valid phone numbers found.";
       $("sendBroadcast").disabled = recipients.size === 0;
