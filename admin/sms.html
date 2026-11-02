@@ -30,7 +30,10 @@
         <span class="muted" id="characterCount">0 / 1,000 characters</span>
         <span class="muted">Long messages may use multiple SMS units.</span>
       </div>
-      <button class="btn btn-gold" id="sendBroadcast" disabled>Send SMS to All Eligible Users</button>
+      <div style="display:flex;gap:.65rem;flex-wrap:wrap;">
+        <button class="btn btn-outline" id="checkSmsConfig" type="button">Check SMS Configuration</button>
+        <button class="btn btn-gold" id="sendBroadcast" disabled>Send SMS to All Eligible Users</button>
+      </div>
       <p class="muted" id="sendStatus" role="status" style="margin-top:.75rem;"></p>
     </section>
     <section class="sms-card">
@@ -59,7 +62,7 @@
         body: JSON.stringify(body)
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.success === false) throw new Error(data.error || "SMS request failed.");
+      if (!response.ok || data.success === false) { const error = new Error(data.error || `SMS request failed (HTTP ${response.status}).`); error.code = data.code || `HTTP_${response.status}`; throw error; }
       return data;
     }
     function esc(value="") {
@@ -73,8 +76,22 @@
           <div class="muted" style="font-size:12px;margin-top:.35rem;">${Number(item.recipientCount||0).toLocaleString()} recipients · ${item.createdAt ? new Date(item.createdAt).toLocaleString() : "Date unavailable"}</div>
         </div>`).join("") : "No broadcasts sent yet.";
     }
+    async function checkSmsConfig() {
+      const result = await api({ action: "health" });
+      const configured = result.nyotaApiKeyConfigured === true;
+      $("sendStatus").textContent = configured ? `Configuration OK. Nyota API key is present; sender ID: ${result.senderId}.` : "Configuration incomplete: add NYOTA_API_KEY in Netlify environment variables, then redeploy the site.";
+      $("sendStatus").style.color = configured ? "var(--success, #4ade80)" : "var(--gold)";
+      return result;
+    }
+    $("checkSmsConfig").addEventListener("click", async () => {
+      $("checkSmsConfig").disabled = true;
+      try { await checkSmsConfig(); }
+      catch (error) { $("sendStatus").textContent = `Configuration check failed [${error.code || "ERROR"}]: ${error.message}`; }
+      finally { $("checkSmsConfig").disabled = false; }
+    });
     async function init() {
       await requireAdmin();
+      try { await checkSmsConfig(); } catch (error) { $("sendStatus").textContent = `SMS diagnostic failed [${error.code || "ERROR"}]: ${error.message}`; }
       const snap = await getDocs(collection(db, "users"));
       const recipients = new Set(snap.docs.filter(d => d.data().smsOptOut !== true).map(d => normalizePhone(d.data().phone)).filter(Boolean));
       $("recipientCount").textContent = recipients.size.toLocaleString();
@@ -100,7 +117,7 @@
         $("characterCount").textContent = "0 / 1,000 characters";
         await loadHistory();
       } catch (error) {
-        $("sendStatus").textContent = "Broadcast failed: " + error.message;
+        $("sendStatus").textContent = `Broadcast failed [${error.code || "ERROR"}]: ${error.message}`;
       } finally {
         $("sendBroadcast").disabled = false;
       }
