@@ -85,6 +85,19 @@ export function normalizeProfile(profile = {}) {
 
 export async function routeUser(user) {
   if (!user) { window.location.href = "/auth/login/"; return; }
+  // Activate eligible existing accounts before routing; otherwise legacy
+  // approved_pending_payment accounts would be sent back to checkout first.
+  try {
+    const token = await getIdToken(user);
+    const response = await fetch('/api/activate-free-trial', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    if (!response.ok) console.warn('Free-trial activation was not completed:', await response.text());
+  } catch (trialError) {
+    console.warn('Free-trial activation check failed:', trialError);
+  }
   const snap = await getDoc(doc(db, "users", user.uid));
   if (!snap.exists()) { window.location.href = "/auth/signup/"; return; }
   const d = normalizeProfile(snap.data());
