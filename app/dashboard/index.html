@@ -202,11 +202,13 @@
       return '';
     }
     function updateLikeButtonState() {
-      const locked = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0;
-      [['likeActionBtn', 'Like'], ['passActionBtn', 'Pass']].forEach(([id, label]) => {
+      const exhausted = Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0;
+      const trialLikeLocked = isFreeTrialMember() && exhausted;
+      const standardSwipesLocked = !isFreeTrialMember() && isPaidStage() && !isPremium() && exhausted;
+      [['likeActionBtn', 'Like', trialLikeLocked || standardSwipesLocked], ['passActionBtn', 'Pass', standardSwipesLocked]].forEach(([id, label, locked]) => {
         const btn = document.getElementById(id);
         if (!btn) return;
-        btn.title = locked ? `You've used your daily swipes. Swipes reset in ${likesResetText()}` : label;
+        btn.title = locked ? (trialLikeLocked ? 'Your free-trial like has been used. Passing remains unlimited.' : `You've used your daily swipes. Swipes reset in ${likesResetText()}`) : label;
         btn.style.opacity = locked ? '0.45' : '';
         btn.style.boxShadow = locked ? 'none' : '';
       });
@@ -402,7 +404,7 @@
       if (notice) notice.style.display = 'none';
     }
     async function getStandardLikeState() {
-      if (!isStandardMember()) return { allowed: true, shouldConsume: false };
+      if (isFreeTrialMember() || !isStandardMember()) return { allowed: true, shouldConsume: false };
       const snap = await getDoc(doc(db, 'users', myUser.uid));
       if (snap.exists()) {
         const data = snap.data();
@@ -473,6 +475,10 @@
       if (!prof) return;
       if (dir === 'superlike') {
         const plan = getSubscription(myProfile).plan;
+        if (isFreeTrialMember() && Number(myProfile.likesRemaining ?? 1) <= 0) {
+          showLikeLimitNotice();
+          return;
+        }
         if (plan === 'standard' || plan === 'elite') {
           const pack = myProfile.addons?.superlikePack;
           const packUses = Number(pack?.remainingUses || 0);
@@ -599,7 +605,10 @@
       const likeText = isPremium() ? 'Unlimited likes' : isFreeTrialMember()
         ? `${Number(myProfile.likesRemaining ?? 1)} free-trial like remaining`
         : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily swipes remaining`;
-      const lockText = isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0 ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your ${standardDailyLikes} likes for today. Likes reset in ${likesResetText()}</div>` : '';
+      const lockText = isFreeTrialMember() && Number(myProfile.likesRemaining ?? 1) <= 0
+        ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">Your one trial like has been used. You can still pass unlimited profiles.</div>`
+        : isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0
+          ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your ${standardDailyLikes} swipes for today. Swipes reset in ${likesResetText()}</div>` : '';
       document.getElementById('subscriptionBanner').innerHTML = expired ? `<div class="expired-banner">Your ${previous} plan has expired — Renew to restore your benefits.</div>` : '';
       const primaryHref = myProfile.stage === 'signedUp'
         ? '/app/profile/?edit=1'
