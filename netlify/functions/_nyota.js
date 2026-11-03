@@ -11,6 +11,20 @@ function normalizeKenyanPhone(value) {
   return /^254[17][0-9]{8}$/.test(phone) ? phone : null;
 }
 
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+// Nyota only accepts a standard UUIDv4 as the idempotency key. Callers pass
+// readable keys such as "dv-broadcast-<id>-0"; this turns any such text into a
+// UUIDv4 deterministically, so retrying the same message still reuses the same
+// key (and Nyota ignores the duplicate) instead of sending twice.
+function toUuidV4(seed) {
+  if (seed && UUID_V4.test(String(seed))) return String(seed).toLowerCase();
+  if (!seed) return crypto.randomUUID();
+  const h = crypto.createHash("sha256").update(String(seed)).digest("hex");
+  const variant = "89ab"[parseInt(h[16], 16) % 4];
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
 // Turns whatever Nyota (or the firewall in front of it) sent back into one
 // short readable sentence. Never returns a whole HTML page.
 function readableDetail(status, text, rayId) {
@@ -54,7 +68,7 @@ async function sendNyotaSms({ recipients, recipient, message, idempotencyKey }) 
         // Some firewalls reject requests that have no User-Agent (Node sends none).
         "User-Agent": "DateVault-Netlify/1.0",
         "x-nyota-api-key": apiKey,
-        "x-idempotency-key": idempotencyKey || crypto.randomUUID()
+        "x-idempotency-key": toUuidV4(idempotencyKey)
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(TIMEOUT_MS)
@@ -87,4 +101,4 @@ async function sendNyotaSms({ recipients, recipient, message, idempotencyKey }) 
   return data || {};
 }
 
-module.exports = { normalizeKenyanPhone, sendNyotaSms };
+module.exports = { normalizeKenyanPhone, sendNyotaSms, toUuidV4 };
