@@ -1,4 +1,5 @@
 const { json, parseBody, preflight, getAdmin } = require("./_helpers");
+const crypto = require("crypto");
 const { normalizeKenyanPhone, sendNyotaSms } = require("./_nyota");
 
 const BROADCAST_CHUNK = 500; // keeps each request well inside Netlify's 10 s limit
@@ -65,7 +66,7 @@ exports.handler = async event => {
       try {
         const res = await fetch("https://backend.nyotaimara.com/v1/sms/send", {
           method: "POST",
-          headers: { "Content-Type": "application/json", Accept: "application/json", "User-Agent": "DateVault-Netlify/1.0", "x-nyota-api-key": apiKey },
+          headers: { "Content-Type": "application/json", Accept: "application/json", "User-Agent": "DateVault-Netlify/1.0", "x-nyota-api-key": apiKey, "x-idempotency-key": crypto.randomUUID() },
           body: JSON.stringify({ message: "connection test", recipients: [] }),
           signal: AbortSignal.timeout(8000)
         });
@@ -73,7 +74,8 @@ exports.handler = async event => {
         const isHtml = /^\s*<(!doctype|html)/i.test(text);
         const verdict = res.status === 401 || res.status === 403
           ? (isHtml ? "Blocked by Nyota's firewall (the request never reached their API)." : "Nyota rejected the API key.")
-          : res.status < 500 ? "Nyota is reachable and answered normally (a validation message for an empty test is expected)."
+          : res.status === 400 || res.status === 422 ? "Nyota is reachable and the key was not rejected. A complaint about missing or empty recipients is the expected answer for this empty test."
+          : res.status < 500 ? "Nyota is reachable and answered normally."
           : "Nyota itself returned a server error.";
         return json(200, { success: true, nyotaHttpStatus: res.status, verdict, cfRay: res.headers.get("cf-ray") || null, answer: isHtml ? "(web page, hidden)" : text.slice(0, 300) });
       } catch (e) {
