@@ -37,6 +37,7 @@
       </div>
       <div style="display:flex;gap:.65rem;flex-wrap:wrap;">
         <button class="btn btn-outline" id="checkSmsConfig" type="button">Check SMS Configuration</button>
+        <button class="btn btn-outline" id="testNyota" type="button">Test Nyota Connection</button>
         <button class="btn btn-gold" id="sendBroadcast" disabled>Send SMS to All Eligible Users</button>
       </div>
       <p class="muted" id="sendStatus" role="status" style="margin-top:.75rem;"></p>
@@ -86,7 +87,7 @@
           || response.headers.get("cf-ray")
           || "";
         const error = new Error(response.status >= 500
-          ? "The SMS endpoint is unavailable at the hosting layer (HTTP " + response.status + "). This is not a Nyota delivery response. Check the Netlify deploy/function logs before retrying."
+          ? "The SMS endpoint is unavailable at the hosting layer (HTTP " + response.status + "). This is not a Nyota delivery response. Open Netlify > Logs & metrics > Functions > nyota-sms to see the real error."
           : "The SMS endpoint returned an unexpected response (HTTP " + response.status + ").");
         error.code = response.status >= 500 ? "SMS_HOSTING_ERROR" : "SMS_INVALID_RESPONSE";
         error.rayId = rayId;
@@ -108,7 +109,7 @@
         return;
       }
       const csv = ["phone", ...numbers].join("\r\n") + "\r\n";
-      const blob = new Blob(["\\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -147,6 +148,16 @@
       catch (error) { $("sendStatus").textContent = `Configuration check failed [${error.code || "ERROR"}]: ${error.message}` + (error.rayId ? " Cloudflare Ray ID: " + error.rayId : ""); }
       finally { $("checkSmsConfig").disabled = false; }
     });
+    $("testNyota").addEventListener("click", async () => {
+      $("testNyota").disabled = true;
+      $("sendStatus").style.color = "";
+      $("sendStatus").textContent = "Contacting Nyota from the server…";
+      try {
+        const r = await api({ action: "diagnose" });
+        $("sendStatus").textContent = `Nyota test: HTTP ${r.nyotaHttpStatus}. ${r.verdict}` + (r.cfRay ? ` (Ray ${r.cfRay})` : "") + (r.answer ? ` Answer: ${r.answer}` : "");
+      } catch (error) { $("sendStatus").textContent = `Nyota test failed [${error.code || "ERROR"}]: ${error.message}` + (error.rayId ? " Cloudflare Ray ID: " + error.rayId : ""); }
+      finally { $("testNyota").disabled = false; }
+    });
     async function init() {
       await requireAdmin();
       try { await checkSmsConfig(); } catch (error) { $("sendStatus").textContent = `SMS diagnostic failed [${error.code || "ERROR"}]: ${error.message}` + (error.rayId ? " Cloudflare Ray ID: " + error.rayId : ""); }
@@ -174,9 +185,18 @@
       $("sendBroadcast").disabled = true;
       $("sendStatus").textContent = "Sending broadcast… Please keep this page open.";
       try {
-        const result = await api({ action: "broadcast", message, broadcastId: crypto.randomUUID() });
-        const successful = (result.batches || []).reduce((sum, batch) => sum + Number(batch.successfulDispatches || 0), 0);
-        $("sendStatus").textContent = "Broadcast submitted. Eligible: " + result.recipientCount + ". Successful dispatches reported by Nyota: " + successful + ".";
+        // Sent in chunks so no single request runs long enough to time out on the host.
+        const broadcastId = crypto.randomUUID();
+        let offset = 0, total = 0, successful = 0, done = false;
+        while (!done) {
+          const part = await api({ action: "broadcast", message, broadcastId, offset });
+          total = part.recipientCount || 0;
+          successful += Number(part.successfulDispatches || 0);
+          offset = part.nextOffset || 0;
+          done = part.done === true;
+          $("sendStatus").textContent = "Sending broadcast… " + Math.min(offset, total) + " of " + total + " numbers processed. Please keep this page open.";
+        }
+        $("sendStatus").textContent = "Broadcast submitted. Eligible: " + total + ". Successful dispatches reported by Nyota: " + successful + ".";
         $("broadcastMessage").value = "";
         $("characterCount").textContent = "0 / 1,000 characters";
         await loadHistory();
