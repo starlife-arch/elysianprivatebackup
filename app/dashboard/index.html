@@ -176,7 +176,7 @@
       maybeShowLocationPrompt();
     }
 
-    function currentPlan() { return myProfile.plan || myProfile.subscription?.plan || 'none'; }
+    function currentPlan() { return getSubscription(myProfile).plan || 'none'; }
     function isPaidStage() { return isFreeTrialMember() || ['paid','elite','vault'].includes(myProfile.stage) || myProfile.hasPaid || myProfile.paid; }
     function isPremium() { return ['elite','vault'].includes(currentPlan()) || ['elite','vault'].includes(myProfile.stage); }
 
