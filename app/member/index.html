@@ -22,6 +22,7 @@
     <div class="profile-page" id="memberProfile"></div>
   </div>
 
+<div class="modal-overlay" id="memberPhotoViewer" onclick="closeMemberPhoto()" style="align-items:center;z-index:10010;"><div onclick="event.stopPropagation()" style="position:relative;width:min(94vw,680px);height:min(82vh,820px);display:flex;align-items:center;justify-content:center;"><button type="button" onclick="closeMemberPhoto()" aria-label="Close photo" style="position:absolute;top:-42px;right:0;z-index:3;background:rgba(0,0,0,.65);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:50%;width:38px;height:38px;font-size:23px;">×</button><button type="button" onclick="changeMemberPhoto(-1)" aria-label="Previous photo" style="position:absolute;left:6px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:50%;width:42px;height:42px;font-size:28px;">‹</button><img id="memberPhotoViewerImage" alt="Member photo enlarged" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:16px;box-shadow:0 24px 80px rgba(0,0,0,.75);"/><button type="button" onclick="changeMemberPhoto(1)" aria-label="Next photo" style="position:absolute;right:6px;z-index:2;background:rgba(0,0,0,.55);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:50%;width:42px;height:42px;font-size:28px;">›</button><div id="memberPhotoViewerCount" style="position:absolute;bottom:-34px;color:#fff;font-size:13px;"></div></div></div>
   <nav class="bottom-nav">
     <a class="nav-item" href="/app/dashboard/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>Discover</a>
     <a class="nav-item" href="/app/explore/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Explore</a>
@@ -48,6 +49,8 @@
     let viewedUID = null;
     let alreadyResponded = false;
     let alreadyMatched = false;
+    let viewedPhotos = [];
+    let activePhotoIndex = 0;
 
     async function init() {
       const { user, profile } = await requireActiveMember();
@@ -86,7 +89,9 @@
     }
 
     function render(p) {
-      const photo = p.photos?.[0] || '';
+      viewedPhotos = Array.isArray(p.photos) ? p.photos.filter(Boolean) : [];
+      activePhotoIndex = 0;
+      const photo = viewedPhotos[0] || '';
       const icebreakers = Array.isArray(p.icebreakers) ? p.icebreakers.slice(0, 3).filter(ib => ib?.prompt && ib?.answer) : [];
       const age = p.dob ? Math.floor((Date.now()-new Date(p.dob))/31557600000) : '';
       const vis = resolveVisibility(p, myProfile, adminSettings);
@@ -96,14 +101,14 @@
       const locationRow = locationDisplay ? `<div class="row"><span class="muted" style="width:130px;">Location</span><span>${locationDisplay}</span></div>` : '';
       document.getElementById('memberProfile').innerHTML = `
         <div class="profile-header">
-          ${photo?`<img src="${photo}" alt="${p.displayName||'Member'}"/>`:`<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:3rem;"></div>`}
+          ${photo?`<img src="${photo}" alt="${p.displayName||'Member'}" class="member-photo-zoom" onclick="openMemberPhoto(0)" style="cursor:zoom-in;"/>`:`<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:3rem;"></div>`}
           <div class="overlay">
             <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:4px;">${vaultBadge(p)}${p.zodiac?`<span style="font-size:16px;">${zodiacSigns[p.zodiac]||''}</span>`:''}</div>
             <div style="font-family:'Cormorant Garamond',serif;font-size:1.75rem;display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;">${p.displayName||p.name||'Member'}${ageDisplay}${verificationIndicator(p)}</div>
             <div style="color:rgba(255,255,255,0.75);font-size:13px;">${locationDisplay}</div>
           </div>
         </div>
-        ${p.photos&&p.photos.length>1?`<div class="photo-strip" style="margin-bottom:1rem;">${p.photos.map((url,i)=>`<img class="photo-thumb" src="${url}" alt="Photo ${i+1}"/>`).join('')}</div>`:''}
+        ${p.photos&&p.photos.length>1?`<div class="photo-strip" style="margin-bottom:1rem;">${p.photos.map((url,i)=>`<img class="photo-thumb" src="${url}" alt="Photo ${i+1}" onclick="openMemberPhoto(${i})" style="cursor:zoom-in;"/>`).join('')}</div>`:''}
         <div class="glass-card" id="profileActions" style="margin-bottom:0.75rem;">
           ${renderActionState()}
         </div>
@@ -153,6 +158,11 @@
         <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:0.75rem;">If they like you back, you will match and can chat.</div>`;
     }
 
+    window.openMemberPhoto = function(index) { if (!viewedPhotos.length) return; activePhotoIndex = Math.max(0, Math.min(viewedPhotos.length - 1, Number(index) || 0)); renderMemberPhoto(); document.getElementById('memberPhotoViewer')?.classList.add('open'); };
+    window.closeMemberPhoto = function() { document.getElementById('memberPhotoViewer')?.classList.remove('open'); };
+    window.changeMemberPhoto = function(delta) { if (viewedPhotos.length < 2) return; activePhotoIndex = (activePhotoIndex + delta + viewedPhotos.length) % viewedPhotos.length; renderMemberPhoto(); };
+    function renderMemberPhoto() { document.getElementById('memberPhotoViewerImage').src = viewedPhotos[activePhotoIndex]; document.getElementById('memberPhotoViewerCount').textContent = (activePhotoIndex + 1) + ' / ' + viewedPhotos.length; }
+    document.addEventListener('keydown', event => { if (!document.getElementById('memberPhotoViewer')?.classList.contains('open')) return; if (event.key === 'Escape') closeMemberPhoto(); if (event.key === 'ArrowLeft') changeMemberPhoto(-1); if (event.key === 'ArrowRight') changeMemberPhoto(1); });
     window.respondToProfile = async function(direction) {
       if (!myUser || !viewedUID || alreadyResponded) return;
       const actions = document.getElementById('profileActions');
