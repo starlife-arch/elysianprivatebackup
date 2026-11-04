@@ -388,7 +388,7 @@
       const superLike = document.getElementById('superLikeActionBtn');
       if (like) { like.disabled = likeLocked || standardLocked; like.style.opacity = like.disabled ? '0.45' : ''; like.title = likeLocked ? 'Your free-trial like allowance has been used' : standardLocked ? 'Daily swipes used' : 'Like'; }
       if (pass) { pass.disabled = passLocked || standardLocked; pass.style.opacity = pass.disabled ? '0.45' : ''; pass.title = passLocked ? 'Your free-trial pass allowance has been used' : standardLocked ? 'Daily swipes used' : 'Pass'; }
-      if (superLike) { superLike.disabled = likeLocked; superLike.style.opacity = superLike.disabled ? '0.45' : ''; superLike.title = likeLocked ? 'Your one trial like has been used' : 'Super Like'; }
+      if (superLike) { superLike.disabled = likeLocked; superLike.style.opacity = superLike.disabled ? '0.45' : ''; superLike.title = likeLocked ? 'Your free-trial like allowance has been used' : 'Super Like'; }
     }
     function showLikeLimitNotice() {
       const notice = document.getElementById('likeLimitNotice');
@@ -438,7 +438,7 @@
       if (snap.exists()) {
         const data = snap.data();
         myProfile.likesRemaining = Number(data.likesRemaining ?? standardDailyLikes);
-        myProfile.passesRemaining = Number(data.passesRemaining ?? 1);
+        myProfile.passesRemaining = Number(data.passesRemaining ?? 3);
         myProfile.likesResetAt = data.likesResetAt;
       }
       renderSubscriptionPanel();
@@ -614,7 +614,7 @@
         ? `${Number(myProfile.likesRemaining ?? 3)} trial likes · ${Number(myProfile.passesRemaining ?? 3)} trial passes remaining`
         : isPremium() ? 'Unlimited likes' : `${Number(myProfile.likesRemaining ?? standardDailyLikes)} daily swipes remaining`;
       const lockText = isFreeTrialMember() && (Number(myProfile.likesRemaining ?? 3) <= 0 || Number(myProfile.passesRemaining ?? 3) <= 0)
-        ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">${Number(myProfile.likesRemaining ?? 3) <= 0 ? 'Trial likes used' : 'One trial like available'} · ${Number(myProfile.passesRemaining ?? 3) <= 0 ? 'trial passes used' : 'trial passes available'}.</div>`
+        ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">${Number(myProfile.likesRemaining ?? 3) <= 0 ? 'Trial likes used' : 'Trial likes available'} · ${Number(myProfile.passesRemaining ?? 3) <= 0 ? 'trial passes used' : 'trial passes available'}.</div>`
         : isPaidStage() && !isPremium() && Number(myProfile.likesRemaining ?? standardDailyLikes) <= 0
           ? `<div style="font-size:12px;color:var(--gold);margin-top:4px;">You've used your ${standardDailyLikes} swipes for today. Swipes reset in ${likesResetText()}</div>` : '';
       document.getElementById('subscriptionBanner').innerHTML = expired ? `<div class="expired-banner">Your ${previous} plan has expired — Renew to restore your benefits.</div>` : '';
