@@ -126,7 +126,8 @@
 
 
     function isStandardPlan() {
-      return (myProfile?.stage === 'paid' || myProfile?.hasPaid || myProfile?.paid) && (myProfile?.plan || myProfile?.subscription?.plan) === 'standard';
+      return getSubscription(myProfile).plan === 'standard'
+        && myProfile?.freeTrial?.status !== 'active';
     }
     function updateExploreNavLock() {
       const nav = document.getElementById('exploreNavItem');

@@ -144,17 +144,19 @@
       profile = snap.exists() ? snap.data() : {};
       if (purpose === 'entry' && !inviteToken) inviteToken = profile.inviteToken || profile.inviteCode || '';
       const isPesapalCallback = params.get('pesapal') === 'callback';
-      if (purpose === 'entry' && !isPesapalCallback && (!snap.exists() || !(profile.adminApproved || ['approved_pending_invite','approved_pending_payment'].includes(profile.status)))) {
+      const trialExpiry = profile.freeTrial?.expiresAt?.toDate ? profile.freeTrial.expiresAt.toDate() : new Date(profile.freeTrial?.expiresAt || 0);
+      const activeTrial = profile.status === 'active_member' && profile.freeTrial?.status === 'active' && trialExpiry.getTime() > Date.now();
+      if (purpose === 'entry' && !isPesapalCallback && (!snap.exists() || (!(profile.adminApproved || ['approved_pending_invite','approved_pending_payment'].includes(profile.status)) && !activeTrial))) {
         const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
-      if (purpose === 'entry' && !isPesapalCallback && !inviteToken) { showInvalidInvite(); return; }
+      if (purpose === 'entry' && !isPesapalCallback && !inviteToken && !activeTrial) { showInvalidInvite(); return; }
       if (purpose !== 'entry' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
         const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
       currentUser = user;
-      if (!isPesapalCallback && !(await validateInviteToken())) { showInvalidInvite(); return; }
+      if (!isPesapalCallback && inviteToken && !(await validateInviteToken())) { showInvalidInvite(); return; }
       userEmail = user.email;
       userName = profile.displayName || profile.firstName || profile.name || 'Member';
       document.getElementById('paymentSubtitle').textContent = paymentTitle();
@@ -270,6 +272,8 @@
       } else if (purpose === 'subscription') {
         const label = planLabel(plan);
         await updateDoc(doc(db, 'users', currentUser.uid), {
+          paid: true, hasPaid: true, plan, stage: 'paid', status: 'active_member',
+          'freeTrial.status': 'completed', freeTrialCompletedAt: serverTimestamp(),
           subscription: { plan, billing, status: 'active', startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(billing), prioritySupportRequests: profile.subscription?.prioritySupportRequests || 0 },
           vaultBadge: plan === 'vault', subscriptionExpirationEmailSentFor: null, lastSubscriptionPaymentAt: serverTimestamp(), lastSubscriptionPaymentMethod: method
         });
@@ -287,7 +291,7 @@
           email('priority_support_requested')
         ]);
       } else {
-        await updateDoc(doc(db, 'users', currentUser.uid), { paid: true, hasPaid: true, plan: 'standard', stage: 'paid', inviteTokenUsed: true, inviteUsed: true, paymentMethod: method, status: 'active_member', activatedAt: serverTimestamp(), reminderCount: 0, lastReminderSent: null, reminderType: null, subscription: { plan: 'standard', billing: 'included', status: 'active', startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 }, vaultBadge: false });
+        await updateDoc(doc(db, 'users', currentUser.uid), { paid: true, hasPaid: true, plan: 'standard', stage: 'paid', inviteTokenUsed: true, inviteUsed: true, paymentMethod: method, status: 'active_member', activatedAt: serverTimestamp(), reminderCount: 0, lastReminderSent: null, reminderType: null, subscription: { plan: 'standard', billing: 'included', status: 'active', startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 }, 'freeTrial.status': 'completed', freeTrialCompletedAt: serverTimestamp(), vaultBadge: false });
         await markInviteTokenUsed();
         await writeInvoice(method, reference);
         await Promise.allSettled([

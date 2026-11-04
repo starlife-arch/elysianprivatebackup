@@ -47,7 +47,17 @@ exports.handler = async event => {
           return { granted: false, expired: true };
         }
         if (existingTrial.status === 'active' && expiryMs > nowMs) {
-          tx.update(userRef, { plan: 'free_trial', stage: 'trial', passesRemaining: user.passesRemaining ?? 1, 'freeTrial.passesUsed': user.freeTrial?.passesUsed ?? 0, 'subscription.plan': 'free_trial', 'subscription.billing': 'trial', 'subscription.status': 'active', 'subscription.nextBillingDate': null });
+          const likesUsed = Math.max(0, Number(user.freeTrial?.likesUsed || 0));
+          const passesUsed = Math.max(0, Number(user.freeTrial?.passesUsed || 0));
+          tx.update(userRef, {
+            plan: 'free_trial', stage: 'trial',
+            likesRemaining: Math.max(0, 3 - likesUsed),
+            passesRemaining: Math.max(0, 3 - passesUsed),
+            'freeTrial.likesGranted': 3, 'freeTrial.passesGranted': 3,
+            'freeTrial.passesUsed': passesUsed,
+            'subscription.plan': 'free_trial', 'subscription.billing': 'trial',
+            'subscription.status': 'active', 'subscription.nextBillingDate': null
+          });
         }
         return { granted: false, reason: 'already_granted', status: existingTrial.status };
       }
@@ -64,17 +74,17 @@ exports.handler = async event => {
         hasPaid: false,
         plan: 'free_trial',
         stage: 'trial',
-        likesRemaining: 1,
-        passesRemaining: 1,
+        likesRemaining: 3,
+        passesRemaining: 3,
         likesResetAt: null,
         freeTrial: {
           status: 'active',
           startedAt: now,
           expiresAt,
           durationDays: 7,
-          likesGranted: 1,
+          likesGranted: 3,
           likesUsed: 0,
-          passesGranted: 1,
+          passesGranted: 3,
           passesUsed: 0
         },
         subscription: {

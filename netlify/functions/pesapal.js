@@ -153,6 +153,9 @@ async function approveMembership(orderTrackingId, merchantReference, statusData)
 
     if (purpose === "subscription") {
       txn.update(userRef, {
+        paid: true, hasPaid: true, plan, stage: "paid", status: "active_member",
+        "freeTrial.status": "completed",
+        freeTrialCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
         subscription: {
           plan, billing, status: "active",
           startDate: new Date().toISOString(),
@@ -185,6 +188,7 @@ async function approveMembership(orderTrackingId, merchantReference, statusData)
         pesapalTrackingId: orderTrackingId,
         reminderCount: 0, lastReminderSent: null, reminderType: null,
         subscription: { plan: "standard", billing: "included", status: "active", startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 },
+        'freeTrial.status': 'completed', freeTrialCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
         vaultBadge: false
       });
     }

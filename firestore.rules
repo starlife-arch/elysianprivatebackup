@@ -89,16 +89,16 @@ service cloud.firestore {
         && trial.get('expiresAt', request.time) > request.time;
       let hasTrial = b.keys().hasAny(['freeTrial']);
       let afterTrial = a.get('freeTrial', {});
-      let likeSpent = a.get('likesRemaining', b.get('likesRemaining', 1)) == b.get('likesRemaining', 1) - 1
+      let likeSpent = a.get('likesRemaining', b.get('likesRemaining', 3)) == b.get('likesRemaining', 3) - 1
         && afterTrial.get('likesUsed', 0) == trial.get('likesUsed', 0) + 1;
-      let passSpent = a.get('passesRemaining', b.get('passesRemaining', 1)) == b.get('passesRemaining', 1) - 1
+      let passSpent = a.get('passesRemaining', b.get('passesRemaining', 3)) == b.get('passesRemaining', 3) - 1
         && afterTrial.get('passesUsed', 0) == trial.get('passesUsed', 0) + 1;
       return !keys.hasAny(['likesRemaining', 'passesRemaining', 'likesResetAt', 'freeTrial'])
         || (hasTrial
             ? (trialActive
                && !keys.hasAny(['likesResetAt'])
-               && ((likeSpent && a.likesRemaining >= 0 && a.get('passesRemaining', 1) == b.get('passesRemaining', 1))
-                 || (passSpent && a.passesRemaining >= 0 && a.get('likesRemaining', 1) == b.get('likesRemaining', 1))))
+               && ((likeSpent && a.likesRemaining >= 0 && a.get('passesRemaining', 3) == b.get('passesRemaining', 3))
+                 || (passSpent && a.passesRemaining >= 0 && a.get('likesRemaining', 3) == b.get('likesRemaining', 3))))
             : (!isPaidStandardUser(b)
                || (likesWindowExpired(b)
                  ? (a.get('likesRemaining', lim) in [lim, lim - 1]
@@ -119,8 +119,8 @@ service cloud.firestore {
       let trial = b.get('freeTrial', {});
       let trialActive = trial.get('status', '') == 'active'
         && trial.get('expiresAt', request.time) > request.time;
-      let trialLikeExpected = b.get('likesRemaining', 1) - 1;
-      let trialPassExpected = b.get('passesRemaining', 1) - 1;
+      let trialLikeExpected = b.get('likesRemaining', 3) - 1;
+      let trialPassExpected = b.get('passesRemaining', 3) - 1;
       let hasTrial = b.keys().hasAny(['freeTrial']);
       return (hasTrial
           ? (trialActive

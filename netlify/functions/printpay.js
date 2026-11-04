@@ -171,6 +171,8 @@ async function complete(checkoutId, statusData) {
 
     } else if (payment.purpose === 'subscription') {
       tx.update(userRef, {
+        paid: true, hasPaid: true, plan: payment.plan, stage: 'paid', status: 'active_member',
+        'freeTrial.status': 'completed', freeTrialCompletedAt: now,
         subscription: {
           plan: payment.plan, billing: payment.billing, status: 'active',
           startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(payment.billing),
@@ -209,6 +211,7 @@ async function complete(checkoutId, statusData) {
         paymentMethod: 'printpay', status: 'active_member',
         activatedAt: now, reminderCount: 0, lastReminderSent: null, reminderType: null,
         subscription: { plan: 'standard', billing: 'included', status: 'active', startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 },
+        'freeTrial.status': 'completed', freeTrialCompletedAt: now,
         vaultBadge: false
       });
     }
