@@ -153,6 +153,9 @@ async function approveMembership(orderTrackingId, merchantReference, statusData)
 
     if (purpose === "subscription") {
       txn.update(userRef, {
+        paid: true, hasPaid: true, plan, stage: "paid", status: "active_member",
+        "freeTrial.status": "completed",
+        freeTrialCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
         subscription: {
           plan, billing, status: "active",
           startDate: new Date().toISOString(),
