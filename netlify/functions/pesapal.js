@@ -185,6 +185,7 @@ async function approveMembership(orderTrackingId, merchantReference, statusData)
         pesapalTrackingId: orderTrackingId,
         reminderCount: 0, lastReminderSent: null, reminderType: null,
         subscription: { plan: "standard", billing: "included", status: "active", startDate: new Date().toISOString(), nextBillingDate: null, prioritySupportRequests: 0 },
+        'freeTrial.status': 'completed', freeTrialCompletedAt: admin.firestore.FieldValue.serverTimestamp(),
         vaultBadge: false
       });
     }
