@@ -108,7 +108,7 @@
             <div style="color:rgba(255,255,255,0.75);font-size:13px;">${locationDisplay}</div>
           </div>
         </div>
-        ${p.photos&&p.photos.length>1?`<div class="photo-strip" style="margin-bottom:1rem;">${p.photos.map((url,i)=>`<img class="photo-thumb" src="${url}" alt="Photo ${i+1}" onclick="openMemberPhoto(${i})" style="cursor:zoom-in;"/>`).join('')}</div>`:''}
+        ${viewedPhotos.length>1?`<div class="photo-strip" style="margin-bottom:1rem;">${viewedPhotos.map((url,i)=>`<img class="photo-thumb" src="${url}" alt="Photo ${i+1}" onclick="openMemberPhoto(${i})" style="cursor:zoom-in;"/>`).join('')}</div>`:''}
         <div class="glass-card" id="profileActions" style="margin-bottom:0.75rem;">
           ${renderActionState()}
         </div>
