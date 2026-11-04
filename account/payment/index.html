@@ -272,6 +272,8 @@
       } else if (purpose === 'subscription') {
         const label = planLabel(plan);
         await updateDoc(doc(db, 'users', currentUser.uid), {
+          paid: true, hasPaid: true, plan, stage: 'paid', status: 'active_member',
+          'freeTrial.status': 'completed', freeTrialCompletedAt: serverTimestamp(),
           subscription: { plan, billing, status: 'active', startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(billing), prioritySupportRequests: profile.subscription?.prioritySupportRequests || 0 },
           vaultBadge: plan === 'vault', subscriptionExpirationEmailSentFor: null, lastSubscriptionPaymentAt: serverTimestamp(), lastSubscriptionPaymentMethod: method
         });
