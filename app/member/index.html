@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <link rel="manifest" href="/manifest.json">
+  <script>window.__dateVaultInstallPrompt=null;window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();window.__dateVaultInstallPrompt=event;});</script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Member Profile — DateVault</title>
@@ -16,6 +17,7 @@
     <div class="topbar">
       <button onclick="history.back()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:22px;">‹</button>
       <div class="topbar-title">Member Profile</div>
+      <button type="button" id="installAppButton" class="btn btn-outline btn-sm">Install App</button>
     </div>
     <div class="profile-page" id="memberProfile"></div>
   </div>
@@ -184,5 +186,6 @@
 
     init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
-<script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons();</script></body>
+<script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons();</script><script type="module" src="../../js/pwa-install.js"></script>
+</body>
 </html>
