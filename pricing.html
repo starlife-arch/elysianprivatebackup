@@ -109,7 +109,7 @@
     }
     function entryUrl() {
       const token = currentProfile?.inviteToken || currentProfile?.inviteCode || '';
-      return token ? `/account/payment/?token=${encodeURIComponent(token)}` : '/app/dashboard/';
+      return token ? `/account/payment/?token=${encodeURIComponent(token)}` : (isActiveTrial() ? '/account/payment/' : '/app/dashboard/');
     }
     function refreshEntryButton() {
       const btn = document.getElementById('entryCheckoutBtn');
