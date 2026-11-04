@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <link rel="manifest" href="/manifest.json">
+  <script>window.__dateVaultInstallPrompt=null;window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();window.__dateVaultInstallPrompt=event;});</script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Profile — DateVault</title>
@@ -24,6 +25,7 @@
   <div class="app-shell">
     <div class="topbar">
       <div class="topbar-title">Profile</div>
+      <button type="button" id="installAppButton" class="btn btn-outline btn-sm">Install App</button>
       <button onclick="doLogout()" style="background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;">Sign Out</button>
     </div>
     <div class="profile-page" id="profileContent"></div>
@@ -550,5 +552,6 @@
     init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
 
+<script type="module" src="../../js/pwa-install.js"></script>
 </body>
 </html>
