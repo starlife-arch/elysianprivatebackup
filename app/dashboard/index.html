@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
   <link rel="manifest" href="/manifest.json">
+  <script>window.__dateVaultInstallPrompt=null;window.addEventListener('beforeinstallprompt',event=>{event.preventDefault();window.__dateVaultInstallPrompt=event;});</script>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Discover — DateVault</title>
@@ -33,6 +34,7 @@
     <div class="topbar">
       <div class="topbar-title">Discover</div>
       <div style="display:flex;gap:0.75rem;align-items:center;">
+        <button type="button" id="installAppButton" class="btn btn-outline btn-sm" style="white-space:nowrap;padding:0.45rem 0.65rem;">Install App</button>
         <span id="memberBadge" class="status-badge status-gold" style="font-size:11px;"></span>
         <button onclick="openFilter()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
@@ -708,5 +710,6 @@
     </div>
   </div>
 
-<script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons();</script></body>
+<script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons();</script>
+<script type="module" src="../../js/pwa-install.js"></script></body>
 </html>
