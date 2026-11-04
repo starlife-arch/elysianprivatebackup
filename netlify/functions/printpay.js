@@ -42,6 +42,10 @@ async function sendNotifications(payment, user) {
     const nbd = nextBillingDate(payment.billing);
     emailPayload = { type: 'subscription_renewed', ...emailBase, plan: planLabel(payment.plan), billing: payment.billing, amountUSD: payment.amountUSD, amountKes: payment.amountKes, nextBillingDate: nbd };
 
+  } else if (payment.purpose === 'addon') {
+    telegramPayload = { event: 'addon_purchased', ...telegramBase, addon: payment.addon, amountUSD: payment.amountUSD };
+    emailPayload = { type: 'addon_purchased', ...emailBase, addon: payment.addon, amountUSD: payment.amountUSD, amountKes: payment.amountKes };
+
   } else if (payment.purpose === 'priority_support') {
     telegramPayload = {
       event: 'priority_support_requested', ...telegramBase,
@@ -72,7 +76,9 @@ async function sendNotifications(payment, user) {
       ? `DateVault: Payment confirmed. ${Number(payment.tokens || 0).toLocaleString()} tokens have been added to your wallet.`
       : payment.purpose === 'subscription'
         ? `DateVault: Payment confirmed. Your ${planLabel(payment.plan)} plan is now active.`
-        : payment.purpose === 'priority_support'
+        : payment.purpose === 'addon'
+          ? `DateVault: Your ${({ boost: 'Profile Boost', superlike_pack: 'Super Like Pack', incognito: 'Incognito Mode' })[payment.addon] || 'add-on'} purchase is confirmed.`
+          : payment.purpose === 'priority_support'
           ? 'DateVault: Your priority support purchase was confirmed. Thank you.'
           : 'DateVault: Your membership payment was confirmed. Thank you.';
     try {
@@ -89,7 +95,8 @@ async function writeInvoice(tx, payment, checkoutId) {
     uid: payment.uid,
     provider: 'printpay',
     purpose: payment.purpose || 'entry',
-    plan: payment.plan || 'standard',
+    plan: payment.purpose === 'subscription' ? payment.plan : (payment.purpose === 'entry' ? 'standard' : null),
+    addon: payment.addon || null,
     billing: payment.billing || 'included',
     amountKes: payment.amountKes || 0,
     amountUSD: Number(payment.amountUSD || 0),
@@ -102,13 +109,15 @@ async function writeInvoice(tx, payment, checkoutId) {
 
 // ─── Start STK push ────────────────────────────────────────────────────────
 async function start(event) {
-  const { phone_number, amount, uid, purpose = 'entry', plan = 'standard', billing = 'monthly', tokens = 0, amountUSD = 0 } = parseBody(event);
+  const { phone_number, amount, uid, purpose = 'entry', plan = 'standard', billing = 'monthly', tokens = 0, addon = '', amountUSD = 0 } = parseBody(event);
   let phone = String(phone_number || '').replace(/[^0-9]/g, '');
   if (/^0[17]\d{8}$/.test(phone)) phone = `254${phone.slice(1)}`;
   const kes = Math.round(Number(amount));
   if (!uid || !/^254[17]\d{8}$/.test(phone) || !Number.isInteger(kes) || kes < 1) return json(400, { error: 'Provide a valid Kenyan phone number, amount, and member.' });
   const tokenPacks = { 100: 1, 500: 5, 1000: 10, 2000: 20, 5000: 50, 10000: 90 };
   if (purpose === 'tokens' && tokenPacks[Number(tokens)] !== Number(amountUSD)) return json(400, { error: 'Invalid token pack.' });
+  if (purpose === 'addon' && !['boost', 'superlike_pack', 'incognito'].includes(addon)) return json(400, { error: 'Invalid add-on selection.' });
+  if (!['entry', 'subscription', 'priority_support', 'tokens', 'addon'].includes(purpose)) return json(400, { error: 'Unsupported payment purpose.' });
   if (!process.env.PRINTPAY_API_KEY) return json(503, { error: 'PrintPay is not configured', code: 'misconfigured' });
   let upstream = await fetchJSON(PRINTPAY_URL, { method: 'POST', headers: { Accept: 'application/json' }, form: true }, { x_api_key: process.env.PRINTPAY_API_KEY, phone_number: phone, amount: kes });
   if (upstream.status >= 400) {
@@ -122,7 +131,7 @@ async function start(event) {
   if (!checkout_id) throw new Error(result.message || 'PrintPay did not return a checkout ID.');
   await db().collection('payments').doc(`printpay_${checkout_id}`).set({
     uid, phone, amountKes: kes, amountUSD: Number(amountUSD || 0),
-    purpose, plan, billing, tokens: Number(tokens || 0),
+    purpose, plan, billing, tokens: Number(tokens || 0), addon,
     checkout_id, provider: 'printpay', status: 'pending',
     createdAt: getAdmin().firestore.FieldValue.serverTimestamp()
   });
@@ -172,6 +181,14 @@ async function complete(checkoutId, statusData) {
         lastSubscriptionPaymentAt: now,
         lastSubscriptionPaymentMethod: 'printpay'
       });
+
+    } else if (payment.purpose === 'addon') {
+      const addonKey = payment.addon === 'superlike_pack' ? 'superlikePack' : payment.addon;
+      const durationMs = payment.addon === 'boost' ? 24 * 60 * 60 * 1000 : payment.addon === 'incognito' ? 7 * 24 * 60 * 60 * 1000 : null;
+      const expiresAt = durationMs ? getAdmin().firestore.Timestamp.fromMillis(Date.now() + durationMs) : null;
+      const currentUses = Number(completedUser.addons?.superlikePack?.remainingUses || 0);
+      const addonData = { active: true, purchasedAt: now, expiresAt, remainingUses: payment.addon === 'superlike_pack' ? currentUses + 10 : null };
+      tx.update(userRef, { [`addons.${addonKey}`]: addonData, ...(payment.addon === 'boost' ? { boostActive: true, boostExpiresAt: expiresAt } : {}) });
 
     } else if (payment.purpose === 'priority_support') {
       const reqRef = db().collection('priority_support_requests').doc();

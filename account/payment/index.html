@@ -208,7 +208,7 @@
       if (!/^(?:0\d{9}|254\d{9})$/.test(phone_number)) { showErr('Enter a Kenyan M-Pesa number in 07XXXXXXXX or 254XXXXXXXX format.'); return; }
       const btn = document.getElementById('printpayPayBtn'); btn.disabled = true; btn.textContent = 'Sending STK push...'; showErr('');
       try {
-        const res = await fetch('/api/printpay', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone_number, amount: amountKES, uid: currentUser.uid, purpose, plan, billing, tokens: tokenCount, amountUSD }) });
+        const res = await fetch('/api/printpay', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ phone_number, amount: amountKES, uid: currentUser.uid, purpose, plan, billing, tokens: tokenCount, addon, amountUSD }) });
         const contentType = res.headers.get('content-type') || ''; if (!contentType.includes('application/json')) throw new Error('Payment service returned an unexpected response.'); const data = await res.json(); if (!res.ok || !data.checkout_id) throw new Error(data.error || 'Could not start M-Pesa payment.');
         showSuccess('Check your phone and enter your M-Pesa PIN.'); pollPrintPay(data.checkout_id);
       } catch (e) { showErr(e.message); btn.disabled = false; btn.textContent = 'Pay with M-Pesa'; }
