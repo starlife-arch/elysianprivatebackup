@@ -32,21 +32,21 @@ test('expired active subscription is not eligible', () => {
   assert.equal(photoMessageCost(profile, now), null);
 });
 
-test('photo charge, message write and wallet deduction remain in one transaction', () => {
+test('photo charge, message writes and wallet deduction remain in one transaction', () => {
   const source = fs.readFileSync(path.join(__dirname, '../netlify/functions/wallet.js'), 'utf8');
-  const sendImage = source.slice(source.indexOf('async function sendImage'), source.indexOf('exports.handler'));
-  assert.match(source, /body\.action === 'send_image'\s*\? await sendImage\(user\.uid, body\)/);
-  assert.match(sendImage, /await _db\.runTransaction\(async tx =>/);
-  assert.ok(sendImage.indexOf('tx.update(senderRef') > sendImage.indexOf('await _db.runTransaction'));
-  assert.ok(sendImage.indexOf('tx.set(messageRef') > sendImage.indexOf('await _db.runTransaction'));
-  assert.match(sendImage, /photoMessageCost\(profile\)/);
+  const sendImages = source.slice(source.indexOf('async function sendImages'), source.indexOf('exports.handler'));
+  assert.match(source, /body\\.action === 'send_image' \\|\\| body\\.action === 'send_images' \\? await sendImages\\(user\\.uid, body\\)/);
+  assert.match(sendImages, /await _db\\.runTransaction\\(async tx =>/);
+  assert.match(sendImages, /tx\\.update\\(senderRef/);
+  assert.match(sendImages, /tx\\.set\\(messageRefs\\[i\\]/);
+  assert.match(sendImages, /photoMessageCost\\(profile\\)/);
 });
 
-test('client blocks duplicate in-flight photo sends', () => {
+test('client prevents duplicate in-flight batch photo sends', () => {
   const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
-  assert.match(source, /if \(!file \|\| !recipient \|\| sendingImage\) return;/);
+  assert.match(source, /if \\(!selected\\.length \\|\\| !recipient \\|\\| sendingImage\\) return;/);
   assert.match(source, /sendingImage = true;/);
-  assert.match(source, /finally \{ sendingImage = false;/);
+  assert.match(source, /finally \\{[\\s\\S]*sendingImage = false;/);
 });
 
 test('video-call setup failures issue a wallet refund ledger entry', () => {
