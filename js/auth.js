@@ -5,7 +5,7 @@ import {
   signInWithRedirect, getRedirectResult
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, updateDoc, serverTimestamp
+  doc, getDoc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { expireSubscriptionIfNeeded, hasActiveMembership } from "./subscription.js";
 
@@ -33,15 +33,6 @@ function dateOnly(value) {
 function isAccessExpired(profile) {
   if (profile.status !== "active_member" || !profile.accessExpiry) return false;
   return new Date().toISOString().slice(0, 10) >= dateOnly(profile.accessExpiry);
-}
-
-async function expireAccess(uid) {
-  await updateDoc(doc(db, "users", uid), {
-    status: "approved_pending_payment",
-    paid: false,
-    adminOverride: false,
-    accessExpiredAt: serverTimestamp()
-  });
 }
 
 export function genMemberId() {
@@ -116,7 +107,12 @@ export async function routeUser(user) {
     return;
   }
   if (isAccessExpired(d)) {
-    await expireAccess(user.uid);
+    // Do not mutate protected membership/payment fields from the browser.
+    // The trusted payment flow handles renewal; client-side writes here used
+    // to fail Firestore rules and strand Google redirect sign-ins.
+    const token = d.inviteToken || d.inviteCode || "";
+    window.location.href = `/account/payment/${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    return;
   }
   window.location.href = "/app/dashboard/";
 }
@@ -141,7 +137,6 @@ export async function requireMember() {
       const snap = await getDoc(doc(db, "users", user.uid));
       let profile = snap.exists() ? normalizeProfile(snap.data()) : null;
       if (!profile || profile.banned || profile.status === "approved_pending_payment" || isAccessExpired(profile)) {
-        if (profile && isAccessExpired(profile)) await expireAccess(user.uid);
         routeUser(user); return;
       }
       const subResult = await expireSubscriptionIfNeeded(user.uid, profile);
