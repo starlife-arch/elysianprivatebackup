@@ -55,3 +55,18 @@ test('video-call setup failures issue a wallet refund ledger entry', () => {
   assert.match(source, /type: 'call_refund'/);
   assert.match(source, /await refund\(user\.uid, callCost, chargeInfo\.transactionId\)/);
 });
+
+test('low token balance is rejected before a photo debit', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../netlify/functions/wallet.js'), 'utf8');
+  const sendImage = source.slice(source.indexOf('async function sendImage'), source.indexOf('exports.handler'));
+  assert.ok(sendImage.indexOf('if (current < cost)') < sendImage.indexOf('tx.update(senderRef'));
+  assert.match(sendImage, /status: 402, balance: current, cost/);
+});
+
+test('empty swipe deck stays empty and previously swiped profiles are not recycled', () => {
+  const dashboard = fs.readFileSync(path.join(__dirname, '../app/dashboard/index.html'), 'utf8');
+  const swipe = fs.readFileSync(path.join(__dirname, '../js/swipe.js'), 'utf8');
+  assert.match(dashboard, /if \(profiles\.length === 0\) \{\s*deck\.replaceChildren\(\);\s*return;/);
+  assert.match(swipe, /swipedUIDs\.has\(d\.id\)/);
+  assert.match(swipe, /swipedUIDs\.add\(currentUser\.uid\)/);
+});
