@@ -207,7 +207,7 @@
     import { verifiedBadge } from "../../js/icons.js";
     import { listenForNotifications } from "../../js/notifications.js";
     import { startCallListener } from "../../js/call-listener.js";
-    import { hasPlan, isVault, getSubscription } from "../../js/subscription.js";
+    import { hasPlan, isVault, getSubscription, hasActiveMembership, isSubscriptionExpired } from "../../js/subscription.js";
     import { db } from "../../js/auth.js";
     import { sendMessage, listenMessages, fetchConversations } from "../../js/chat.js";
     import { uploadToCloudinary } from "../../js/verification.js";
@@ -227,6 +227,19 @@
     const openUID = params.get('uid');
     const draftMessage = params.get('draft');
 
+
+    // Keep photo pricing available to the shared chat UI without allowing
+    // a photo-entitlement check to break opening ordinary text conversations.
+    function imageTokenCost() {
+      try {
+        if (!myProfile || !hasActiveMembership(myProfile) || isSubscriptionExpired(myProfile)) return null;
+        const plan = getSubscription(myProfile).plan;
+        return ['elite', 'vault'].includes(plan) ? 0 : 30;
+      } catch (error) {
+        console.error('Could not determine photo-message eligibility', error);
+        return null;
+      }
+    }
 
     function isStandardPlan() {
       return (myProfile?.stage === 'paid' || myProfile?.hasPaid || myProfile?.paid) && (myProfile?.plan || myProfile?.subscription?.plan) === 'standard';

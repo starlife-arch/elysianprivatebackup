@@ -112,3 +112,20 @@ test('chat block-state script contains real line breaks, not escaped newline tok
   assert.doesNotMatch(source, /imageTokenCost\(\);\\\\n\s*const canSendPhotos/);
   assert.doesNotMatch(source, /const canSendPhotos = photoCost !== null;\\\\n/);
 });
+
+
+test('every chat conversation has a defined, non-throwing photo cost helper', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(source, /import \{[^}]*hasActiveMembership[^}]*isSubscriptionExpired[^}]*\} from ["']\.\.\/\.\.\/js\/subscription\.js["']/);
+  assert.match(source, /function imageTokenCost\(\) \{[\s\S]*?hasActiveMembership\(myProfile\)[\s\S]*?isSubscriptionExpired\(myProfile\)[\s\S]*?return \['elite', 'vault'\]\.includes\(plan\) \? 0 : 30;/);
+  assert.match(source, /function applyBlockState\(\) \{[\s\S]*?const photoCost = imageTokenCost\(\);/);
+});
+
+test('chat initialization can proceed independently of photo entitlement', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  const openChat = source.slice(source.indexOf('async function openChat(uid)'), source.indexOf('function refreshBlockState(uid)'));
+  assert.match(openChat, /applyBlockState\(\);\s*unsubMessages = listenMessages/);
+  const costHelper = source.slice(source.indexOf('function imageTokenCost()'), source.indexOf('function isStandardPlan()'));
+  assert.match(costHelper, /catch \(error\)/);
+  assert.match(costHelper, /return null;/);
+});
