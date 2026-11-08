@@ -48,3 +48,10 @@ test('client blocks duplicate in-flight photo sends', () => {
   assert.match(source, /sendingImage = true;/);
   assert.match(source, /finally \{ sendingImage = false;/);
 });
+
+test('video-call setup failures issue a wallet refund ledger entry', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../netlify/functions/video-call.js'), 'utf8');
+  assert.match(source, /async function refund\(uid, cost, chargeTransactionId\)/);
+  assert.match(source, /type: 'call_refund'/);
+  assert.match(source, /await refund\(user\.uid, callCost, chargeInfo\.transactionId\)/);
+});
