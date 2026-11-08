@@ -182,7 +182,7 @@
     function isPaidStage() { return isFreeTrialMember() || ['paid','elite','vault'].includes(myProfile.stage) || myProfile.hasPaid || myProfile.paid; }
     function isPremium() { return ['elite','vault'].includes(currentPlan()) || ['elite','vault'].includes(myProfile.stage); }
 
-    function hasExploreAccess() { return isPremium(); }
+    function hasExploreAccess() { return isVault(myProfile); }
     function updateExploreNavLock() {
       const nav = document.getElementById('exploreNavItem');
       const lock = document.getElementById('exploreNavLock');
