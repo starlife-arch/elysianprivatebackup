@@ -70,3 +70,20 @@ test('empty swipe deck stays empty and previously swiped profiles are not recycl
   assert.match(swipe, /swipedUIDs\.has\(d\.id\)/);
   assert.match(swipe, /swipedUIDs\.add\(currentUser\.uid\)/);
 });
+
+
+test('expired access routes to renewal without a forbidden client-side membership write', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
+  assert.doesNotMatch(source, /async function expireAccess\s*\(/);
+  assert.match(source, /if \(isAccessExpired\(d\)\) \{[\s\S]*?\/account\/payment\//);
+  assert.doesNotMatch(source, /if \(profile && isAccessExpired\(profile\)\) await expireAccess/);
+});
+
+test('Firestore rules preserve self profile access and protect wallet/payment mutations', () => {
+  const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
+  assert.match(rules, /match \/users\/\{uid\} \{[\s\S]*?allow read: if isOwner\(uid\)/);
+  assert.match(rules, /allow create: if isOwner\(uid\)/);
+  assert.match(rules, /walletBalance/);
+  assert.match(rules, /match \/payments\/\{paymentId\} \{[\s\S]*?allow create, update, delete: if isAdmin\(\)/);
+  assert.match(rules, /match \/otp_verifications\/\{otpId\} \{\s*allow read, write: if false;/);
+});
