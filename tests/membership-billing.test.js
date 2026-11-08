@@ -87,3 +87,20 @@ test('Firestore rules preserve self profile access and protect wallet/payment mu
   assert.match(rules, /match \/payments\/\{paymentId\} \{[\s\S]*?allow create, update, delete: if isAdmin\(\)/);
   assert.match(rules, /match \/otp_verifications\/\{otpId\} \{\s*allow read, write: if false;/);
 });
+
+
+test('expired active members enter renewal checkout without requiring a used invite token', () => {
+  const auth = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
+  const payment = fs.readFileSync(path.join(__dirname, '../account/payment/index.html'), 'utf8');
+  assert.match(auth, /window\.location\.href = ["']\/account\/payment\/\?renewal=1["']/);
+  assert.match(payment, /const isRenewal = params\.get\('renewal'\) === '1'/);
+  assert.match(payment, /isRenewal && profile\.status === 'active_member'/);
+  assert.match(payment, /!isRenewal && !isPesapalCallback && inviteToken/);
+  assert.match(payment, /purpose !== 'entry' \|\| isRenewal \|\| !inviteToken/);
+});
+
+test('chat page has no literal escaped newline tokens in executable JavaScript', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.doesNotMatch(source, /;\\\\n\\s*item\.style/);
+  assert.match(source, /item\.className = 'chat-item';\s*item\.style\.userSelect/);
+});
