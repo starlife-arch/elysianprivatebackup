@@ -87,47 +87,78 @@ async function boost(uid) {
 async function addon(uid, kind) { const cfg=kind==='superlike_pack'?[SUPERLIKE_PACK_COST,'superlikePack',null,SUPERLIKE_PACK_COUNT,'Super Like Pack — 10 super likes','superlike_pack_purchase']: [INCOGNITO_COST,'incognito',INCOGNITO_DURATION_MS,null,'Incognito Mode — 7 days','incognito_purchase']; let balance,expiresAt; await _db.runTransaction(async tx=>{const ref=_db.collection('users').doc(uid),snap=await tx.get(ref);if(!snap.exists)throw new Error('Member not found.');const data=snap.data(),current=Number(data.walletBalance||0);if(data.walletFrozen||data.banned)throw new Error('This wallet is currently on hold.');if(current<cfg[0])throw new Error(`You need ${cfg[0]} tokens to buy this add-on.`);balance=current-cfg[0];expiresAt=cfg[2]?admin().firestore.Timestamp.fromMillis(Date.now()+cfg[2]):null;const uses=cfg[3]?Number(data.addons?.superlikePack?.remainingUses||0)+cfg[3]:null;tx.update(ref,{walletBalance:balance,[`addons.${cfg[1]}`]:{active:true,purchasedAt:ts(),expiresAt,remainingUses:uses}});tx.set(txn(uid),{type:cfg[5],amount:cfg[0],note:cfg[4],createdAt:ts(),status:'completed'});});return {balance,expiresAt:expiresAt?.toDate().toISOString(),superlikesAdded:cfg[3]};}
 
 
-async function sendImage(uid, body) {
-  const { toUID, imageURL } = body;
-  if (!toUID || toUID === uid || typeof imageURL !== 'string') throw new Error('A valid conversation and image are required.');
-  let parsed;
-  try { parsed = new URL(imageURL); } catch (_) { throw new Error('Invalid image URL.'); }
-  if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com') throw new Error('Only hosted DateVault images can be sent.');
+async function sendImages(uid, body) {
+  const { toUID } = body;
+  const imageURLs = Array.isArray(body.imageURLs) ? body.imageURLs : [body.imageURL];
+  if (!toUID || toUID === uid || imageURLs.length < 1 || imageURLs.length > 10) {
+    throw new Error('Choose between 1 and 10 images for this conversation.');
+  }
+  for (const imageURL of imageURLs) {
+    let parsed;
+    try { parsed = new URL(imageURL); } catch (_) { throw new Error('One of the image URLs is invalid.'); }
+    if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com') {
+      throw new Error('Only hosted DateVault images can be sent.');
+    }
+  }
 
-  const matchId = [uid, toUID].sort().join('_');
+  const conversationId = [uid, toUID].sort().join('_');
   const senderRef = _db.collection('users').doc(uid);
   const recipientRef = _db.collection('users').doc(toUID);
-  const matchRef = _db.collection('matches').doc(matchId);
+  const matchRef = _db.collection('matches').doc(conversationId);
   const mineBlockRef = senderRef.collection('blocked').doc(toUID);
   const theirBlockRef = recipientRef.collection('blocked').doc(uid);
-  const messageRef = matchRef.collection('messages').doc();
-  let balance = 0, cost = null;
+  const messageRefs = imageURLs.map(() => matchRef.collection('messages').doc());
+  let balance = 0, cost = null, sentCount = 0;
 
-  // The balance check, debit, ledger entry and message creation are atomic.
-  // A failed transaction cannot charge a member without delivering the photo.
+  // Select the affordable prefix and write all selected messages plus one
+  // aggregate debit in the same transaction, so the wallet can never be
+  // charged for an image that was not added to the conversation.
   await _db.runTransaction(async tx => {
     const [sender, recipient, match, mineBlock, theirBlock] = await Promise.all([
       tx.get(senderRef), tx.get(recipientRef), tx.get(matchRef), tx.get(mineBlockRef), tx.get(theirBlockRef)
     ]);
-    if (!sender.exists || !recipient.exists || !match.exists || match.data()?.unmatched) throw new Error('You can only send photos to an active match.');
+    if (!sender.exists || !recipient.exists || !match.exists || match.data()?.unmatched) {
+      throw new Error('You can only send photos to an active match.');
+    }
     if (mineBlock.exists || theirBlock.exists) throw new Error('Messaging is blocked for this conversation.');
 
     const profile = sender.data();
     cost = photoMessageCost(profile);
     if (cost === null) throw new Error('An active membership is required to send photos.');
     const current = Number(profile.walletBalance || 0);
-    if (current < cost) throw Object.assign(new Error('Not enough tokens. Sending this photo costs 30 tokens. Buy tokens in your Wallet.'), { status: 402, balance: current, cost });
-    balance = current - cost;
-
-    if (cost > 0) {
-      tx.update(senderRef, { walletBalance: balance });
-      tx.set(txn(uid), { type: 'chat_image', amount: -cost, toUID, note: 'Photo message', createdAt: ts(), status: 'completed' });
+    sentCount = cost === 0 ? imageURLs.length : Math.min(imageURLs.length, Math.floor(current / cost));
+    if (sentCount < 1) {
+      throw Object.assign(new Error('Not enough tokens. Each photo costs 30 tokens. Buy tokens in your Wallet.'), {
+        status: 402, balance: current, cost, required: cost
+      });
     }
-    tx.set(messageRef, { senderUID: uid, text: null, imageURL, sentAt: ts(), read: false });
-    tx.update(matchRef, { lastMessage: 'Photo', lastMessageAt: ts(), [`hasUnread_${toUID}`]: true });
+
+    const totalCost = sentCount * cost;
+    balance = current - totalCost;
+    if (totalCost > 0) {
+      tx.update(senderRef, { walletBalance: balance });
+      tx.set(txn(uid), {
+        type: 'chat_image', amount: -totalCost, imageCount: sentCount, toUID,
+        note: sentCount === 1 ? 'Photo message' : `${sentCount} photo messages`,
+        createdAt: ts(), status: 'completed'
+      });
+    }
+    for (let i = 0; i < sentCount; i++) {
+      tx.set(messageRefs[i], { senderUID: uid, text: null, imageURL: imageURLs[i], sentAt: ts(), read: false });
+    }
+    tx.update(matchRef, {
+      lastMessage: sentCount === 1 ? 'Photo' : `${sentCount} photos`,
+      lastMessageAt: ts(), [`hasUnread_${toUID}`]: true
+    });
   });
-  return { ok: true, balance, cost, messageId: messageRef.id };
+
+  return {
+    ok: true, balance, cost, imagesSent: sentCount,
+    imagesSkipped: imageURLs.length - sentCount,
+    messageIds: messageRefs.slice(0, sentCount).map(ref => ref.id)
+  };
 }
+
 exports.handler = async event => {
   const options = preflight(event);
   if (options) return options;
@@ -139,7 +170,7 @@ exports.handler = async event => {
       : body.action === 'boost' ? await boost(user.uid)
       : body.action === 'superlike_pack' ? await addon(user.uid, 'superlike_pack')
       : body.action === 'incognito' ? await addon(user.uid, 'incognito')
-      : body.action === 'send_image' ? await sendImage(user.uid, body)
+      : body.action === 'send_image' || body.action === 'send_images' ? await sendImages(user.uid, body)
       : null;
     if (!data) return json(400, { error: 'Unknown wallet action' });
     return json(200, data);
