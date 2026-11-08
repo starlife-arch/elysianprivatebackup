@@ -29,7 +29,24 @@ export async function sendMessage(myUID, theirUID, text, imageURL = null) {
     sentAt: serverTimestamp(),
     read: false
   };
-  await addDoc(collection(db, "matches", matchId, "messages"), msg);
+  const matchRef = doc(db, "matches", matchId);
+  const userRef = doc(db, "users", myUID);
+  const messageRef = doc(collection(db, "matches", matchId, "messages"));
+  const today = new Date().toISOString().slice(0, 10);
+  await runTransaction(db, async transaction => {
+    const [matchSnap, userSnap] = await Promise.all([transaction.get(matchRef), transaction.get(userRef)]);
+    if (!matchSnap.exists() || matchSnap.data()?.unmatched) throw new Error("This match is no longer available.");
+    if (!userSnap.exists()) throw new Error("Your account could not be verified.");
+    const user = userSnap.data();
+    const messagesSentToday = user.lastMessageDate === today ? Number(user.messagesSentToday || 0) + 1 : 1;
+    transaction.set(messageRef, msg);
+    transaction.update(matchRef, {
+      lastMessage: text || "Photo",
+      lastMessageAt: serverTimestamp(),
+      [`hasUnread_${theirUID}`]: true
+    });
+    transaction.update(userRef, { messagesSentToday, lastMessageDate: today });
+  });
   const preview = imageURL && !text ? 'Sent you a photo' : String(text || 'Sent you a message').trim().slice(0, 100);
   auth.currentUser?.getIdToken().then(token => fetch('/api/send-push', {
     method: 'POST',
@@ -39,21 +56,6 @@ export async function sendMessage(myUID, theirUID, text, imageURL = null) {
       title: 'New message', body: preview, url: `/app/chat/?uid=${encodeURIComponent(myUID)}`
     })
   })).catch(error => console.error('Could not send message push notification', error));
-  // Update last message on match doc
-  await updateDoc(doc(db, "matches", matchId), {
-    lastMessage: text || "Photo",
-    lastMessageAt: serverTimestamp(),
-    [`hasUnread_${theirUID}`]: true
-  });
-  const today = new Date().toISOString().slice(0, 10);
-  await runTransaction(db, async transaction => {
-    const userRef = doc(db, "users", myUID);
-    const userSnap = await transaction.get(userRef);
-    if (!userSnap.exists()) return;
-    const user = userSnap.data();
-    const messagesSentToday = user.lastMessageDate === today ? Number(user.messagesSentToday || 0) + 1 : 1;
-    transaction.update(userRef, { messagesSentToday, lastMessageDate: today });
-  });
 }
 
 // ── Listen to messages in real-time ──
