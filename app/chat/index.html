@@ -101,7 +101,7 @@
       </button>
     </div>
     <div class="chat-messages" id="messages"></div>
-    <div class="chat-input-bar">
+    <div id="imagePriceNotice" style="display:none;padding:5px 14px;text-align:center;font-size:11px;color:var(--muted);background:var(--surface);">Photos cost 30 tokens each. <a href="/app/wallet/" style="color:var(--gold);">Buy tokens in Wallet</a>.</div>\n    <div class="chat-input-bar">
       <button class="attach-btn" id="giftBtn" title="Send token gift" aria-label="Send token gift" style="background:none;border:none;color:var(--gold);cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:44px;height:44px;"><i data-icon="gift" data-size="22"></i></button>
       <button class="attach-btn" id="imageBtn" onclick="document.getElementById('imgInput').click()" style="background:none;border:none;color:var(--muted);cursor:pointer;flex-shrink:0;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
@@ -206,7 +206,7 @@
     import { verifiedBadge } from "../../js/icons.js";
     import { listenForNotifications } from "../../js/notifications.js";
     import { startCallListener } from "../../js/call-listener.js";
-    import { hasPlan, isVault } from "../../js/subscription.js";
+    import { hasPlan, isVault, getSubscription } from "../../js/subscription.js";
     import { db } from "../../js/auth.js";
     import { sendMessage, listenMessages, fetchConversations } from "../../js/chat.js";
     import { uploadToCloudinary } from "../../js/verification.js";
@@ -217,7 +217,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let myUser, myProfile, theirUID = null, theirProfile = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
-    let blockedByMe = false, blockedMe = false;
+    let blockedByMe = false, blockedMe = false, sendingMessage = false;
     let selectedReportReason = '';
 
     const REPORT_REASONS = ['Harassment','Fake profile','Inappropriate content','Scam or fraud','Underage user','Hate speech','Other'];
@@ -233,11 +233,11 @@
     function updateExploreNavLock() {
       const nav = document.getElementById('exploreNavItem');
       const lock = document.getElementById('exploreNavLock');
-      if (!nav || !lock || !isStandardPlan()) return;
+      if (!nav || !lock || isVault(myProfile)) return;
       lock.style.display = 'block';
       nav.onclick = (event) => {
         event.preventDefault();
-        showToast('Explore requires Elite or Vault. Upgrade to unlock.');
+        showToast('Explore is exclusive to Vault members. Upgrade to Vault to unlock.');
       };
     }
 
@@ -387,14 +387,14 @@
       const text = document.getElementById('blockToggleText');
       if (text) text.textContent = blockedByMe ? 'Unblock User' : 'Block User';
       const blocked = blockedByMe || blockedMe;
-      const canSendPhotos = hasPlan(myProfile, 'elite');
+      const photoCost = imageTokenCost();\n      const canSendPhotos = photoCost !== null;\n      const priceNotice = document.getElementById('imagePriceNotice');\n      if (priceNotice) priceNotice.style.display = photoCost === 30 ? 'block' : 'none';
       if (input) {
         input.disabled = blocked;
         input.placeholder = blockedByMe ? 'You blocked this member. Unblock to message again.' : (blockedMe ? 'You cannot message this member.' : 'Type a message...');
       }
       if (sendBtn) sendBtn.disabled = blocked;
       if (giftBtn) { giftBtn.disabled = blocked; giftBtn.title = blocked ? 'Gifting is unavailable in a blocked conversation' : 'Send token gift'; }
-      if (uploadBtn) { uploadBtn.disabled = blocked || !canSendPhotos; uploadBtn.title = canSendPhotos ? '' : 'Upgrade to Elite or Vault to send photos'; }
+      if (uploadBtn) { uploadBtn.disabled = blocked || !canSendPhotos; uploadBtn.title = !canSendPhotos ? 'An active membership is required to send photos' : photoCost ? '30 tokens per photo — buy tokens in Wallet' : 'Free photo messages'; }
     }
 
     function renderMessages(msgs) {
@@ -459,16 +459,20 @@
     };
 
     window.sendMsg = async function() {
-      const input = document.getElementById('msgInput');
-      const text = input.value.trim();
-      if (!text || !theirUID) return;
-      await refreshBlockState(theirUID); applyBlockState();
-      if (blockedByMe || blockedMe) { showToast('Messaging is blocked.'); return; }
-      const matchSnap = await getDoc(doc(db, 'users', myUser.uid, 'matches', theirUID));
-      if (!matchSnap.exists()) { showToast('Not a match. Cannot send messages.'); return; }
-      input.value = ''; autoResize(input);
-      try { await sendMessage(myUser.uid, theirUID, text); }
-      catch(e) { showToast(e.message || 'Message failed.'); }
+      const input = document.getElementById('msgInput'), button = document.getElementById('sendBtn');
+      const text = input.value.trim(), recipient = theirUID;
+      if (!text || !recipient || sendingMessage) return;
+      sendingMessage = true; if (button) button.disabled = true;
+      try {
+        await refreshBlockState(recipient); applyBlockState();
+        if (blockedByMe || blockedMe) throw new Error('Messaging is blocked.');
+        const matchSnap = await getDoc(doc(db, 'users', myUser.uid, 'matches', recipient));
+        if (!matchSnap.exists()) throw new Error('Not a match. Cannot send messages.');
+        await sendMessage(myUser.uid, recipient, text);
+        if (input.value.trim() === text) input.value = '';
+        autoResize(input);
+      } catch(e) { showToast(e.message || 'Message failed.'); }
+      finally { sendingMessage = false; if (button) button.disabled = blockedByMe || blockedMe; }
     };
 
     window.openGift = async function() {
@@ -482,30 +486,39 @@
 
     document.getElementById('videoCallBtn').addEventListener('click', async () => {
       if (!theirUID) { showToast('Open a match to start a video call.'); return; }
-      if (!isVault(myProfile)) { showToast('Video calls require Vault. Upgrade to unlock.'); return; }
+      const plan = getSubscription(myProfile).plan;
+      const callCost = plan === 'free_trial' ? 100 : ['standard','elite','vault'].includes(plan) ? 50 : null;
+      if (callCost === null) { showToast('Video calls require an active membership.'); return; }
       const balance = Number(myProfile.walletBalance || 0);
-      const sheet = openSheet({ label: 'Start Video Call', content: `<h2>Start Video Call</h2><p class="muted">This call will cost 50 tokens from your wallet. Your balance: ${balance} tokens.</p><div style="display:flex;gap:.75rem"><button class="btn btn-outline" id="cancelCall">Cancel</button><button class="btn btn-gold btn-full" id="startCall">Start Call</button></div>` });
+      const sheet = openSheet({ label: 'Start Video Call', content: `<h2>Start Video Call</h2><p class="muted">This call will cost ${callCost} tokens from your wallet. Your balance: ${balance} tokens.</p><div style="display:flex;gap:.75rem"><button class="btn btn-outline" id="cancelCall">Cancel</button><button class="btn btn-gold btn-full" id="startCall">Start Call</button></div>` });
       sheet.element.querySelector('#cancelCall').onclick = () => sheet.close();
       sheet.element.querySelector('#startCall').onclick = async () => {
-        try { const token = await myUser.getIdToken(); const res = await fetch('/.netlify/functions/video-call', { method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify({toUID:theirUID}) }); const data = await res.json(); if (res.status === 402) { showToast('Not enough tokens. You need 50 tokens to start a call. Buy tokens in your wallet.'); return; } if (!res.ok) throw new Error(data.error); myProfile.walletBalance=data.tokenBalance; sheet.close(); const call=openSheet({label:'Video call',content:'<div id="callContainer" style="height:70vh"></div><p class="muted">Wallet: '+data.tokenBalance+' tokens</p><button class="btn btn-danger" id="reportCall">Report or Block</button>'}); const frame=window.DailyIframe.createFrame(call.element.querySelector('#callContainer'),{showLeaveButton:true}); await frame.join({url:data.roomURL,token:data.token}); frame.on('left-meeting',()=>updateDoc(doc(db,'videoCallInvites',data.inviteId),{status:'ended'})); call.element.querySelector('#reportCall').onclick=()=>window.doReport(); } catch(e) { showToast(e.message || 'Could not start video call.'); }
+        try { const token = await myUser.getIdToken(); const res = await fetch('/.netlify/functions/video-call', { method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify({toUID:theirUID}) }); const data = await res.json(); if (res.status === 402) { showToast(`Not enough tokens. You need ${data.cost || callCost} tokens. Buy tokens in your Wallet.`); return; } if (!res.ok) throw new Error(data.error); myProfile.walletBalance=data.tokenBalance; sheet.close(); const call=openSheet({label:'Video call',content:'<div id="callContainer" style="height:70vh"></div><p class="muted">Wallet: '+data.tokenBalance+' tokens</p><button class="btn btn-danger" id="reportCall">Report or Block</button>'}); const frame=window.DailyIframe.createFrame(call.element.querySelector('#callContainer'),{showLeaveButton:true}); await frame.join({url:data.roomURL,token:data.token}); frame.on('left-meeting',()=>updateDoc(doc(db,'videoCallInvites',data.inviteId),{status:'ended'})); call.element.querySelector('#reportCall').onclick=()=>window.doReport(); } catch(e) { showToast(e.message || 'Could not start video call.'); }
       };
     });
 
     window.sendImage = async function(input) {
-      const file = input.files[0];
-      if (!file || !theirUID) return;
-      if (!hasPlan(myProfile, 'elite')) {
-        input.value = '';
-        showToast('Sending photos requires Elite or Vault. Upgrade to unlock this.');
-        return;
-      }
-      await refreshBlockState(theirUID); applyBlockState();
-      if (blockedByMe || blockedMe) { showToast('Messaging is blocked.'); input.value=''; return; }
-      showToast('Uploading...');
+      const file = input.files?.[0], recipient = theirUID;
+      if (!file || !recipient) return;
+      if (!file.type.startsWith('image/')) { showToast('Choose an image file.'); input.value=''; return; }
+      if (file.size > 8 * 1024 * 1024) { showToast('Images must be 8 MB or smaller.'); input.value=''; return; }
+      const cost = imageTokenCost();
+      if (cost === null) { showToast('An active membership is required to send photos.'); input.value=''; return; }
+      if (cost && Number(myProfile.walletBalance || 0) < cost) { showToast('You need 30 tokens. Buy tokens in your Wallet.'); input.value=''; return; }
+      const button = document.getElementById('imageBtn'); if (button) button.disabled = true;
       try {
+        await refreshBlockState(recipient); applyBlockState();
+        if (blockedByMe || blockedMe) throw new Error('Messaging is blocked.');
+        showToast('Uploading photo...');
         const url = await uploadToCloudinary(file, 'datevault/chat');
-        await sendMessage(myUser.uid, theirUID, null, url);
-      } catch(e) { showToast('Upload failed'); }
+        const token = await myUser.getIdToken();
+        const response = await fetch('/.netlify/functions/wallet', { method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify({action:'send_image',toUID:recipient,imageURL:url}) });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not send photo.');
+        myProfile.walletBalance = data.balance;
+        showToast(data.cost ? 'Photo sent — 30 tokens charged.' : 'Photo sent.');
+      } catch(e) { showToast(e.message || 'Photo failed to send.'); }
+      finally { input.value=''; if (button) button.disabled = blockedByMe || blockedMe; }
     };
 
     window.handleKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } };
