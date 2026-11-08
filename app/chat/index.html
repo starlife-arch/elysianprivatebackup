@@ -107,7 +107,7 @@
       <button class="attach-btn" id="imageBtn" onclick="document.getElementById('imgInput').click()" style="background:none;border:none;color:var(--muted);cursor:pointer;flex-shrink:0;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
       </button>
-      <input type="file" id="imgInput" accept="image/*" style="display:none;" onchange="sendImage(this)"/>
+      <input type="file" id="imgInput" type="file" accept="image/*" multiple style="display:none;" onchange="sendImage(this)"/>
       <textarea id="msgInput" placeholder="Type a message..." rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
       <button class="send-btn" id="sendBtn" onclick="sendMsg()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22,2 15,22 11,13 2,9"/></svg>
@@ -525,28 +525,53 @@
     });
 
     window.sendImage = async function(input) {
-      const file = input.files?.[0], recipient = theirUID;
-      if (!file || !recipient || sendingImage) return;
-      if (!file.type.startsWith('image/')) { showToast('Choose an image file.'); input.value=''; return; }
-      if (file.size > 8 * 1024 * 1024) { showToast('Images must be 8 MB or smaller.'); input.value=''; return; }
+      const selected = Array.from(input.files || []);
+      const recipient = theirUID;
+      if (!selected.length || !recipient || sendingImage) return;
+      if (selected.length > 10) { showToast('You can send up to 10 photos at once.'); input.value = ''; return; }
+      const invalid = selected.find(file => !file.type.startsWith('image/') || file.size > 8 * 1024 * 1024);
+      if (invalid) {
+        showToast(!invalid.type.startsWith('image/') ? 'Choose image files only.' : 'Each image must be 8 MB or smaller.');
+        input.value = '';
+        return;
+      }
       const cost = imageTokenCost();
-      if (cost === null) { showToast('An active membership is required to send photos.'); input.value=''; return; }
-      if (cost && Number(myProfile.walletBalance || 0) < cost) { showToast('You need 30 tokens. Buy tokens in your Wallet.'); input.value=''; return; }
+      if (cost === null) { showToast('An active membership is required to send photos.'); input.value = ''; return; }
+      const balance = Number(myProfile.walletBalance || 0);
+      const affordableCount = cost === 0 ? selected.length : Math.min(selected.length, Math.floor(balance / cost));
+      if (affordableCount < 1) { showToast('You need 30 tokens for each photo. Buy tokens in your Wallet.'); input.value = ''; return; }
+      const filesToSend = selected.slice(0, affordableCount);
+      const skippedBeforeUpload = selected.length - filesToSend.length;
+
       sendingImage = true;
-      const button = document.getElementById('imageBtn'); if (button) button.disabled = true;
+      const button = document.getElementById('imageBtn');
+      if (button) button.disabled = true;
       try {
-        await refreshBlockState(recipient); applyBlockState();
+        await refreshBlockState(recipient);
+        applyBlockState();
         if (blockedByMe || blockedMe) throw new Error('Messaging is blocked.');
-        showToast('Uploading photo...');
-        const url = await uploadToCloudinary(file, 'datevault/chat');
+        showToast(filesToSend.length === 1 ? 'Uploading photo...' : `Uploading ${filesToSend.length} photos...`);
+        const urls = await Promise.all(filesToSend.map(file => uploadToCloudinary(file, 'datevault/chat')));
         const token = await myUser.getIdToken();
-        const response = await fetch('/.netlify/functions/wallet', { method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify({action:'send_image',toUID:recipient,imageURL:url}) });
+        const response = await fetch('/.netlify/functions/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ action: 'send_images', toUID: recipient, imageURLs: urls })
+        });
         const data = await response.json();
-        if (!response.ok) throw new Error(data.error || 'Could not send photo.');
+        if (!response.ok) throw new Error(data.error || 'Could not send photos.');
         myProfile.walletBalance = data.balance;
-        showToast(data.cost ? 'Photo sent — 30 tokens charged.' : 'Photo sent.');
-      } catch(e) { showToast(e.message || 'Photo failed to send.'); }
-      finally { sendingImage = false; input.value=''; if (button) button.disabled = blockedByMe || blockedMe; }
+        const sent = Number(data.imagesSent || 0);
+        const skipped = skippedBeforeUpload + Number(data.imagesSkipped || 0);
+        if (skipped) showToast(`${sent} photo${sent === 1 ? '' : 's'} sent; ${skipped} skipped because of your token balance.`);
+        else showToast(sent === 1 ? (data.cost ? 'Photo sent — 30 tokens charged.' : 'Photo sent.') : `${sent} photos sent.`);
+      } catch (error) {
+        showToast(error.message || 'Photos failed to send.');
+      } finally {
+        sendingImage = false;
+        input.value = '';
+        if (button) button.disabled = blockedByMe || blockedMe;
+      }
     };
 
     window.handleKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } };
