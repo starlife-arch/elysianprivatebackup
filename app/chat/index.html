@@ -507,7 +507,7 @@
 
     window.sendImage = async function(input) {
       const file = input.files?.[0], recipient = theirUID;
-      if (!file || !recipient || sendingImage) return;\n      sendingImage = true;
+      if (!file || !recipient || sendingImage) return;
       if (!file.type.startsWith('image/')) { showToast('Choose an image file.'); input.value=''; return; }
       if (file.size > 8 * 1024 * 1024) { showToast('Images must be 8 MB or smaller.'); input.value=''; return; }
       const cost = imageTokenCost();
@@ -998,5 +998,5 @@
 
     init().catch(error => { console.error('Page initialization failed', error); document.getElementById('loader')?.classList.add('hidden'); });
   </script>
-<script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons(); document.getElementById("giftBtn")?.addEventListener("click", () => window.openGift());</script></body>
+<script type="module">import { mountIcons } from "../../js/icons.js"; mountIcons(); document.getElementById("giftBtn")?.addEventListener("click", () => window.openGift());</script><script type="module" src="../../js/navigation.js"></script></body>
 </html>

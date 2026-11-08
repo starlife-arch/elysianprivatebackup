@@ -50,6 +50,7 @@
   <script type="module">
     import { auth, requireAdmin } from "../js/auth.js";
     import { db } from "../js/firebase.js";
+    import { showConfirm } from "../js/dialog.js";
     import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     const $ = id => document.getElementById(id);
@@ -120,8 +121,8 @@
       URL.revokeObjectURL(url);
       $("sendStatus").textContent = "Downloaded " + numbers.length.toLocaleString() + " unique phone numbers as " + filename + ".";
     }
-    $("downloadAllPhones").addEventListener("click", () => {
-      if (!window.confirm("This export includes every valid phone number on user accounts, including users who opted out of SMS. Do not use opted-out numbers for marketing. Continue?")) return;
+    $("downloadAllPhones").addEventListener("click", async () => {
+      if (!await showConfirm("This export includes every valid phone number on user accounts, including users who opted out of SMS. Do not use opted-out numbers for marketing. Continue?", { title: "Export all phone numbers", confirmText: "Continue" })) return;
       downloadPhonesCsv(allPhoneNumbers, "elysian-all-user-phones.csv");
     });
     $("downloadEligiblePhones").addEventListener("click", () => {
@@ -181,7 +182,7 @@
     $("sendBroadcast").addEventListener("click", async () => {
       const message = $("broadcastMessage").value.trim();
       if (!message) { $("sendStatus").textContent = "Enter a message first."; return; }
-      if (!window.confirm("Send this SMS to " + $("recipientCount").textContent + " eligible phone numbers? This may deduct SMS units from your Nyota balance.")) return;
+      if (!await showConfirm("Send this SMS to " + $("recipientCount").textContent + " eligible phone numbers? This may deduct SMS units from your Nyota balance.", { title: "Confirm SMS broadcast", confirmText: "Send SMS" })) return;
       $("sendBroadcast").disabled = true;
       $("sendStatus").textContent = "Sending broadcast… Please keep this page open.";
       try {

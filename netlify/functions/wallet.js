@@ -1,4 +1,5 @@
 const { json, parseBody, preflight } = require('./_helpers');
+const { photoMessageCost } = require('./membership-billing');
 
 let _db, _admin;
 const BOOST_COST = 299;
@@ -92,29 +93,32 @@ async function sendImage(uid, body) {
   let parsed;
   try { parsed = new URL(imageURL); } catch (_) { throw new Error('Invalid image URL.'); }
   if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com') throw new Error('Only hosted DateVault images can be sent.');
+
   const matchId = [uid, toUID].sort().join('_');
-  const senderRef = _db.collection('users').doc(uid), recipientRef = _db.collection('users').doc(toUID);
+  const senderRef = _db.collection('users').doc(uid);
+  const recipientRef = _db.collection('users').doc(toUID);
   const matchRef = _db.collection('matches').doc(matchId);
   const mineBlockRef = senderRef.collection('blocked').doc(toUID);
   const theirBlockRef = recipientRef.collection('blocked').doc(uid);
   const messageRef = matchRef.collection('messages').doc();
-  let balance = 0, cost = 0;
+  let balance = 0, cost = null;
+
+  // The balance check, debit, ledger entry and message creation are atomic.
+  // A failed transaction cannot charge a member without delivering the photo.
   await _db.runTransaction(async tx => {
     const [sender, recipient, match, mineBlock, theirBlock] = await Promise.all([
       tx.get(senderRef), tx.get(recipientRef), tx.get(matchRef), tx.get(mineBlockRef), tx.get(theirBlockRef)
     ]);
     if (!sender.exists || !recipient.exists || !match.exists || match.data()?.unmatched) throw new Error('You can only send photos to an active match.');
     if (mineBlock.exists || theirBlock.exists) throw new Error('Messaging is blocked for this conversation.');
-    const profile = sender.data(), trial = profile.freeTrial || {};
-    const expiry = trial.expiresAt?.toDate ? trial.expiresAt.toDate() : new Date(trial.expiresAt || 0);
-    const activeTrial = trial.status === 'active' && expiry.getTime() > Date.now();
-    const sub = profile.subscription || {}, plan = activeTrial ? 'free_trial' : (sub.plan || profile.plan || 'standard');
-    const paid = activeTrial || profile.hasPaid === true || profile.paid === true || sub.status === 'active';
-    if (!paid || !['free_trial','standard','elite','vault'].includes(plan)) throw new Error('An active membership is required to send photos.');
-    cost = ['elite','vault'].includes(plan) ? 0 : 30;
+
+    const profile = sender.data();
+    cost = photoMessageCost(profile);
+    if (cost === null) throw new Error('An active membership is required to send photos.');
     const current = Number(profile.walletBalance || 0);
     if (current < cost) throw Object.assign(new Error('Not enough tokens. Sending this photo costs 30 tokens. Buy tokens in your Wallet.'), { status: 402, balance: current, cost });
     balance = current - cost;
+
     if (cost > 0) {
       tx.update(senderRef, { walletBalance: balance });
       tx.set(txn(uid), { type: 'chat_image', amount: -cost, toUID, note: 'Photo message', createdAt: ts(), status: 'completed' });
@@ -124,7 +128,7 @@ async function sendImage(uid, body) {
   });
   return { ok: true, balance, cost, messageId: messageRef.id };
 }
-\nexports.handler = async event => {
+exports.handler = async event => {
   const options = preflight(event);
   if (options) return options;
   try {
@@ -135,6 +139,7 @@ async function sendImage(uid, body) {
       : body.action === 'boost' ? await boost(user.uid)
       : body.action === 'superlike_pack' ? await addon(user.uid, 'superlike_pack')
       : body.action === 'incognito' ? await addon(user.uid, 'incognito')
+      : body.action === 'send_image' ? await sendImage(user.uid, body)
       : null;
     if (!data) return json(400, { error: 'Unknown wallet action' });
     return json(200, data);
