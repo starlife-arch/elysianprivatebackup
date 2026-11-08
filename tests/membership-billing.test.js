@@ -101,7 +101,7 @@ test('expired active members enter renewal checkout without requiring a used inv
 
 test('chat page has no literal escaped newline tokens in executable JavaScript', () => {
   const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
-  assert.doesNotMatch(source, /;\\\\n\\s*item\.style/);
+  assert.doesNotMatch(source, /;assert.match(source, /if \\(\\!selected\\.length \\|\\| \\!recipient \\|\\| sendingImage\\) return;/);\\n\\s*item\.style/);
   assert.match(source, /item\.className = 'chat-item';\s*item\.style\.userSelect/);
 });
 
@@ -169,7 +169,7 @@ test('photo debits display as red outgoing wallet activity with one minus sign',
 test('login and signup password fields have working accessible visibility icons', () => {
   for (const page of ['auth/login/index.html', 'auth/signup/index.html']) {
     const source = fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
-    assert.match(source, /aria-label="Show password"[^>]*<svg/);
+    assert.match(source, /aria-label="Show password"[^>]*>\\s*<svg/);
     assert.match(source, /btn\.innerHTML = showing \? '[^']*<svg/);
     assert.match(source, /aria-pressed/);
   }
