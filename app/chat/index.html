@@ -101,7 +101,8 @@
       </button>
     </div>
     <div class="chat-messages" id="messages"></div>
-    <div id="imagePriceNotice" style="display:none;padding:5px 14px;text-align:center;font-size:11px;color:var(--muted);background:var(--surface);">Photos cost 30 tokens each. <a href="/app/wallet/" style="color:var(--gold);">Buy tokens in Wallet</a>.</div>\n    <div class="chat-input-bar">
+    <div id="imagePriceNotice" style="display:none;padding:5px 14px;text-align:center;font-size:11px;color:var(--muted);background:var(--surface);">Photos cost 30 tokens each. <a href="/app/wallet/" style="color:var(--gold);">Buy tokens in Wallet</a>.</div>
+    <div class="chat-input-bar">
       <button class="attach-btn" id="giftBtn" title="Send token gift" aria-label="Send token gift" style="background:none;border:none;color:var(--gold);cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:44px;height:44px;"><i data-icon="gift" data-size="22"></i></button>
       <button class="attach-btn" id="imageBtn" onclick="document.getElementById('imgInput').click()" style="background:none;border:none;color:var(--muted);cursor:pointer;flex-shrink:0;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
@@ -397,7 +398,10 @@
       const text = document.getElementById('blockToggleText');
       if (text) text.textContent = blockedByMe ? 'Unblock User' : 'Block User';
       const blocked = blockedByMe || blockedMe;
-      const photoCost = imageTokenCost();\n      const canSendPhotos = photoCost !== null;\n      const priceNotice = document.getElementById('imagePriceNotice');\n      if (priceNotice) priceNotice.style.display = photoCost === 30 ? 'block' : 'none';
+      const photoCost = imageTokenCost();
+      const canSendPhotos = photoCost !== null;
+      const priceNotice = document.getElementById('imagePriceNotice');
+      if (priceNotice) priceNotice.style.display = photoCost === 30 ? 'block' : 'none';
       if (input) {
         input.disabled = blocked;
         input.placeholder = blockedByMe ? 'You blocked this member. Unblock to message again.' : (blockedMe ? 'You cannot message this member.' : 'Type a message...');
