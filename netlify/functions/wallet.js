@@ -85,7 +85,46 @@ async function boost(uid) {
 
 async function addon(uid, kind) { const cfg=kind==='superlike_pack'?[SUPERLIKE_PACK_COST,'superlikePack',null,SUPERLIKE_PACK_COUNT,'Super Like Pack — 10 super likes','superlike_pack_purchase']: [INCOGNITO_COST,'incognito',INCOGNITO_DURATION_MS,null,'Incognito Mode — 7 days','incognito_purchase']; let balance,expiresAt; await _db.runTransaction(async tx=>{const ref=_db.collection('users').doc(uid),snap=await tx.get(ref);if(!snap.exists)throw new Error('Member not found.');const data=snap.data(),current=Number(data.walletBalance||0);if(data.walletFrozen||data.banned)throw new Error('This wallet is currently on hold.');if(current<cfg[0])throw new Error(`You need ${cfg[0]} tokens to buy this add-on.`);balance=current-cfg[0];expiresAt=cfg[2]?admin().firestore.Timestamp.fromMillis(Date.now()+cfg[2]):null;const uses=cfg[3]?Number(data.addons?.superlikePack?.remainingUses||0)+cfg[3]:null;tx.update(ref,{walletBalance:balance,[`addons.${cfg[1]}`]:{active:true,purchasedAt:ts(),expiresAt,remainingUses:uses}});tx.set(txn(uid),{type:cfg[5],amount:cfg[0],note:cfg[4],createdAt:ts(),status:'completed'});});return {balance,expiresAt:expiresAt?.toDate().toISOString(),superlikesAdded:cfg[3]};}
 
-exports.handler = async event => {
+
+async function sendImage(uid, body) {
+  const { toUID, imageURL } = body;
+  if (!toUID || toUID === uid || typeof imageURL !== 'string') throw new Error('A valid conversation and image are required.');
+  let parsed;
+  try { parsed = new URL(imageURL); } catch (_) { throw new Error('Invalid image URL.'); }
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com') throw new Error('Only hosted DateVault images can be sent.');
+  const matchId = [uid, toUID].sort().join('_');
+  const senderRef = _db.collection('users').doc(uid), recipientRef = _db.collection('users').doc(toUID);
+  const matchRef = _db.collection('matches').doc(matchId);
+  const mineBlockRef = senderRef.collection('blocked').doc(toUID);
+  const theirBlockRef = recipientRef.collection('blocked').doc(uid);
+  const messageRef = matchRef.collection('messages').doc();
+  let balance = 0, cost = 0;
+  await _db.runTransaction(async tx => {
+    const [sender, recipient, match, mineBlock, theirBlock] = await Promise.all([
+      tx.get(senderRef), tx.get(recipientRef), tx.get(matchRef), tx.get(mineBlockRef), tx.get(theirBlockRef)
+    ]);
+    if (!sender.exists || !recipient.exists || !match.exists || match.data()?.unmatched) throw new Error('You can only send photos to an active match.');
+    if (mineBlock.exists || theirBlock.exists) throw new Error('Messaging is blocked for this conversation.');
+    const profile = sender.data(), trial = profile.freeTrial || {};
+    const expiry = trial.expiresAt?.toDate ? trial.expiresAt.toDate() : new Date(trial.expiresAt || 0);
+    const activeTrial = trial.status === 'active' && expiry.getTime() > Date.now();
+    const sub = profile.subscription || {}, plan = activeTrial ? 'free_trial' : (sub.plan || profile.plan || 'standard');
+    const paid = activeTrial || profile.hasPaid === true || profile.paid === true || sub.status === 'active';
+    if (!paid || !['free_trial','standard','elite','vault'].includes(plan)) throw new Error('An active membership is required to send photos.');
+    cost = ['elite','vault'].includes(plan) ? 0 : 30;
+    const current = Number(profile.walletBalance || 0);
+    if (current < cost) throw Object.assign(new Error('Not enough tokens. Sending this photo costs 30 tokens. Buy tokens in your Wallet.'), { status: 402, balance: current, cost });
+    balance = current - cost;
+    if (cost > 0) {
+      tx.update(senderRef, { walletBalance: balance });
+      tx.set(txn(uid), { type: 'chat_image', amount: -cost, toUID, note: 'Photo message', createdAt: ts(), status: 'completed' });
+    }
+    tx.set(messageRef, { senderUID: uid, text: null, imageURL, sentAt: ts(), read: false });
+    tx.update(matchRef, { lastMessage: 'Photo', lastMessageAt: ts(), [`hasUnread_${toUID}`]: true });
+  });
+  return { ok: true, balance, cost, messageId: messageRef.id };
+}
+\nexports.handler = async event => {
   const options = preflight(event);
   if (options) return options;
   try {
