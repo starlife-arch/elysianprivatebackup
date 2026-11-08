@@ -110,8 +110,7 @@ export async function routeUser(user) {
     // Do not mutate protected membership/payment fields from the browser.
     // The trusted payment flow handles renewal; client-side writes here used
     // to fail Firestore rules and strand Google redirect sign-ins.
-    const token = d.inviteToken || d.inviteCode || "";
-    window.location.href = `/account/payment/${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    window.location.href = "/account/payment/?renewal=1";
     return;
   }
   window.location.href = "/app/dashboard/";
