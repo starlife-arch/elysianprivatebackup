@@ -224,6 +224,26 @@ https://your-site.netlify.app/api/pesapal?action=ipn
 | View invite code | Check email after approval |
 
 
+## Safaricom Paybill member account numbers
+
+DateVault provisions each member with a unique eight-digit numeric Paybill account reference in the Wallet. The reference is mapped privately to the member's Firebase UID; the UID and member name are never used as the public account number.
+
+Configure these Netlify environment variables:
+
+- `SAFARICOM_PAYBILL_NUMBER`: your registered Safaricom business Paybill shortcode.
+- `SAFARICOM_CONSUMER_KEY` and `SAFARICOM_CONSUMER_SECRET`: Daraja app credentials with C2B access.
+- `SAFARICOM_ENVIRONMENT`: `production` for the live Paybill or `sandbox` for Daraja testing.
+- `SAFARICOM_C2B_RESPONSE_TYPE`: optional; defaults to `Completed`.
+
+After deploying the functions to a Netlify preview, sign in as a DateVault admin and make an authenticated POST request to `/.netlify/functions/safaricom-register-c2b` to register the C2B validation and confirmation URLs with Safaricom. The app uses:
+
+- `/.netlify/functions/safaricom-c2b?action=validation`
+- `/.netlify/functions/safaricom-c2b?action=confirmation`
+
+Members see their assigned Paybill account number in Wallet. Confirmation callbacks are deduplicated by Safaricom transaction ID and recorded in `safaricom_paybill_payments` against the correct UID. **This first phase records verified incoming Paybill payments; it does not automatically convert KES into tokens or activate a membership.** That requires a confirmed payment-to-product rule and should not be guessed.
+
+Safaricom must approve/enable C2B validation for the Paybill. If your Paybill is configured for confirmation-only callbacks, the confirmation handler can still reconcile known account references, but Safaricom will not reject unknown references before accepting a payment.
+
 ## PrintPay and wallet deployment
 
 Set `PRINTPAY_API_KEY` in Netlify environment variables. Configure the PrintPay dashboard webhook to `https://elysiandate.site/api/printpay-callback`. Deploy `firestore.indexes.json` with `firebase deploy --only firestore:indexes` before enabling wallet withdrawal queues; it includes the withdrawal, wallet transaction, payment, and audit indexes required by the member and admin consoles.
