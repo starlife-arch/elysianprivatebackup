@@ -4,6 +4,9 @@
     "firebase-admin": "^12.7.0"
   },
   "scripts": {
-    "lint:ui": "node scripts/check-emoji.js"
+    "lint:ui": "node scripts/check-emoji.js",
+    "test": "node --test tests/*.test.js",
+    "build": "npm run check:project",
+    "check:project": "node scripts/check-project.js"
   }
 }
