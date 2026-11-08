@@ -15,7 +15,7 @@ function admin() {
   return firebase;
 }
 async function callerUID(event) {
-  const token = (event.headers.authorization || event.headers.Authorization || '').replace(/^Bearer\\s+/i, '');
+  const token = (event.headers.authorization || event.headers.Authorization || '').replace(/^Bearer\s+/i, '');
   if (!token) throw Object.assign(new Error('Sign in required.'), { status: 401 });
   return admin().auth().verifyIdToken(token);
 }
