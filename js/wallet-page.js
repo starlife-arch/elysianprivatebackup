@@ -111,6 +111,33 @@ async function expireStaleAddons(profile) {
   }));
 }
 
-async function load() { $('walletError').hidden = true; try { const session = await requireActiveMember(); uid = session.user.uid; const profile = session.profile || {}; startCallListener(uid, profile); if (!stopNotifications) stopNotifications = listenForNotifications(uid, hasSomethingNew => { $('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; }); await expireStaleAddons(profile); balance = await getWalletBalance(uid); frozen = !!profile.walletFrozen; $('balance').textContent = balance.toLocaleString(); $('frozenBanner').hidden = !frozen; renderPacks(); const pricingCfg = await loadPricingCfg(); renderAddons(profile, pricingCfg); $('withdrawBtn').disabled = frozen || balance < WITHDRAWAL_TOKENS; $('withdrawalHint').textContent = frozen ? 'Your wallet is on hold — contact support' : balance < WITHDRAWAL_TOKENS ? `You need ${(WITHDRAWAL_TOKENS - balance).toLocaleString()} more tokens.` : '3,000 tokens converts to $15.'; $('withdrawBtn').onclick = withdrawalSheet; try { const withdrawals = await getDocs(query(collection(db, 'withdrawals'), where('uid', '==', uid), orderBy('createdAt', 'desc'))); $('withdrawals').innerHTML = withdrawals.docs.map(item => `<div>${item.data().status} · $${item.data().payout || 15}</div>`).join(''); } catch (error) { console.error('Could not load withdrawals', error); $('withdrawals').innerHTML = '<p class="gift-error">Couldn’t load withdrawal history.</p>'; } try { history = await getTransactionHistory(uid, 50); renderTx(); } catch (error) { console.error('Could not load wallet history', error); $('transactions').innerHTML = '<p class="gift-error">Couldn’t load activity.</p>'; } } catch (error) { failure(error); } finally { $('loader').classList.add('hidden'); } }
+
+async function loadPaybillAccount() {
+  const status = $('paybillStatus'), details = $('paybillDetails');
+  if (!status || !details) return;
+  try {
+    const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const token = await getAuth().currentUser?.getIdToken();
+    if (!token) throw new Error('Please sign in again to load your Paybill account number.');
+    const response = await fetch('/.netlify/functions/paybill-account', { headers: { Authorization: `Bearer ${token}` } });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Could not load your Paybill account number.');
+    $('paybillAccount').textContent = data.accountNumber;
+    $('paybillNumber').textContent = data.paybillNumber || 'Awaiting Paybill configuration';
+    $('paybillInstructions').textContent = data.configured
+      ? 'When paying, select Pay Bill, enter the Paybill number above, then enter your account number as the account/reference number.'
+      : 'Your unique account number is ready. DateVault must be configured with the Safaricom Paybill number before you can make a payment.';
+    details.hidden = false;
+    status.textContent = data.configured ? 'Use these details when making a Paybill payment.' : 'Your personal account number has been reserved; Paybill setup is not yet complete.';
+    $('copyPaybillAccount').onclick = async () => {
+      try { await navigator.clipboard.writeText(data.accountNumber); showToast('Account number copied'); }
+      catch (_) { showToast('Copy is unavailable on this browser'); }
+    };
+  } catch (error) {
+    status.textContent = error.message || 'Could not load your Paybill details.';
+  }
+}
+
+async function load() { $('walletError').hidden = true; try { const session = await requireActiveMember(); uid = session.user.uid; const profile = session.profile || {}; startCallListener(uid, profile); if (!stopNotifications) stopNotifications = listenForNotifications(uid, hasSomethingNew => { $('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; }); await expireStaleAddons(profile); await loadPaybillAccount(); balance = await getWalletBalance(uid); frozen = !!profile.walletFrozen; $('balance').textContent = balance.toLocaleString(); $('frozenBanner').hidden = !frozen; renderPacks(); const pricingCfg = await loadPricingCfg(); renderAddons(profile, pricingCfg); $('withdrawBtn').disabled = frozen || balance < WITHDRAWAL_TOKENS; $('withdrawalHint').textContent = frozen ? 'Your wallet is on hold — contact support' : balance < WITHDRAWAL_TOKENS ? `You need ${(WITHDRAWAL_TOKENS - balance).toLocaleString()} more tokens.` : '3,000 tokens converts to $15.'; $('withdrawBtn').onclick = withdrawalSheet; try { const withdrawals = await getDocs(query(collection(db, 'withdrawals'), where('uid', '==', uid), orderBy('createdAt', 'desc'))); $('withdrawals').innerHTML = withdrawals.docs.map(item => `<div>${item.data().status} · $${item.data().payout || 15}</div>`).join(''); } catch (error) { console.error('Could not load withdrawals', error); $('withdrawals').innerHTML = '<p class="gift-error">Couldn’t load withdrawal history.</p>'; } try { history = await getTransactionHistory(uid, 50); renderTx(); } catch (error) { console.error('Could not load wallet history', error); $('transactions').innerHTML = '<p class="gift-error">Couldn’t load activity.</p>'; } } catch (error) { failure(error); } finally { $('loader').classList.add('hidden'); } }
 
 load();
