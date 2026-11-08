@@ -101,7 +101,7 @@ test('expired active members enter renewal checkout without requiring a used inv
 
 test('chat page has no literal escaped newline tokens in executable JavaScript', () => {
   const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
-  assert.doesNotMatch(source, /;assert.match(source, /if \\(\\!selected\\.length \\|\\| \\!recipient \\|\\| sendingImage\\) return;/);\\n\\s*item\.style/);
+  assert.ok(!source.includes(";\\\\n          item.style.userSelect"));
   assert.match(source, /item\.className = 'chat-item';\s*item\.style\.userSelect/);
 });
 
