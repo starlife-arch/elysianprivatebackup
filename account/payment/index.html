@@ -82,6 +82,7 @@
     let currentUser = null, userEmail = '', userName = '', profile = {};
     const params = new URLSearchParams(window.location.search);
     const purpose = params.get('purpose') || 'entry';
+    const isRenewal = params.get('renewal') === '1' && purpose === 'entry';
     let inviteToken = params.get('token') || '';
     const plan = params.get('plan') || 'standard';
     const billing = params.get('billing') || 'monthly';
@@ -131,7 +132,7 @@
       return res.ok && data.valid === true;
     }
     async function markInviteTokenUsed() {
-      if (purpose !== 'entry') return;
+      if (purpose !== 'entry' || isRenewal || !inviteToken) return;
       await fetch('/api/validate-invite-token', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'mark-used', token: inviteToken, uid: currentUser.uid })
@@ -146,17 +147,17 @@
       const isPesapalCallback = params.get('pesapal') === 'callback';
       const trialExpiry = profile.freeTrial?.expiresAt?.toDate ? profile.freeTrial.expiresAt.toDate() : new Date(profile.freeTrial?.expiresAt || 0);
       const activeTrial = profile.status === 'active_member' && profile.freeTrial?.status === 'active' && trialExpiry.getTime() > Date.now();
-      if (purpose === 'entry' && !isPesapalCallback && (!snap.exists() || (!(profile.adminApproved || ['approved_pending_invite','approved_pending_payment'].includes(profile.status)) && !activeTrial))) {
+      if (purpose === 'entry' && !isPesapalCallback && (!snap.exists() || (!(isRenewal && profile.status === 'active_member') && !(profile.adminApproved || ['approved_pending_invite','approved_pending_payment'].includes(profile.status) || activeTrial)))) {
         const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
-      if (purpose === 'entry' && !isPesapalCallback && !inviteToken && !activeTrial) { showInvalidInvite(); return; }
+      if (purpose === 'entry' && !isRenewal && !isPesapalCallback && !inviteToken && !activeTrial) { showInvalidInvite(); return; }
       if (purpose !== 'entry' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
         const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
       currentUser = user;
-      if (!isPesapalCallback && inviteToken && !(await validateInviteToken())) { showInvalidInvite(); return; }
+      if (!isRenewal && !isPesapalCallback && inviteToken && !(await validateInviteToken())) { showInvalidInvite(); return; }
       userEmail = user.email;
       userName = profile.displayName || profile.firstName || profile.name || 'Member';
       document.getElementById('paymentSubtitle').textContent = paymentTitle();
