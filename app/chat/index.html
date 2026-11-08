@@ -308,7 +308,9 @@
         if (c.lastMessage) {
           hasConvs = true;
           const item = document.createElement('div');
-          item.className = 'chat-item';\n          item.style.userSelect = 'none';\n          item.style.webkitUserSelect = 'none';
+          item.className = 'chat-item';
+          item.style.userSelect = 'none';
+          item.style.webkitUserSelect = 'none';
           if (c.unavailable) item.style.opacity = '0.6';
           const time = c.lastMessageAt ? formatTime(c.lastMessageAt.toDate ? c.lastMessageAt.toDate() : new Date()) : '';
           item.innerHTML = `
