@@ -513,6 +513,7 @@
       const cost = imageTokenCost();
       if (cost === null) { showToast('An active membership is required to send photos.'); input.value=''; return; }
       if (cost && Number(myProfile.walletBalance || 0) < cost) { showToast('You need 30 tokens. Buy tokens in your Wallet.'); input.value=''; return; }
+      sendingImage = true;
       const button = document.getElementById('imageBtn'); if (button) button.disabled = true;
       try {
         await refreshBlockState(recipient); applyBlockState();
