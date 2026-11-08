@@ -39,7 +39,7 @@
           <label>Password</label>
           <div style="position:relative;">
             <input type="password" id="password" placeholder="Minimum 8 characters" style="padding-right:3rem;"/>
-            <button type="button" aria-label="Show password" onclick="togglePassword('password', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gold);cursor:pointer;font-size:16px;"></button>
+            <button type="button" aria-label="Show password" aria-pressed="false" onclick="togglePassword('password', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--gold);cursor:pointer;display:grid;place-items:center;padding:4px;"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg></button>
           </div>
         </div>
         <button class="btn btn-gold btn-full" id="signupBtn" onclick="doSignup()">Create Account</button>
@@ -87,8 +87,9 @@
       const input = document.getElementById(inputId);
       const showing = input.type === 'text';
       input.type = showing ? 'password' : 'text';
-      btn.textContent = showing ? '' : '';
+      btn.innerHTML = showing ? '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>' : '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 3 18 18"/><path d="M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A11 11 0 0 1 12 5c6.5 0 10 7 10 7a16 16 0 0 1-3.2 4.2"/><path d="M6.2 6.2C3.5 8 2 12 2 12s3.5 7 10 7a10 10 0 0 0 3.3-.5"/></svg>';
       btn.setAttribute('aria-label', showing ? 'Show password' : 'Hide password');
+      btn.setAttribute('aria-pressed', String(!showing));
     };
 
     window.doSignup = async function() {
