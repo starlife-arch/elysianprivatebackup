@@ -106,7 +106,7 @@
     }
 
     function hasExploreAccess() {
-      return hasPlan(myProfile, 'elite') || isVault(myProfile);
+      return isVault(myProfile);
     }
 
     function showToast(msg) {
@@ -124,7 +124,7 @@
       lock.style.display = 'block';
       nav.onclick = (event) => {
         event.preventDefault();
-        showToast('Explore requires Elite or Vault. Upgrade to unlock.');
+        showToast('Explore is exclusive to Vault members. Upgrade to Vault to unlock.');
       };
     }
 
@@ -134,7 +134,7 @@
         <div class="glass-card locked-state">
           <div class="lock-icon">◇</div>
           <p style="font-weight:700;color:var(--text);">Browse all verified members — not just your matches.</p>
-          <p class="muted">Explore is available to Elite and Vault members. Upgrade your plan to unlock it.</p>
+          <p class="muted">Explore is exclusive to Vault members. Upgrade to Vault to unlock it.</p>
           <button class="btn btn-gold btn-sm" onclick="location.href='/pricing.html'">View Plans</button>
         </div>`;
     }
