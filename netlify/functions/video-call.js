@@ -81,8 +81,8 @@ exports.handler = async event => {
     }
 
     const [from, to] = await Promise.all([
-      db().collection('users').doc(user.uid).get(),
-      db().collection('users').doc(toUID).get()
+      db.collection('users').doc(user.uid).get(),
+      db.collection('users').doc(toUID).get()
     ]);
     if (!to.exists) throw new Error('Member not found.');
     if (adminCall) {

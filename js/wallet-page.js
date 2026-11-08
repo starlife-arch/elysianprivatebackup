@@ -27,7 +27,35 @@ function failure(error) {
 }
 
 function renderPacks() {
-  $('packs').innerHTML = packs.map(([tokens, usd]) => `<a class="payment-option ${frozen ? 'disabled' : ''}" ${frozen ? 'aria-disabled="true"' : `href="/account/payment/?purpose=tokens&tokens=${tokens}&amount=${usd}"`}>${icon('wallet')}<div><b>${tokens.toLocaleString()} tokens</b><div class="muted">$${usd}</div></div>${icon('plus')}</a>`).join('');
+  $('packs').innerHTML = packs.map(([tokens, usd]) => `<a class="payment-option ${frozen ? 'disabled' : ''}" ${frozen ? 'aria-disabled="true"' : `href="/account/payment/?purpose=tokens&tokens=${tokens}&amount=${usd}"`}>${icon('wallet')}<div><b>${tokens.toLocaleString()} tokens</b><div class="muted">$ ${usd}</div></div>${icon('plus')}</a>`).join('');
+  const customButton = $('customTokenBuy');
+  const customInput = $('customTokenAmount');
+  if (customButton) customButton.disabled = frozen;
+  if (customInput) customInput.disabled = frozen;
+}
+
+function setupCustomTokenPurchase() {
+  const input = $('customTokenAmount'), button = $('customTokenBuy'), price = $('customTokenPrice');
+  if (!input || !button || button.dataset.bound === 'true') return;
+  button.dataset.bound = 'true';
+  const updatePrice = () => {
+    const tokens = Number(input.value);
+    price.textContent = Number.isSafeInteger(tokens) && tokens >= 30
+      ? `Price: $${(tokens / 100).toFixed(2)}`
+      : 'Enter at least 30 whole tokens.';
+  };
+  input.addEventListener('input', updatePrice);
+  button.addEventListener('click', () => {
+    const tokens = Number(input.value);
+    if (!Number.isSafeInteger(tokens) || tokens < 30) {
+      showToast('Custom purchases start at 30 whole tokens.');
+      input.focus();
+      return;
+    }
+    const amount = (tokens / 100).toFixed(2);
+    window.location.href = `/account/payment/?purpose=tokens&tokens=${tokens}&amount=${amount}`;
+  });
+  updatePrice();
 }
 
 async function loadPricingCfg() {
@@ -93,9 +121,9 @@ window.buyAddonWithTokens = async function(action, label, key) {
 };
 
 function renderTx() {
-  const outgoing = ['gift_sent', 'debit', 'admin_debit', 'withdrawal_request', 'call_charge', 'boost_purchase', 'superlike_pack_purchase', 'incognito_purchase'];
+  const outgoing = ['gift_sent', 'debit', 'admin_debit', 'withdrawal_request', 'call_charge', 'chat_image', 'boost_purchase', 'superlike_pack_purchase', 'incognito_purchase'];
   const labels = { gift_sent: 'Sent', gift_received: 'Received', credit: 'Purchased', admin_credit: 'Admin added', admin_debit: 'Admin deducted', withdrawal_request: 'Withdrawal requested', withdrawal_refund: 'Withdrawal refunded', withdrawal_paid: 'Withdrawal paid', call_charge: 'Video call', call_refund: 'Call refund', boost_purchase: 'Profile Boost', superlike_pack_purchase: 'Super Like Pack', incognito_purchase: 'Incognito Mode' };
-  $('transactions').innerHTML = history.length ? history.map(t => { const outgoingTransaction = outgoing.includes(t.type), amount = Number(t.amount || 0).toLocaleString(), label = labels[t.type] || t.note || t.type; return `<div style="display:flex;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border)"><span>${icon(outgoingTransaction ? 'arrow-right' : 'arrow-left')} ${label} ${amount} tokens<div class="muted" style="font-size:11px">${t.note || ''}</div></span><b style="color:${outgoingTransaction ? 'var(--danger)' : 'var(--success)'}">${outgoingTransaction ? '−' : '+'}${amount}</b></div>`; }).join('') : '<p class="muted">No transactions yet.</p>';
+  $('transactions').innerHTML = history.length ? history.map(t => { const outgoingTransaction = outgoing.includes(t.type), amount = Math.abs(Number(t.amount || 0)).toLocaleString(), label = labels[t.type] || t.note || t.type; return `<div style="display:flex;justify-content:space-between;padding:.6rem 0;border-bottom:1px solid var(--border)"><span>${icon(outgoingTransaction ? 'arrow-right' : 'arrow-left')} ${label} ${amount} tokens<div class="muted" style="font-size:11px">${t.note || ''}</div></span><b style="color:${outgoingTransaction ? 'var(--danger)' : 'var(--success)'}">${outgoingTransaction ? '−' : '+'}${amount}</b></div>`; }).join('') : '<p class="muted">No transactions yet.</p>';
 }
 
 function withdrawalSheet() { const sheet = openSheet({ label: 'Request withdrawal', content: `<h2>Request withdrawal</h2><p class="muted">3,000 tokens converts to $15.</p><div class="gift-amounts" id="methods">${[['Bank', 'card'], ['M-Pesa', 'phone'], ['PayPal', 'mail'], ['Crypto BEP-20', 'wallet']].map(([name, nameIcon]) => `<button class="gift-chip" data-method="${name}">${icon(nameIcon)}<small>${name}</small></button>`).join('')}</div><div id="details" style="margin-top:1rem"></div><div class="gift-error" id="withdrawError"></div><button class="btn btn-gold btn-full" id="withdrawConfirm" disabled>Continue</button>` }); let method = ''; const details = sheet.element.querySelector('#details'), confirm = sheet.element.querySelector('#withdrawConfirm'), error = sheet.element.querySelector('#withdrawError'); sheet.element.querySelector('#methods').onclick = event => { const button = event.target.closest('button'); if (!button) return; method = button.dataset.method; sheet.element.querySelectorAll('[data-method]').forEach(item => item.classList.toggle('selected', item === button)); details.innerHTML = method === 'Bank' ? '<input placeholder="Account name"><input placeholder="Account number"><input placeholder="Bank and branch">' : method === 'Crypto BEP-20' ? '<input placeholder="BEP-20 wallet address"><label><input type="checkbox"> I confirm this is BEP-20</label>' : `<input placeholder="${method === 'M-Pesa' ? 'M-Pesa phone number' : 'PayPal email'}">`; confirm.disabled = false; confirm.textContent = 'Request 3,000 tokens · $15'; }; confirm.onclick = async () => { const values = [...details.querySelectorAll('input')]; if (!values.length || values.some(input => input.type !== 'checkbox' && !input.value.trim()) || values.some(input => input.type === 'checkbox' && !input.checked)) { error.textContent = 'Complete the payout details.'; return; } confirm.disabled = true; try { await requestWithdrawal(uid, method, values.filter(input => input.type !== 'checkbox').map(input => input.value.trim()).join(' · ')); sheet.close(); load(); } catch (exception) { console.error('Withdrawal request failed', exception); error.textContent = exception.message; confirm.disabled = false; } }; }
@@ -111,6 +139,6 @@ async function expireStaleAddons(profile) {
   }));
 }
 
-async function load() { $('walletError').hidden = true; try { const session = await requireActiveMember(); uid = session.user.uid; const profile = session.profile || {}; startCallListener(uid, profile); if (!stopNotifications) stopNotifications = listenForNotifications(uid, hasSomethingNew => { $('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; }); await expireStaleAddons(profile); balance = await getWalletBalance(uid); frozen = !!profile.walletFrozen; $('balance').textContent = balance.toLocaleString(); $('frozenBanner').hidden = !frozen; renderPacks(); const pricingCfg = await loadPricingCfg(); renderAddons(profile, pricingCfg); $('withdrawBtn').disabled = frozen || balance < WITHDRAWAL_TOKENS; $('withdrawalHint').textContent = frozen ? 'Your wallet is on hold — contact support' : balance < WITHDRAWAL_TOKENS ? `You need ${(WITHDRAWAL_TOKENS - balance).toLocaleString()} more tokens.` : '3,000 tokens converts to $15.'; $('withdrawBtn').onclick = withdrawalSheet; try { const withdrawals = await getDocs(query(collection(db, 'withdrawals'), where('uid', '==', uid), orderBy('createdAt', 'desc'))); $('withdrawals').innerHTML = withdrawals.docs.map(item => `<div>${item.data().status} · $${item.data().payout || 15}</div>`).join(''); } catch (error) { console.error('Could not load withdrawals', error); $('withdrawals').innerHTML = '<p class="gift-error">Couldn’t load withdrawal history.</p>'; } try { history = await getTransactionHistory(uid, 50); renderTx(); } catch (error) { console.error('Could not load wallet history', error); $('transactions').innerHTML = '<p class="gift-error">Couldn’t load activity.</p>'; } } catch (error) { failure(error); } finally { $('loader').classList.add('hidden'); } }
+async function load() { $('walletError').hidden = true; try { const session = await requireActiveMember(); uid = session.user.uid; const profile = session.profile || {}; startCallListener(uid, profile); if (!stopNotifications) stopNotifications = listenForNotifications(uid, hasSomethingNew => { $('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; }); await expireStaleAddons(profile); balance = await getWalletBalance(uid); frozen = !!profile.walletFrozen; $('balance').textContent = balance.toLocaleString(); $('frozenBanner').hidden = !frozen; renderPacks(); setupCustomTokenPurchase(); const pricingCfg = await loadPricingCfg(); renderAddons(profile, pricingCfg); $('withdrawBtn').disabled = frozen || balance < WITHDRAWAL_TOKENS; $('withdrawalHint').textContent = frozen ? 'Your wallet is on hold — contact support' : balance < WITHDRAWAL_TOKENS ? `You need ${(WITHDRAWAL_TOKENS - balance).toLocaleString()} more tokens.` : '3,000 tokens converts to $15.'; $('withdrawBtn').onclick = withdrawalSheet; try { const withdrawals = await getDocs(query(collection(db, 'withdrawals'), where('uid', '==', uid), orderBy('createdAt', 'desc'))); $('withdrawals').innerHTML = withdrawals.docs.map(item => `<div>${item.data().status} · $${item.data().payout || 15}</div>`).join(''); } catch (error) { console.error('Could not load withdrawals', error); $('withdrawals').innerHTML = '<p class="gift-error">Couldn’t load withdrawal history.</p>'; } try { history = await getTransactionHistory(uid, 50); renderTx(); } catch (error) { console.error('Could not load wallet history', error); $('transactions').innerHTML = '<p class="gift-error">Couldn’t load activity.</p>'; } } catch (error) { failure(error); } finally { $('loader').classList.add('hidden'); } }
 
 load();

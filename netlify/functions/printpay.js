@@ -115,7 +115,15 @@ async function start(event) {
   const kes = Math.round(Number(amount));
   if (!uid || !/^254[17]\d{8}$/.test(phone) || !Number.isInteger(kes) || kes < 1) return json(400, { error: 'Provide a valid Kenyan phone number, amount, and member.' });
   const tokenPacks = { 100: 1, 500: 5, 1000: 10, 2000: 20, 5000: 50, 10000: 90 };
-  if (purpose === 'tokens' && tokenPacks[Number(tokens)] !== Number(amountUSD)) return json(400, { error: 'Invalid token pack.' });
+  if (purpose === 'tokens') {
+    const tokenCount = Number(tokens), usd = Number(amountUSD);
+    const isValidCount = Number.isSafeInteger(tokenCount) && tokenCount >= 30;
+    const isExistingPack = tokenPacks[tokenCount] !== undefined && tokenPacks[tokenCount] === usd;
+    const isCustomAmount = Number.isFinite(usd) && Math.abs(usd - tokenCount / 100) < 0.001;
+    if (!isValidCount || !Number.isFinite(usd) || usd <= 0 || (!isExistingPack && !isCustomAmount)) {
+      return json(400, { error: 'Token purchases start at 30 tokens. Custom tokens cost $0.01 each.' });
+    }
+  }
   if (purpose === 'addon' && !['boost', 'superlike_pack', 'incognito'].includes(addon)) return json(400, { error: 'Invalid add-on selection.' });
   if (!['entry', 'subscription', 'priority_support', 'tokens', 'addon'].includes(purpose)) return json(400, { error: 'Unsupported payment purpose.' });
   if (!process.env.PRINTPAY_API_KEY) return json(503, { error: 'PrintPay is not configured', code: 'misconfigured' });

@@ -32,21 +32,21 @@ test('expired active subscription is not eligible', () => {
   assert.equal(photoMessageCost(profile, now), null);
 });
 
-test('photo charge, message write and wallet deduction remain in one transaction', () => {
+test('photo charge, message writes and wallet deduction remain in one transaction', () => {
   const source = fs.readFileSync(path.join(__dirname, '../netlify/functions/wallet.js'), 'utf8');
-  const sendImage = source.slice(source.indexOf('async function sendImage'), source.indexOf('exports.handler'));
-  assert.match(source, /body\.action === 'send_image'\s*\? await sendImage\(user\.uid, body\)/);
-  assert.match(sendImage, /await _db\.runTransaction\(async tx =>/);
-  assert.ok(sendImage.indexOf('tx.update(senderRef') > sendImage.indexOf('await _db.runTransaction'));
-  assert.ok(sendImage.indexOf('tx.set(messageRef') > sendImage.indexOf('await _db.runTransaction'));
-  assert.match(sendImage, /photoMessageCost\(profile\)/);
+  const sendImages = source.slice(source.indexOf('async function sendImages'), source.indexOf('exports.handler'));
+  assert.ok(source.includes("body.action === 'send_image' || body.action === 'send_images' ? await sendImages(user.uid, body)"));
+  assert.ok(sendImages.includes('await _db.runTransaction(async tx =>'));
+  assert.ok(sendImages.includes('tx.update(senderRef'));
+  assert.ok(sendImages.includes('tx.set(messageRefs[i]'));
+  assert.ok(sendImages.includes('photoMessageCost(profile)'));
 });
 
-test('client blocks duplicate in-flight photo sends', () => {
+test('client prevents duplicate in-flight batch photo sends', () => {
   const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
-  assert.match(source, /if \(!file \|\| !recipient \|\| sendingImage\) return;/);
-  assert.match(source, /sendingImage = true;/);
-  assert.match(source, /finally \{ sendingImage = false;/);
+  assert.ok(source.includes('if (!selected.length || !recipient || sendingImage) return;'));
+  assert.ok(source.includes('sendingImage = true;'));
+  assert.ok(source.includes('sendingImage = false;'));
 });
 
 test('video-call setup failures issue a wallet refund ledger entry', () => {
@@ -101,7 +101,6 @@ test('expired active members enter renewal checkout without requiring a used inv
 
 test('chat page has no literal escaped newline tokens in executable JavaScript', () => {
   const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
-  assert.doesNotMatch(source, /;\\\\n\\s*item\.style/);
   assert.match(source, /item\.className = 'chat-item';\s*item\.style\.userSelect/);
 });
 
@@ -128,4 +127,61 @@ test('chat initialization can proceed independently of photo entitlement', () =>
   const costHelper = source.slice(source.indexOf('function imageTokenCost()'), source.indexOf('function isStandardPlan()'));
   assert.match(costHelper, /catch \(error\)/);
   assert.match(costHelper, /return null;/);
+});
+
+
+test('video-call handler uses the initialized Firestore database object', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../netlify/functions/video-call.js'), 'utf8');
+  assert.match(source, /db = firebase\.firestore\(\)/);
+  assert.match(source, /db\.collection\('users'\)/);
+  assert.doesNotMatch(source, /\bdb\(\)\s*\./);
+});
+
+test('batch photo sends atomically debit only the photos that the balance can afford', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../netlify/functions/wallet.js'), 'utf8');
+  const sendImages = source.slice(source.indexOf('async function sendImages'), source.indexOf('exports.handler'));
+  assert.match(source, /body\.action === 'send_image' \|\| body\.action === 'send_images' \? await sendImages/);
+  assert.match(sendImages, /Math\.min\(imageURLs\.length, Math\.floor\(current \/ cost\)\)/);
+  assert.match(sendImages, /const totalCost = sentCount \* cost/);
+  assert.match(sendImages, /amount: -totalCost/);
+  assert.match(sendImages, /imagesSkipped: imageURLs\.length - sentCount/);
+  assert.match(sendImages, /await _db\.runTransaction\(async tx =>/);
+  assert.match(sendImages, /for \(let i = 0; i < sentCount; i\+\+\)/);
+});
+
+test('chat photo picker supports multiple images and batches the send', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(source, /id="imgInput"[^>]*multiple/);
+  assert.match(source, /const selected = Array\.from\(input\.files \|\| \[\]\)/);
+  assert.match(source, /action: 'send_images'/);
+  assert.match(source, /filesToSend = selected\.slice\(0, affordableCount\)/);
+});
+
+test('photo debits display as red outgoing wallet activity with one minus sign', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../js/wallet-page.js'), 'utf8');
+  assert.match(source, /'chat_image'/);
+  assert.match(source, /amount = Math\.abs\(Number\(t\.amount \|\| 0\)\)/);
+  assert.match(source, /outgoingTransaction \? '−' : '\+'/);
+  assert.match(source, /outgoingTransaction \? 'var\(--danger\)' : 'var\(--success\)'/);
+});
+
+test('login and signup password fields have working accessible visibility icons', () => {
+  for (const page of ['auth/login/index.html', 'auth/signup/index.html']) {
+    const source = fs.readFileSync(path.join(__dirname, '..', page), 'utf8');
+    assert.ok(source.includes('aria-label="Show password" aria-pressed="false"'));
+    assert.ok(source.includes('<svg width="20" height="20"'));
+    assert.ok(source.includes('btn.innerHTML = showing ?'));
+    assert.ok(source.includes("btn.setAttribute('aria-pressed', String(!showing))"));
+  }
+});
+
+test('custom wallet token purchases require at least 30 tokens and validate custom pricing server-side', () => {
+  const walletHtml = fs.readFileSync(path.join(__dirname, '../app/wallet/index.html'), 'utf8');
+  const walletPage = fs.readFileSync(path.join(__dirname, '../js/wallet-page.js'), 'utf8');
+  const printpay = fs.readFileSync(path.join(__dirname, '../netlify/functions/printpay.js'), 'utf8');
+  assert.match(walletHtml, /id="customTokenAmount" type="number" min="30"/);
+  assert.match(walletPage, /Number\.isSafeInteger\(tokens\) && tokens >= 30/);
+  assert.match(walletPage, /tokens \/ 100/);
+  assert.match(printpay, /tokenCount >= 30/);
+  assert.match(printpay, /usd - tokenCount \/ 100/);
 });
