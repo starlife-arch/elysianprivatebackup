@@ -190,7 +190,7 @@
       lock.style.display = 'block';
       nav.onclick = (event) => {
         event.preventDefault();
-        showToast('Explore requires Elite or Vault. Upgrade to unlock.');
+        showToast('Explore is exclusive to Vault members. Upgrade to Vault to unlock.');
       };
     }
     function isDiscoverUnlocked() { return isPaidStage(); }
@@ -277,12 +277,7 @@
       const deck = document.getElementById('swipeDeck');
       deck.innerHTML = '';
       if (profiles.length === 0) {
-        deck.innerHTML = `
-          <div class="empty-state">
-            <div style="color:var(--gold);font-size:2.5rem;">◈</div>
-            <p style="font-weight:600;">You've seen everyone</p>
-            <p class="muted">Check back later for new members</p>
-          </div>`;
+        deck.replaceChildren();
         return;
       }
       const visible = profiles.slice(currentIndex, currentIndex + 3).reverse();
