@@ -217,7 +217,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let myUser, myProfile, theirUID = null, theirProfile = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
-    let blockedByMe = false, blockedMe = false, sendingMessage = false;
+    let blockedByMe = false, blockedMe = false, sendingMessage = false, sendingImage = false, openChatRequest = 0;
     let selectedReportReason = '';
 
     const REPORT_REASONS = ['Harassment','Fake profile','Inappropriate content','Scam or fraud','Underage user','Hate speech','Other'];
@@ -308,7 +308,7 @@
         if (c.lastMessage) {
           hasConvs = true;
           const item = document.createElement('div');
-          item.className = 'chat-item';
+          item.className = 'chat-item';\n          item.style.userSelect = 'none';\n          item.style.webkitUserSelect = 'none';
           if (c.unavailable) item.style.opacity = '0.6';
           const time = c.lastMessageAt ? formatTime(c.lastMessageAt.toDate ? c.lastMessageAt.toDate() : new Date()) : '';
           item.innerHTML = `
@@ -342,33 +342,41 @@
     }
 
     async function openChat(uid) {
-      // Verify match
-      const matchSnap = await getDoc(doc(db, 'users', myUser.uid, 'matches', uid));
-      if (!matchSnap.exists()) { showToast('You can only message your matches.'); return; }
-
+      const requestId = ++openChatRequest;
       theirUID = uid;
-      await refreshBlockState(uid);
+      theirProfile = null;
+      if (unsubMessages) { unsubMessages(); unsubMessages = null; }
       showChatWindow();
-
-      const snap = await getDoc(doc(db, 'users', uid));
-      const them = snap.exists() ? snap.data() : {};
-      theirProfile = them;
-      const chatName = document.getElementById('chatName');
-      chatName.textContent = them.displayName || them.name || 'Member';
-      chatName.insertAdjacentHTML('beforeend', chatNameBadge(them));
-      document.getElementById('chatVerification').innerHTML = renderChatVerification(them);
-      document.getElementById('chatMenuName').textContent = them.displayName || them.name || 'Member';
-      const av = document.getElementById('chatAvatar');
-      av.src = them.photos?.[0] || 'https://placehold.co/40x40/131929/6b7a99';
-
-      if (unsubMessages) unsubMessages();
-      applyBlockState();
-      unsubMessages = listenMessages(myUser.uid, uid, renderMessages);
-      if (draftMessage && uid === openUID && !blockedByMe && !blockedMe) {
-        const input = document.getElementById('msgInput');
-        input.value = draftMessage;
-        autoResize(input);
-        input.focus();
+      document.getElementById('chatName').textContent = 'Opening chat…';
+      document.getElementById('chatVerification').textContent = '';
+      document.getElementById('messages').innerHTML = '<div style="padding:1rem;text-align:center;color:var(--muted);font-size:13px;">Loading conversation…</div>';
+      try {
+        const [matchSnap, profileSnap, mine, theirs] = await Promise.all([
+          getDoc(doc(db, 'users', myUser.uid, 'matches', uid)),
+          getDoc(doc(db, 'users', uid)),
+          getDoc(doc(db, 'users', myUser.uid, 'blocked', uid)).catch(() => null),
+          getDoc(doc(db, 'users', uid, 'blocked', myUser.uid)).catch(() => null)
+        ]);
+        if (requestId !== openChatRequest || theirUID !== uid) return;
+        if (!matchSnap.exists()) { showToast('You can only message your matches.'); backToList(); return; }
+        const them = profileSnap.exists() ? profileSnap.data() : {};
+        theirProfile = them;
+        blockedByMe = !!mine?.exists?.();
+        blockedMe = !!theirs?.exists?.();
+        const chatName = document.getElementById('chatName');
+        chatName.textContent = them.displayName || them.name || 'Member';
+        chatName.insertAdjacentHTML('beforeend', chatNameBadge(them));
+        document.getElementById('chatVerification').innerHTML = renderChatVerification(them);
+        document.getElementById('chatMenuName').textContent = them.displayName || them.name || 'Member';
+        document.getElementById('chatAvatar').src = them.photos?.[0] || 'https://placehold.co/40x40/131929/6b7a99';
+        applyBlockState();
+        unsubMessages = listenMessages(myUser.uid, uid, renderMessages);
+        if (draftMessage && uid === openUID && !blockedByMe && !blockedMe) {
+          const input = document.getElementById('msgInput');
+          input.value = draftMessage; autoResize(input); input.focus();
+        }
+      } catch (error) {
+        if (requestId === openChatRequest) { showToast('Could not open this conversation. Please try again.'); console.error(error); }
       }
     }
 
@@ -499,7 +507,7 @@
 
     window.sendImage = async function(input) {
       const file = input.files?.[0], recipient = theirUID;
-      if (!file || !recipient) return;
+      if (!file || !recipient || sendingImage) return;\n      sendingImage = true;
       if (!file.type.startsWith('image/')) { showToast('Choose an image file.'); input.value=''; return; }
       if (file.size > 8 * 1024 * 1024) { showToast('Images must be 8 MB or smaller.'); input.value=''; return; }
       const cost = imageTokenCost();
@@ -518,7 +526,7 @@
         myProfile.walletBalance = data.balance;
         showToast(data.cost ? 'Photo sent — 30 tokens charged.' : 'Photo sent.');
       } catch(e) { showToast(e.message || 'Photo failed to send.'); }
-      finally { input.value=''; if (button) button.disabled = blockedByMe || blockedMe; }
+      finally { sendingImage = false; input.value=''; if (button) button.disabled = blockedByMe || blockedMe; }
     };
 
     window.handleKey = e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); } };
