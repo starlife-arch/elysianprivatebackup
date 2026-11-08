@@ -104,3 +104,11 @@ test('chat page has no literal escaped newline tokens in executable JavaScript',
   assert.doesNotMatch(source, /;\\\\n\\s*item\.style/);
   assert.match(source, /item\.className = 'chat-item';\s*item\.style\.userSelect/);
 });
+
+
+test('chat block-state script contains real line breaks, not escaped newline tokens', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(source, /const photoCost = imageTokenCost\(\);\s+const canSendPhotos = photoCost !== null;/);
+  assert.doesNotMatch(source, /imageTokenCost\(\);\\\\n\s*const canSendPhotos/);
+  assert.doesNotMatch(source, /const canSendPhotos = photoCost !== null;\\\\n/);
+});
