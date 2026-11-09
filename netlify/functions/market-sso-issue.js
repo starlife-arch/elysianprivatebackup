@@ -59,7 +59,7 @@ exports.handler = async event => {
       expiresAt
     });
 
-    const callback = new URL("https://market.elysiandate.site/sso/callback/");
+    const callback = new URL("https://market.elysiandate.site/sso-callback.html");
     callback.searchParams.set("code", code);
     return json(200, {
       success: true,
