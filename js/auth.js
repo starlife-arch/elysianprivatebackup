@@ -107,10 +107,11 @@ export async function routeUser(user) {
     return;
   }
   if (isAccessExpired(d)) {
-    // Do not mutate protected membership/payment fields from the browser.
-    // The trusted payment flow handles renewal; client-side writes here used
-    // to fail Firestore rules and strand Google redirect sign-ins.
-    window.location.href = "/account/payment/?renewal=1";
+    // Membership expiry limits dating entitlements, not authentication or
+    // access to account tools. Keep the session in the app so the member can
+    // still use wallet, support, Creator Market, logout, and account switching.
+    // Renewal remains available from the subscription panel, not as a global redirect.
+    window.location.href = "/app/dashboard/";
     return;
   }
   window.location.href = "/app/dashboard/";
@@ -135,9 +136,12 @@ export async function requireMember() {
       }
       const snap = await getDoc(doc(db, "users", user.uid));
       let profile = snap.exists() ? normalizeProfile(snap.data()) : null;
-      if (!profile || profile.banned || profile.status === "approved_pending_payment" || isAccessExpired(profile)) {
+      if (!profile || profile.banned || profile.status === "approved_pending_payment") {
         routeUser(user); return;
       }
+      // An expired membership is not an authentication failure. Resolve the
+      // session and let each feature enforce its own entitlement, while keeping
+      // account navigation and sign-out available.
       const subResult = await expireSubscriptionIfNeeded(user.uid, profile);
       profile = normalizeProfile(subResult.profile);
       resolve({ user, profile });
