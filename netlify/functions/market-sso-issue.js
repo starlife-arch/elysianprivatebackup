@@ -61,7 +61,7 @@ exports.handler = async event => {
 
     const callbackUrl = process.env.MARKET_SSO_CALLBACK_URL || "https://market.elysiandate.site/sso-callback.html";
     const callback = new URL(callbackUrl);
-    const allowedCallbackHosts = new Set(["market.elysiandate.site", "deploy-preview-1--marketelysiandate.netlify.app"]);
+    const allowedCallbackHosts = new Set(["market.elysiandate.site", "deploy-preview-1--marketelysiandate.netlify.app", "deploy-preview-2--marketelysiandate.netlify.app"]);
     if (callback.protocol !== "https:" || !allowedCallbackHosts.has(callback.hostname) || callback.pathname !== "/sso-callback.html") {
       throw new Error("MARKET_SSO_CALLBACK_URL is not an approved HTTPS callback");
     }
