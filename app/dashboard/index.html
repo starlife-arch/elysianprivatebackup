@@ -35,6 +35,7 @@
       <div class="topbar-title">Discover</div>
       <div style="display:flex;gap:0.75rem;align-items:center;">
         <button type="button" id="installAppButton" class="btn btn-outline btn-sm" style="white-space:nowrap;padding:0.45rem 0.65rem;">Install App</button>
+        <button type="button" id="creatorMarketButton" class="btn btn-outline btn-sm" style="white-space:nowrap;padding:0.45rem 0.65rem;">Creator Market</button>
         <span id="memberBadge" class="status-badge status-gold" style="font-size:11px;"></span>
         <button onclick="openFilter()" style="background:var(--surface);border:1px solid var(--border);color:var(--text);width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
@@ -131,6 +132,7 @@
 
   <script type="module">
     import { requireMember, verificationState } from "../../js/auth.js";
+    import { openCreatorMarket } from "../../js/creator-market.js";
     import { verifiedBadge } from "../../js/icons.js";
     import { listenForNotifications } from "../../js/notifications.js";
     import { startCallListener } from "../../js/call-listener.js";
@@ -146,6 +148,15 @@
     let myCoords = null, adminSettings = {}, pricingCfg = {}, standardDailyLikes = 5;
     const photoIndexByUID = {};
     const SWIPE_THRESHOLD = 80;
+
+    document.getElementById("creatorMarketButton")?.addEventListener("click", async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      button.textContent = "Connecting...";
+      try { await openCreatorMarket(myUser); }
+      catch (error) { showToast(error.message || "Could not open Creator Market."); }
+      finally { button.disabled = false; button.textContent = "Creator Market"; }
+    });
 
     async function init() {
       const { user, profile } = await requireMember();
