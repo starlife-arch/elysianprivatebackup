@@ -59,7 +59,12 @@ exports.handler = async event => {
       expiresAt
     });
 
-    const callback = new URL("https://market.elysiandate.site/sso-callback.html");
+    const callbackUrl = process.env.MARKET_SSO_CALLBACK_URL || "https://market.elysiandate.site/sso-callback.html";
+    const callback = new URL(callbackUrl);
+    const allowedCallbackHosts = new Set(["market.elysiandate.site", "deploy-preview-1--marketelysiandate.netlify.app"]);
+    if (callback.protocol !== "https:" || !allowedCallbackHosts.has(callback.hostname) || callback.pathname !== "/sso-callback.html") {
+      throw new Error("MARKET_SSO_CALLBACK_URL is not an approved HTTPS callback");
+    }
     callback.searchParams.set("code", code);
     return json(200, {
       success: true,
