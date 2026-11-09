@@ -91,11 +91,14 @@ test('Firestore rules preserve self profile access and protect wallet/payment mu
 });
 
 
-test('expired members can navigate away from renewal and switch accounts', () => {
+test('expired and approved-unpaid accounts can enter non-dating areas while dating remains plan-gated', () => {
   const auth = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
   const payment = fs.readFileSync(path.join(__dirname, '../account/payment/index.html'), 'utf8');
-  assert.match(auth, /window\.location\.href = ["']\/app\/dashboard\/["']/);
-  assert.doesNotMatch(auth, /window\.location\.href = ["']\/account\/payment\/\?renewal=1["']/);
+  assert.match(auth, /if \(d\.status === ["']approved_pending_payment["']\) \{[\s\S]*?window\.location\.href = ["']\/app\/dashboard\/["']/);
+  assert.doesNotMatch(auth, /if \(d\.status === ["']approved_pending_payment["']\) \{[\s\S]*?\/account\/payment\//);
+  assert.match(auth, /approved_pending_payment accounts are authenticated and approved/);
+  assert.match(auth, /export async function requireActiveMember\(\)/);
+  assert.match(auth, /if \(!hasActiveMembership\(session\.profile\)\)/);
   assert.match(payment, /id="switchAccountButton"/);
   assert.match(payment, /await logout\(\)/);
   assert.match(payment, /const isRenewal = params\.get\('renewal'\) === '1'/);
