@@ -8,7 +8,9 @@
 - Each creator has a market-only profile and content catalogue. A dating profile is not required to expose creator content.
 - Platform commission is 15%; creator share is 85% of the amount actually collected. Show the split before confirming a listing and record immutable gross, fee, and net ledger entries.
 - Creator earnings are separate from ordinary purchased/spendable tokens. Withdrawal minimum remains 3,000 available creator-earning tokens.
-- Market access, creator management, purchased content, rental access, creator earnings, and withdrawal history remain available after a dating membership expires, subject to age, account-standing, and safety checks.
+- Creator Market is available to every authenticated account in good standing regardless of dating plan, including newly admin-approved accounts that have not paid the dating entry fee and accounts whose Trial, Standard, Elite, or Vault membership has expired. Access to adult content requires the viewer to pass the required 18+ age check.
+- Initial dating entry payment is required only before using dating features. An approved-but-unpaid account may enter the app shell and Creator Market, but dating features (including likes, swipes, matches, and chats) remain gated until the required dating membership is active.
+- Membership expiry for any plan (Trial, Standard, Elite, or Vault) removes dating entitlements only. It must not block Creator Market, purchased/rented content, creator studio, earnings, or withdrawals, subject to account-standing, age, and safety checks.
 - Adult access requires reliable 18+ verification for both creators and viewers. Never infer age from profile text or date-of-birth alone where stronger verification is required by applicable policy/law.
 
 ## Content access and download controls
@@ -45,7 +47,8 @@ Required behavior:
 - Membership expiry may restrict only dating features that require an active plan. It must not redirect globally from the application shell or intercept unrelated routes.
 - The upgrade page must be a dismissible, normal route or inline notice, not a modal/guard that traps navigation.
 - After expiry, a user can still reach login/logout, account settings, support, wallet history, Creator Market, owned purchases/rentals, creator studio, earnings, and withdrawals (subject to account safety and 18+ eligibility).
-- Separate authorization checks: authentication, account safety/ban state, 18+ verification, dating-plan entitlement, and Creator Market entitlement. Do not conflate them into one global `hasActivePlan` gate.
+- Separate authorization checks: authentication, account safety/ban state, viewer 18+ verification, creator verification, dating-plan entitlement, and Creator Market entitlement. Do not conflate them into one global `hasActivePlan` gate.
+- Creator onboarding is a separate verification workflow: an applicant can create a creator application and submit required identity/age/ownership or consent evidence; publishing paid content and receiving creator payouts require admin approval. Track `not_applied`, `pending`, `approved`, `rejected`, and `suspended` states, with reasoned decisions and audit history. A rejected/suspended creator may still browse or buy content if otherwise eligible.
 - Switching accounts must clear user-scoped caches, listeners, selected profile, pending route state, and stale membership state before loading the next account. Ensure Firebase auth state and app state settle before route guards run.
 - A banned/suspended account may be restricted according to admin action, but membership expiry alone must not lock the user out of account switching or unrelated paid entitlements.
 
@@ -58,8 +61,8 @@ Required behavior:
 
 ## Implementation sequence
 
-1. Audit existing auth/session routing and all membership-expiry guards. Reproduce the Trial-expired lockout and account-switch failure before changing behavior.
-2. Implement the narrow auth/route-guard correction with regression tests for Trial-expired users, logout, and switching between two accounts. Keep existing dating payment flows intact.
+1. Audit existing auth/session routing and all membership-expiry guards. Reproduce expired-plan lockout for Trial, Standard, Elite, and Vault, plus the approved-but-unpaid entry-payment redirect and account-switch failure.
+2. Implement narrow auth/route-guard corrections with regression tests for all expired plans, approved-but-unpaid users, logout, and switching between two accounts. Keep entry-payment processing intact while gating dating features separately.
 3. Implement Creator Market identity/username search, independent access gates, and private creator profiles.
 4. Implement private media storage and owner-controlled download permission.
 5. Implement hourly timed-view offers and separate day/week/month/custom rentals with server-enforced entitlements.
@@ -68,8 +71,10 @@ Required behavior:
 
 ## Non-regression acceptance tests
 
-- Expired Trial user can still open Creator Market (if age-verified and account is in good standing), wallet, account settings, support, and owned purchases.
-- Expired Trial user can log out and then sign into a different account without being redirected back to the previous account's payment page.
+- Newly approved but unpaid user can enter Creator Market after required 18+ verification, but cannot use dating features until entry payment/membership is active.
+- Expired Trial, Standard, Elite, and Vault users can still open Creator Market (after viewer age verification and while in good standing), wallet, account settings, support, and owned purchases.
+- Expired users can log out and then sign into a different account without being redirected back to the previous account's payment page.
+- Creator publishing and payouts remain disabled until the creator's separate verification application is approved.
 - Active-plan user and expired-plan user can both search creator usernames without creating dating relationships or matches.
 - An unpurchased viewer cannot fetch original media; a paid viewer can view only within the purchased time window.
 - Download is unavailable by default and becomes available only when the owner explicitly enables it.
