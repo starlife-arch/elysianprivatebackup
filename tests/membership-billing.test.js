@@ -72,10 +72,12 @@ test('empty swipe deck stays empty and previously swiped profiles are not recycl
 });
 
 
-test('expired access routes to renewal without a forbidden client-side membership write', () => {
+test('expired access remains in the app without a forbidden client-side membership write', () => {
   const source = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
   assert.doesNotMatch(source, /async function expireAccess\s*\(/);
-  assert.match(source, /if \(isAccessExpired\(d\)\) \{[\s\S]*?\/account\/payment\//);
+  assert.match(source, /if \(isAccessExpired\(d\)\) \{[\s\S]*?window\.location\.href = ["']\/app\/dashboard\/["']/);
+  assert.doesNotMatch(source, /if \(isAccessExpired\(d\)\) \{[\s\S]*?window\.location\.href = ["']\/account\/payment\//);
+  assert.match(source, /An expired membership is not an authentication failure/);
   assert.doesNotMatch(source, /if \(profile && isAccessExpired\(profile\)\) await expireAccess/);
 });
 
@@ -89,10 +91,13 @@ test('Firestore rules preserve self profile access and protect wallet/payment mu
 });
 
 
-test('expired active members enter renewal checkout without requiring a used invite token', () => {
+test('expired members can navigate away from renewal and switch accounts', () => {
   const auth = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
   const payment = fs.readFileSync(path.join(__dirname, '../account/payment/index.html'), 'utf8');
-  assert.match(auth, /window\.location\.href = ["']\/account\/payment\/\?renewal=1["']/);
+  assert.match(auth, /window\.location\.href = ["']\/app\/dashboard\/["']/);
+  assert.doesNotMatch(auth, /window\.location\.href = ["']\/account\/payment\/\?renewal=1["']/);
+  assert.match(payment, /id="switchAccountButton"/);
+  assert.match(payment, /await logout\(\)/);
   assert.match(payment, /const isRenewal = params\.get\('renewal'\) === '1'/);
   assert.match(payment, /isRenewal && profile\.status === 'active_member'/);
   assert.match(payment, /!isRenewal && !isPesapalCallback && inviteToken/);
