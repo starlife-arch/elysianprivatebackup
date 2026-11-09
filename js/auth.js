@@ -102,8 +102,10 @@ export async function routeUser(user) {
   if (d.banned)            { window.location.href = "/account/suspended/"; return; }
   if (d.status === "rejected") { window.location.href = "/account/status/"; return; }
   if (d.status === "approved_pending_payment") {
-    const token = d.inviteToken || d.inviteCode || "";
-    window.location.href = `/account/payment/${token ? `?token=${encodeURIComponent(token)}` : ""}`;
+    // Initial dating entry payment is required only for dating features.
+    // Approved accounts may still enter the app and use the independent,
+    // age-gated Creator Market without activating a dating membership.
+    window.location.href = "/app/dashboard/";
     return;
   }
   if (isAccessExpired(d)) {
@@ -136,9 +138,12 @@ export async function requireMember() {
       }
       const snap = await getDoc(doc(db, "users", user.uid));
       let profile = snap.exists() ? normalizeProfile(snap.data()) : null;
-      if (!profile || profile.banned || profile.status === "approved_pending_payment") {
+      if (!profile || profile.banned) {
         routeUser(user); return;
       }
+      // approved_pending_payment accounts are authenticated and approved.
+      // They may use non-dating areas; dating pages enforce active membership
+      // separately through requireActiveMember().
       // An expired membership is not an authentication failure. Resolve the
       // session and let each feature enforce its own entitlement, while keeping
       // account navigation and sign-out available.
