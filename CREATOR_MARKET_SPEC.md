@@ -103,3 +103,61 @@ Removing content must not erase financial records. If a purchased item is remove
 - Pending earnings cannot be withdrawn; only available earnings count toward the 3,000-token threshold.
 - Admin takedown is immediate, role-protected, reasoned, and audited; related refunds/reversals are traceable.
 - Existing dating, membership, wallet, chat, KYC, and payment flows pass regression tests unchanged.
+
+
+## Creator usernames and private discovery
+
+- Each creator chooses a unique Creator Market username. Enforce normalized, case-insensitive uniqueness on the server, validate allowed characters/length, and reserve system/admin names.
+- Members may search the Creator Market by exact or partial username and open a dedicated Creator Market creator page.
+- Creator Market usernames and profiles are separate from dating display names and dating profiles. A creator may choose a different public-facing creator identity.
+- Search and creator pages are available only inside the authenticated, age-eligible Creator Market. Do not index them publicly or expose them to dating discovery.
+- Username changes should be rate-limited and audited; old usernames should not immediately become claimable if that could enable impersonation.
+
+## Creator-controlled downloads
+
+- Downloads are disabled by default for every paid item.
+- When downloads are disabled, buyers may view the content only through the authenticated Creator Market viewer for the access period they purchased or rented.
+- When a creator explicitly enables downloads for an item, the purchase/rental terms must state whether download is included and the server may issue a short-lived, buyer-authorized download.
+- Never expose a permanent public storage URL. A disabled download control is not sufficient by itself: protect originals at the storage/API layer and do not send original file URLs or bytes to unauthorized clients.
+- Be transparent that no web platform can fully prevent screenshots, screen recording, or copying by a person who can view content. Do not advertise this as impossible to capture.
+
+## Creator-defined rental and purchase offers
+
+A creator can configure one or more paid access offers for each content item:
+- Hourly rentals (creator chooses the number of hours and token price).
+- One-day rentals.
+- Custom day durations.
+- Week-based rentals (creator chooses number of weeks and price).
+- Month-based rentals (creator chooses number of months and price).
+- Optional permanent purchase / lifetime access, priced separately.
+
+Creators set the token price for each offer, subject to platform minimums, maximums, and policy controls that may be configured by admins. The listing must clearly show the access type, duration, price, and whether downloading is included before a buyer confirms payment.
+
+For every rental, store the exact server-generated `startsAt` and `expiresAt` timestamps, the selected offer snapshot, buyer, content, amount, fee, creator share, and transaction reference. Access expires automatically at `expiresAt`; the viewer/API must check expiry on every access and must not rely only on hiding a UI button. Use a single server-authoritative clock and prevent a buyer from extending a rental by changing their device time.
+
+A permanent purchase is a separate entitlement with no scheduled expiry. A refund, chargeback, moderation takedown, or legal restriction may revoke access according to the published policy, with an auditable reason and linked financial reversal. If a creator edits or removes an offer later, preserve the original offer snapshot for existing buyers.
+
+The 15% platform fee applies to each completed paid rental or permanent purchase. For a 100-token charge, record 15 platform tokens and 85 creator tokens exactly once. Refunds reverse the original transaction proportionally and transparently; never create duplicate credits on retry.
+
+## Dating membership gate and account switching
+
+The existing dating authentication flow currently sends users to `/account/payment/` when their account is `approved_pending_payment` or their dating access has expired. Creator Market must not call dating-only `requireMember()` / `requireActiveMember()` guards or inherit that redirect as its access policy.
+
+Required behaviour:
+- A verified adult with an otherwise eligible account can enter Creator Market when Trial, Standard, Elite, or Vault dating access expires.
+- Expired dating membership may gate dating-only areas, but must not block Creator Market browsing, username search, purchased/rented library, creator tools, earnings, or withdrawal history.
+- Creator Market routes and APIs use a dedicated authorization helper that checks authentication, adult verification, account-wide safety status, and Creator Market-specific suspension; it does not require an active dating subscription.
+- The dating payment/renewal page must always provide a visible, working sign-out/account-switch path. A user must be able to sign out and return to the login screen even when renewal is required.
+- Signing into a different account must evaluate that new account independently; do not preserve a stale payment-page redirect or lock the browser into the previous account's renewal screen.
+- Do not globally remove legitimate dating renewal gates in the Creator Market PR. Fix the account-switch/payment-page trap in a separate, narrowly scoped authentication PR, with tests for expired, pending-payment, active, banned, and account-switch cases.
+- Payment page redirects must not run on Creator Market routes or override a valid Creator Market session.
+
+## Additional acceptance criteria
+
+- Creator usernames are unique case-insensitively and searchable only within the authenticated 18+ Creator Market.
+- Each content item can offer hourly, day, custom-day, week, month, and/or permanent purchase options, each with creator-set token prices.
+- Rental access ends at the exact server-recorded expiry even if the user keeps the page open or changes device time.
+- Downloads are off by default; when off, no original file URL or download endpoint is exposed to the buyer.
+- When downloads are enabled, only eligible purchasers/renters receive a short-lived authorized download.
+- A user with expired dating membership can still use Creator Market if adult verification and safety checks pass.
+- A user on a dating payment page can always sign out and switch to another account.
