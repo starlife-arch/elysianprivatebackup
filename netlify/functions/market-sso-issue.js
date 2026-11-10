@@ -30,6 +30,8 @@ exports.handler = async event => {
   if (!originAllowed(event)) return json(403, { error: "Origin not allowed" });
 
   try {
+    const requestBody = event.body ? JSON.parse(event.body) : {};
+    const destination = requestBody.destination === "/admin" ? "/admin" : "/member";
     const token = bearerToken(event);
     if (!token) return json(401, { error: "Authentication required." });
 
@@ -41,6 +43,9 @@ exports.handler = async event => {
     if (!userSnap.exists) return json(403, { error: "Complete your DateVault account before opening Creator Market." });
 
     const profile = userSnap.data() || {};
+    if (destination === "/admin" && profile.role !== "admin" && profile.isAdmin !== true) {
+      return json(403, { error: "DateVault administrator access is required for Market Admin." });
+    }
     if (!eligibleForMarket(profile)) {
       return json(403, { error: "This DateVault account is not currently eligible for Creator Market." });
     }
@@ -55,6 +60,7 @@ exports.handler = async event => {
     await db.collection("creatorMarketSsoCodes").doc(codeHash).create({
       uid: decoded.uid,
       audience: "market.elysiandate.site",
+      destination,
       createdAt: now,
       expiresAt
     });
