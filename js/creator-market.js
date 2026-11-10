@@ -1,4 +1,4 @@
-export async function openCreatorMarket(user) {
+export async function openCreatorMarket(user, destination = "/member") {
   if (!user) throw new Error("Sign in to DateVault before opening Creator Market.");
   const idToken = await user.getIdToken();
   const response = await fetch("/api/market-sso-issue", {
@@ -8,7 +8,7 @@ export async function openCreatorMarket(user) {
       "Authorization": `Bearer ${idToken}`,
       "Content-Type": "application/json"
     },
-    body: "{}"
+    body: JSON.stringify({ destination })
   });
   const result = await response.json().catch(() => ({}));
   if (!response.ok || !result.success || !result.redirectUrl) {

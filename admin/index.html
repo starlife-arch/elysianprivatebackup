@@ -29,6 +29,7 @@
       <button class="sidebar-item" id="nav-members"       onclick="showSection('members')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>All Members</button>
       <button class="sidebar-item" onclick="window.location.href='/admin/sms.html'">SMS Broadcasts</button>
+      <button class="sidebar-item" id="nav-market-admin" onclick="openMarketAdmin()">Creator Market Admin</button>
       <button class="sidebar-item" id="nav-messages"      onclick="showSection('messages')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>Message Users</button>
       <button class="sidebar-item" id="nav-announcements" onclick="showSection('announcements')">
@@ -297,6 +298,7 @@
 
   <script type="module">
     import { requireAdmin, logout, db, auth, verificationState } from "../js/auth.js";
+    import { openCreatorMarket } from "../js/creator-market.js";
     import { showConfirm, showPrompt, showAlert, showSuccess, showError } from "../js/dialog.js";
     import { openSheet } from "../js/sheet.js";
     import { approveUser, resendInvite, rejectUser, allowReapply, banUser, unbanUser, grantAccess, revokeAccess, setExpiry, fetchAllUsers, fetchReports, fetchVerificationCalls, scheduleCall, resolveReport, reopenReport, fetchPayments, computeRiskScore } from "../js/admin.js";
@@ -306,6 +308,14 @@
 
     let allUsers=[], allReports=[], allCalls=[], allTickets=[];
     let grantUID = null;
+
+    window.openMarketAdmin = async function() {
+      const button = document.getElementById("nav-market-admin");
+      if (button) { button.disabled = true; button.textContent = "Opening Market Admin…"; }
+      try { await openCreatorMarket(auth.currentUser, "/admin"); }
+      catch (error) { showError(error.message || "Could not open Creator Market Admin."); }
+      finally { if (button) { button.disabled = false; button.textContent = "Creator Market Admin"; } }
+    };
 
     async function init() {
       await requireAdmin();
