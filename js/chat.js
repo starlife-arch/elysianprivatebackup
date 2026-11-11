@@ -1,7 +1,7 @@
 import { auth, db } from "./auth.js";
 import {
   collection, addDoc, query, orderBy, onSnapshot,
-  doc, updateDoc, serverTimestamp, getDoc, getDocs, where, limit, runTransaction
+  doc, updateDoc, serverTimestamp, getDoc, getDocs, where, limit, runTransaction, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 export function getMatchId(uid1, uid2) {
@@ -18,7 +18,7 @@ async function blockStatus(myUID, theirUID) {
 }
 
 // ── Send a message ──
-export async function sendMessage(myUID, theirUID, text, imageURL = null) {
+export async function sendMessage(myUID, theirUID, text, imageURL = null, replyTo = null) {
   const matchId = getMatchId(myUID, theirUID);
   const blocks = await blockStatus(myUID, theirUID);
   if (blocks.blockedByMe || blocks.blockedMe) throw new Error("Messaging is blocked for this conversation.");
@@ -26,6 +26,7 @@ export async function sendMessage(myUID, theirUID, text, imageURL = null) {
     senderUID: myUID,
     text: text || null,
     imageURL: imageURL || null,
+    replyTo: replyTo ? { id: replyTo.id, senderUID: replyTo.senderUID, text: String(replyTo.text || '').slice(0, 500), imageURL: replyTo.imageURL || null } : null,
     sentAt: serverTimestamp(),
     read: false
   };
