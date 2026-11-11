@@ -217,7 +217,7 @@
     import { openSheet } from "../../js/sheet.js";
     import {
       doc, setDoc, getDoc, addDoc, getDocs, updateDoc, deleteDoc,
-      serverTimestamp, collection, query, where, orderBy, onSnapshot, limit, arrayUnion
+      serverTimestamp, collection, query, where, orderBy, onSnapshot, limit, arrayUnion, arrayRemove
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let myUser, myProfile, theirUID = null, theirProfile = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
@@ -518,7 +518,7 @@
         if (likeButton) {
           likeButton.disabled = true;
           try {
-            const messageRef = doc(db, 'matches', getMatchId(myUser.uid, theirUID), 'messages', likeButton.dataset.likeMessage);
+            const messageRef = doc(db, 'matches', [myUser.uid, theirUID].sort().join('_'), 'messages', likeButton.dataset.likeMessage);
             const message = currentMessages.find(item => item.id === likeButton.dataset.likeMessage);
             const liked = Array.isArray(message?.likedBy) && message.likedBy.includes(myUser.uid);
             await updateDoc(messageRef, { likedBy: liked ? arrayRemove(myUser.uid) : arrayUnion(myUser.uid) });
@@ -690,7 +690,7 @@
 
       // Snapshot recent messages
       const { getMatchId } = await import('../../js/chat.js');
-      const matchId = getMatchId(myUser.uid, theirUID);
+      const matchId = [myUser.uid, theirUID].sort().join('_');
       const msgsSnap = await getDocs(query(collection(db, 'matches', matchId, 'messages'), orderBy('sentAt', 'desc'), limit(20)));
       const msgSnapshot = msgsSnap.docs.reverse().map(d => {
         const m = d.data();
