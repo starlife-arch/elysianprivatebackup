@@ -101,6 +101,10 @@ export async function routeUser(user) {
   if (d.role === "admin")  { window.location.href = "/admin/";   return; }
   if (d.banned)            { window.location.href = "/account/suspended/"; return; }
   if (d.status === "rejected") { window.location.href = "/account/status/"; return; }
+  if (d.freeTrial?.status === "expired" && d.paid !== true && d.hasPaid !== true) {
+    window.location.href = "/account/payment/?trialExpired=1";
+    return;
+  }
   if (d.status === "approved_pending_payment") {
     const token = d.inviteToken || d.inviteCode || "";
     window.location.href = `/account/payment/${token ? `?token=${encodeURIComponent(token)}` : ""}`;

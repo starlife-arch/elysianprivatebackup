@@ -101,7 +101,7 @@ test('expired members can navigate away from renewal and switch accounts', () =>
   assert.match(payment, /const isRenewal = params\.get\('renewal'\) === '1'/);
   assert.match(payment, /isRenewal && profile\.status === 'active_member'/);
   assert.match(payment, /!isRenewal && !isPesapalCallback && inviteToken/);
-  assert.match(payment, /purpose !== 'entry' \|\| isRenewal \|\| !inviteToken/);
+  assert.match(payment, /purpose !== 'entry' \|\| isRenewal \|\| trialExpiredCheckout \|\| !inviteToken/);
 });
 
 test('chat page has no literal escaped newline tokens in executable JavaScript', () => {
@@ -189,4 +189,28 @@ test('custom wallet token purchases require at least 30 tokens and validate cust
   assert.match(walletPage, /tokens \/ 100/);
   assert.match(printpay, /tokenCount >= 30/);
   assert.match(printpay, /usd - tokenCount \/ 100/);
+});
+
+test('paid Trial extension is fixed-price, eligibility-checked and does not grant extra allowances', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../netlify/functions/printpay.js'), 'utf8');
+  assert.match(source, /purpose === 'trial_extension'[\s\S]*?Number\(amountUSD\) !== 1 \|\| kes !== 130/);
+  assert.match(source, /trial\.status !== 'expired'[\s\S]*?user\.paid === true/);
+  const start = source.slice(source.indexOf("if (purpose === 'trial_extension')"), source.indexOf("if (!['entry'", source.indexOf("if (purpose === 'trial_extension')")));
+  assert.match(start, /A 7-day Trial extension costs exactly \$1 \(KES 130\)/);
+  const completeStart = source.indexOf("async function complete");
+  const extensionStart = source.indexOf("} else if (payment.purpose === 'trial_extension')", completeStart);
+  const extension = source.slice(extensionStart, source.indexOf("} else if (payment.purpose === 'priority_support')", extensionStart));
+  assert.match(extension, /'freeTrial\.expiresAt': nextExpiry/);
+  assert.match(extension, /trialExtensionCount: getAdmin\(\)\.firestore\.FieldValue\.increment\(1\)/);
+  assert.doesNotMatch(extension, /likesRemaining|passesRemaining|likesGranted|passesGranted|walletBalance/);
+});
+
+test('only expired unpaid Trial accounts receive the two checkout choices', () => {
+  const auth = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
+  const payment = fs.readFileSync(path.join(__dirname, '../account/payment/index.html'), 'utf8');
+  assert.match(auth, /d\.freeTrial\?\.status === "expired" && d\.paid !== true && d\.hasPaid !== true[\s\S]*?trialExpired=1/);
+  assert.match(payment, /trialCheckoutChoices/);
+  assert.match(payment, /selectTrialCheckout\('trial_extension'\)/);
+  assert.match(payment, /isExpiredUnpaidTrial\(profile\)/);
+  assert.match(payment, /purpose === 'entry' \|\| purpose === 'trial_extension'/);
 });
