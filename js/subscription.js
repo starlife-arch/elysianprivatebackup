@@ -34,8 +34,11 @@ export function hasActiveMembership(profile = {}) {
 export function isSubscriptionExpired(profile = {}) {
   const sub = profile.subscription || {};
   const plan = sub.plan || profile.plan || "standard";
-  if (!['elite', 'vault'].includes(plan) || sub.status !== 'active' || !sub.nextBillingDate) return false;
-  return new Date().toISOString().slice(0, 10) > dateOnly(sub.nextBillingDate);
+  if (!['elite', 'vault'].includes(plan)) return false;
+  const expiry = dateOnly(sub.nextBillingDate);
+  // Treat incomplete or inactive premium records as expired, never as unlimited access.
+  if (sub.status !== 'active' || !expiry || Number.isNaN(Date.parse(expiry))) return true;
+  return new Date().toISOString().slice(0, 10) > expiry;
 }
 
 export function getSubscription(profile = {}) {
