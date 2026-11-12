@@ -273,3 +273,20 @@ test('mobile bottom navigation uses shrinkable equal slots and a More menu for s
   assert.match(dashboard, /id="moreCreatorMarket"/);
   assert.match(dashboard, /id="moreInstallApp"/);
 });
+
+
+test('expired premium membership keeps Standard plan gates while removing Elite and Vault access', () => {
+  const subscription = fs.readFileSync(path.join(__dirname, '../js/subscription.js'), 'utf8');
+  const auth = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
+  assert.match(subscription, /expiredPremiumDowngrade/);
+  assert.match(subscription, /if \(isSubscriptionExpired\(profile\) && minimum > planRank\('standard'\)\) return false/);
+  assert.match(auth, /activeMembership \? getSubscription\(profile\)\.plan/);
+});
+
+test('unpaid expired trials cannot bypass swipe limits after their trial record expires', () => {
+  const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
+  const swipe = fs.readFileSync(path.join(__dirname, '../js/swipe.js'), 'utf8');
+  assert.match(rules, /function isUnpaidExpiredTrial\(u\)/);
+  assert.match(rules, /isUnpaidExpiredTrial\(b\)\s*\?\s*false/);
+  assert.match(swipe, /user\.status === "active_member" && !user\.freeTrial/);
+});
