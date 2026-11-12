@@ -206,7 +206,7 @@
       }
       if (purpose === 'entry' && !trialExpiredCheckout && !isRenewal && !isPesapalCallback && !inviteToken && !activeTrial) { showInvalidInvite(); return; }
       if (purpose === 'trial_extension' && !trialExpiredCheckout) { showInvalidInvite(); return; }
-      if (purpose !== 'entry' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
+      if (purpose !== 'entry' && purpose !== 'trial_extension' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
         const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
