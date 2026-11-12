@@ -23,7 +23,11 @@ function dateOnly(value) {
 function effectivePlan(user = {}, now = Date.now()) {
   if (isTrialActive(user, now)) return 'free_trial';
   const subscription = user.subscription || {};
-  return subscription.plan || user.plan || 'standard';
+  const plan = subscription.plan || user.plan || 'standard';
+  const expiry = dateOnly(subscription.nextBillingDate);
+  if (['elite', 'vault'].includes(plan) && subscription.status === 'active' && expiry
+      && new Date(now).toISOString().slice(0, 10) > expiry) return 'standard';
+  return plan;
 }
 
 function isPaidMember(user = {}, now = Date.now()) {
@@ -31,9 +35,7 @@ function isPaidMember(user = {}, now = Date.now()) {
   const subscription = user.subscription || {};
   const paid = trial || user.hasPaid === true || user.paid === true || subscription.status === 'active';
   if (!paid) return false;
-  if (subscription.status === 'active' && subscription.nextBillingDate
-      && new Date(now).toISOString().slice(0, 10) > dateOnly(subscription.nextBillingDate)) return false;
-  return ['free_trial', 'standard', 'elite', 'vault'].includes(effectivePlan(user, now));
+    return ['free_trial', 'standard', 'elite', 'vault'].includes(effectivePlan(user, now));
 }
 
 function videoCallPrice(user = {}, now = Date.now()) {
