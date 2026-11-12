@@ -78,10 +78,22 @@ function isFreeTrialActive(user = {}) {
 }
 
 function isPaidStandard(user = {}) {
-  const plan = user.plan || user.subscription?.plan;
+  const plan = user.subscription?.plan || user.plan;
   const paid = user.hasPaid === true || user.paid === true
-    || (user.status === "active_member" && !user.freeTrial);
+    || (user.status === "active_member" && !isFreeTrialActive(user));
   return paid && plan === "standard" && !isFreeTrialActive(user);
+}
+
+function isActiveVaultPlan(user = {}) {
+  const sub = user.subscription || {};
+  const plan = sub.plan || user.plan;
+  const next = sub.nextBillingDate;
+  const expiryDate = next?.toDate ? next.toDate().toISOString().slice(0, 10)
+    : next?.toMillis ? new Date(next.toMillis()).toISOString().slice(0, 10)
+    : (typeof next === "string" ? next.slice(0, 10) : null);
+  const notExpired = !expiryDate || new Date().toISOString().slice(0, 10) <= expiryDate;
+  const paid = user.hasPaid === true || user.paid === true || user.status === "active_member";
+  return paid && plan === "vault" && (!sub.status || sub.status === "active") && notExpired && !isFreeTrialActive(user);
 }
 
 function toMillis(value) {
@@ -112,19 +124,35 @@ export async function recordSwipe(myUID, theirUID, direction) {
     ]);
     const user = userSnap.exists() ? userSnap.data() : {};
     const alreadySwiped = swipeSnap.exists();
+    if (alreadySwiped) throw new Error("You have already swiped this profile.");
 
-    if (!alreadySwiped && isFreeTrialActive(user) && storedDirection === 'like') {
+    const trialActive = isFreeTrialActive(user);
+    if (trialActive && storedDirection === 'like') {
       const remaining = Math.max(0, Number(user.likesRemaining ?? 3));
       if (remaining < 1) throw new SwipeLimitError("Your free trial includes three likes total. Upgrade to continue liking profiles.");
       tx.update(userRef, { likesRemaining: remaining - 1, 'freeTrial.likesUsed': Math.min(3, Number(user.freeTrial?.likesUsed || 0) + 1), lastLikeAt: serverTimestamp() });
     }
-    if (!alreadySwiped && isFreeTrialActive(user) && storedDirection === 'nope') {
+    if (trialActive && storedDirection === 'nope') {
       const remaining = Math.max(0, Number(user.passesRemaining ?? 3));
       if (remaining < 1) throw new SwipeLimitError("Your free trial includes three passes total. Upgrade to continue passing profiles.");
       tx.update(userRef, { passesRemaining: remaining - 1, 'freeTrial.passesUsed': Math.min(3, Number(user.freeTrial?.passesUsed || 0) + 1), lastPassAt: serverTimestamp() });
     }
 
-    if (!isSuperLike && !alreadySwiped && isPaidStandard(user)) {
+    if (isSuperLike && !trialActive && !isActiveVaultPlan(user)) {
+      const packUses = Number(user.addons?.superlikePack?.remainingUses || 0);
+      if (user.addons?.superlikePack?.active !== true || packUses < 1) {
+        throw new Error("You need an available Super Like Pack to use a super like.");
+      }
+      const remaining = packUses - 1;
+      tx.update(userRef, {
+        'addons.superlikePack.remainingUses': remaining,
+        'addons.superlikePack.active': remaining > 0,
+        'addons.superlikePack.updatedAt': serverTimestamp(),
+        lastSuperLikeAt: serverTimestamp()
+      });
+    }
+
+    if (!isSuperLike && isPaidStandard(user)) {
       const cfg = pricingSnap.exists() ? pricingSnap.data() : {};
       const dailyLimit = Math.max(1, Number(cfg.standardDailyLikes) || 5);
       const resetMs = toMillis(user.likesResetAt);
