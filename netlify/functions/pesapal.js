@@ -152,6 +152,7 @@ async function approveMembership(orderTrackingId, merchantReference, statusData)
     writeInvoice(txn, admin, payment, orderTrackingId, merchantReference);
 
     if (purpose === "subscription") {
+      const renewalDate = nextBillingDate(billing);
       txn.update(userRef, {
         paid: true, hasPaid: true, plan, stage: "paid", status: "active_member",
         "freeTrial.status": "completed",
@@ -159,7 +160,8 @@ async function approveMembership(orderTrackingId, merchantReference, statusData)
         subscription: {
           plan, billing, status: "active",
           startDate: new Date().toISOString(),
-          nextBillingDate: nextBillingDate(billing),
+          nextBillingDate: renewalDate,
+          nextBillingAt: admin.firestore.Timestamp.fromDate(new Date(renewalDate + "T23:59:59.999Z")),
           prioritySupportRequests: user.subscription?.prioritySupportRequests || 0
         },
         vaultBadge: plan === "vault",
