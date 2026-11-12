@@ -484,3 +484,7 @@ body.sheet-open{overflow:hidden}.dv-sheet-overlay{position:fixed;z-index:10000;i
   .bottom-nav .nav-item svg { width: 18px; height: 18px; }
   .topbar-title { font-size: 1.18rem; }
 }
+
+/* Prevent mobile layouts from shifting horizontally when a long label or card is present. */
+html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+img, video, canvas, iframe { max-width: 100%; }
