@@ -160,6 +160,7 @@ async function approveMembership(orderTrackingId, merchantReference, statusData)
           plan, billing, status: "active",
           startDate: new Date().toISOString(),
           nextBillingDate: nextBillingDate(billing),
+          nextBillingAt: admin.firestore.Timestamp.fromDate(new Date(nextBillingDate(billing) + "T23:59:59.999Z")),
           prioritySupportRequests: user.subscription?.prioritySupportRequests || 0
         },
         vaultBadge: plan === "vault",
