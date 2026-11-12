@@ -91,7 +91,7 @@ function effectiveSwipePlan(user = {}) {
 
 function isPaidStandard(user = {}) {
   const paid = user.hasPaid === true || user.paid === true
-    || (user.status === "active_member" && !isFreeTrialActive(user));
+    || (user.status === "active_member" && !user.freeTrial);
   return paid && effectiveSwipePlan(user) === "standard" && !isFreeTrialActive(user);
 }
 
@@ -103,7 +103,7 @@ function isActiveVaultPlan(user = {}) {
     : next?.toMillis ? new Date(next.toMillis()).toISOString().slice(0, 10)
     : (typeof next === "string" ? next.slice(0, 10) : null);
   const notExpired = !expiryDate || new Date().toISOString().slice(0, 10) <= expiryDate;
-  const paid = user.hasPaid === true || user.paid === true || user.status === "active_member";
+  const paid = user.hasPaid === true || user.paid === true || (user.status === "active_member" && !user.freeTrial);
   return paid && plan === "vault" && (!sub.status || sub.status === "active") && notExpired && !isFreeTrialActive(user);
 }
 
