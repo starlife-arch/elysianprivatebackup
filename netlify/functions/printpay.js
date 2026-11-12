@@ -199,6 +199,7 @@ async function complete(checkoutId, statusData) {
         subscription: {
           plan: payment.plan, billing: payment.billing, status: 'active',
           startDate: new Date().toISOString(), nextBillingDate: nextBillingDate(payment.billing),
+          nextBillingAt: getAdmin().firestore.Timestamp.fromDate(new Date(nextBillingDate(payment.billing) + 'T23:59:59.999Z')),
           prioritySupportRequests: completedUser.subscription?.prioritySupportRequests || 0
         },
         vaultBadge: payment.plan === 'vault',
