@@ -318,14 +318,14 @@ test('Firestore only grants unlimited Vault Super Likes with a future server exp
   const sync = fs.readFileSync(path.join(__dirname, '../netlify/functions/subscription-entitlement-sync.js'), 'utf8');
   assert.match(rules, /expiresAt != null && expiresAt > request\.time/);
   assert.match(rules, /expiredPremium = \(plan == 'elite' \|\| plan == 'vault'\)/);
-  assert.match(printpay, /nextBillingAt: getAdmin\(\)\.firestore\(\)\.Timestamp\.fromDate/);
+  assert.ok(printpay.includes("nextBillingAt: getAdmin().firestore.Timestamp.fromDate"));
   assert.match(sync, /verifyIdToken\(token\)/);
   assert.match(sync, /subscription\.nextBillingAt/);
 });
 
 test('DateVault More actions no longer depend on removed topbar controls', () => {
   const dashboard = fs.readFileSync(path.join(__dirname, '../app/dashboard/index.html'), 'utf8');
-  assert.match(dashboard, /moreCreatorMarket[sS]*?await openCreatorMarket\(myUser\)/);
-  assert.match(dashboard, /moreInstallApp[sS]*?promptEvent\.prompt\(\)/);
+  assert.ok(dashboard.includes("moreCreatorMarket") && dashboard.includes("await openCreatorMarket(myUser)"));
+  assert.ok(dashboard.includes("moreInstallApp") && dashboard.includes("promptEvent.prompt()"));
   assert.match(dashboard, /dashboard-topbar-brand/);
 });
