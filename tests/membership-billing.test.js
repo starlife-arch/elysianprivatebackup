@@ -26,10 +26,10 @@ test('expired free trial without paid membership is not eligible', () => {
   assert.equal(photoMessageCost(profile, now), null);
 });
 
-test('expired active subscription is not eligible', () => {
-  const profile = { hasPaid: true, subscription: { plan: 'elite', status: 'active', nextBillingDate: new Date(now - 1000).toISOString() } };
-  assert.equal(videoCallPrice(profile, now), null);
-  assert.equal(photoMessageCost(profile, now), null);
+test('expired Elite or Vault subscriptions fall back to Standard entitlements', () => {
+  const profile = { hasPaid: true, plan: 'elite', subscription: { plan: 'elite', status: 'active', nextBillingDate: new Date(now - 1000).toISOString() } };
+  assert.equal(videoCallPrice(profile, now), 50);
+  assert.equal(photoMessageCost(profile, now), 30);
 });
 
 test('photo charge, message writes and wallet deduction remain in one transaction', () => {
