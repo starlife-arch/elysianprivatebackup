@@ -99,11 +99,16 @@
       Chat
       <span class="badge" id="chatBadge" style="display:none;"></span>
     </a>
-    <a class="nav-item" href="/app/profile/">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-      Profile
-    </a>
+    <button class="nav-item mobile-more-trigger" id="mobileMoreButton" type="button" aria-expanded="false" aria-controls="mobileMoreMenu">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+      More
+    </button>
   </nav>
+  <div class="mobile-more-menu" id="mobileMoreMenu" hidden>
+    <a href="/app/profile/">Profile</a>
+    <button type="button" id="moreCreatorMarket">Creator Market</button>
+    <button type="button" id="moreInstallApp">Install App</button>
+  </div>
 
   <div id="toast" class="toast"></div>
   <div id="filterPanel" class="filter-panel">
@@ -148,6 +153,30 @@
     let myCoords = null, adminSettings = {}, pricingCfg = {}, standardDailyLikes = 5;
     const photoIndexByUID = {};
     const SWIPE_THRESHOLD = 80;
+
+    const mobileMoreButton = document.getElementById('mobileMoreButton');
+    const mobileMoreMenu = document.getElementById('mobileMoreMenu');
+    const closeMobileMore = () => {
+      if (mobileMoreMenu) mobileMoreMenu.hidden = true;
+      mobileMoreButton?.setAttribute('aria-expanded', 'false');
+    };
+    mobileMoreButton?.addEventListener('click', () => {
+      if (!mobileMoreMenu) return;
+      mobileMoreMenu.hidden = !mobileMoreMenu.hidden;
+      mobileMoreButton.setAttribute('aria-expanded', String(!mobileMoreMenu.hidden));
+    });
+    document.addEventListener('click', event => {
+      if (!mobileMoreMenu || mobileMoreMenu.hidden) return;
+      if (!mobileMoreMenu.contains(event.target) && !mobileMoreButton?.contains(event.target)) closeMobileMore();
+    });
+    document.getElementById('moreCreatorMarket')?.addEventListener('click', () => {
+      closeMobileMore();
+      document.getElementById('creatorMarketButton')?.click();
+    });
+    document.getElementById('moreInstallApp')?.addEventListener('click', () => {
+      closeMobileMore();
+      document.getElementById('installAppButton')?.click();
+    });
 
     document.getElementById("creatorMarketButton")?.addEventListener("click", async event => {
       const button = event.currentTarget;
