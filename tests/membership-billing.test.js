@@ -315,10 +315,12 @@ test('dashboard header keeps member ID and filter without crowded Creator Market
 test('Firestore only grants unlimited Vault Super Likes with a future server expiry timestamp', () => {
   const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
   const printpay = fs.readFileSync(path.join(__dirname, '../netlify/functions/printpay.js'), 'utf8');
+  const pesapal = fs.readFileSync(path.join(__dirname, '../netlify/functions/pesapal.js'), 'utf8');
   const sync = fs.readFileSync(path.join(__dirname, '../netlify/functions/subscription-entitlement-sync.js'), 'utf8');
   assert.match(rules, /expiresAt != null && expiresAt > request\.time/);
   assert.match(rules, /expiredPremium = \(plan == 'elite' \|\| plan == 'vault'\)/);
   assert.ok(printpay.includes("nextBillingAt: getAdmin().firestore.Timestamp.fromDate"));
+  assert.ok(pesapal.includes("nextBillingAt: admin.firestore.Timestamp.fromDate"));
   assert.match(sync, /verifyIdToken\(token\)/);
   assert.match(sync, /subscription\.nextBillingAt/);
 });
