@@ -290,3 +290,23 @@ test('unpaid expired trials cannot bypass swipe limits after their trial record 
   assert.match(rules, /isUnpaidExpiredTrial\(b\)\s*\?\s*false/);
   assert.match(swipe, /user\.status === "active_member" && !user\.freeTrial/);
 });
+
+
+test('premium swipe entitlements fail closed when expiry or active status is missing', () => {
+  const swipe = fs.readFileSync(path.join(__dirname, '../js/swipe.js'), 'utf8');
+  const subscription = fs.readFileSync(path.join(__dirname, '../js/subscription.js'), 'utf8');
+  assert.match(swipe, /sub\.status !== "active" \|\| !expiryDate/);
+  assert.match(swipe, /const validExpiry = Boolean\(expiryDate\)/);
+  assert.match(swipe, /sub\.status === "active" && validExpiry/);
+  assert.match(subscription, /if \(sub\.status !== 'active' \|\| !expiry \|\| Number\.isNaN\(Date\.parse\(expiry\)\)\) return true/);
+});
+
+test('dashboard header keeps member ID and filter without crowded Creator Market/install buttons', () => {
+  const dashboard = fs.readFileSync(path.join(__dirname, '../app/dashboard/index.html'), 'utf8');
+  assert.match(dashboard, /class="topbar dashboard-topbar"/);
+  assert.match(dashboard, /class="dashboard-member-id"/);
+  assert.doesNotMatch(dashboard, /id="creatorMarketButton"/);
+  assert.doesNotMatch(dashboard, /id="installAppButton"/);
+  assert.match(dashboard, /await openCreatorMarket\(myUser\)/);
+  assert.match(dashboard, /promptEvent\.prompt\(\)/);
+});
