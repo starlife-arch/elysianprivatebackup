@@ -17,6 +17,10 @@
     <div class="payment-card fade-up">
       <div class="auth-logo" style="font-size:1.25rem;margin-bottom:0.25rem;">DateVault</div>
       <p class="muted" id="paymentSubtitle" style="text-align:center;margin-bottom:0.5rem;font-size:13px;">Private Membership Access</p>
+      <div id="trialCheckoutChoices" style="display:none;gap:0.5rem;margin:0.75rem 0 1rem;">
+        <button type="button" id="trialExtendChoice" class="btn btn-outline" style="flex:1;">Extend Trial · $1 / 7 days</button>
+        <button type="button" id="trialEntryChoice" class="btn btn-outline" style="flex:1;">Pay entry fee</button>
+      </div>
       <button type="button" id="switchAccountButton" class="btn btn-outline btn-full" style="margin:0 0 0.65rem;">Sign out / Switch account</button>
       <button type="button" id="creatorMarketButton" class="btn btn-outline btn-full" style="margin:0 0 1rem;">Open Creator Market</button>
       <div class="price-tag" id="paymentPrice">$9.99</div>
@@ -106,7 +110,8 @@
     });
 
     const params = new URLSearchParams(window.location.search);
-    const purpose = params.get('purpose') || 'entry';
+    let purpose = params.get('purpose') || 'entry';
+    const trialExpiredCheckout = params.get('trialExpired') === '1';
     const isRenewal = params.get('renewal') === '1' && purpose === 'entry';
     let inviteToken = params.get('token') || '';
     const plan = params.get('plan') || 'standard';
@@ -118,14 +123,34 @@
     const addonConfigKey = addon === 'superlike_pack' ? 'superlikePack' : addon;
     const addonDefaults = { boost: 2.99, superlikePack: 4.99, incognito: 3.99 };
     const addonAmountUSD = Number(pricingCfg?.addons?.[addonConfigKey]?.usd ?? addonDefaults[addonConfigKey] ?? 0);
-    const amountUSD = purpose === 'tokens' ? tokenAmount : (purpose === 'addon' ? addonAmountUSD : (purpose === 'entry' ? pricingCfg.entryUSD : paymentAmountUSD(purpose, plan, billing, pricingCfg)));
-    const amountKES = paymentAmountKES(amountUSD);
+    let amountUSD = purpose === 'trial_extension' ? 1 : (purpose === 'tokens' ? tokenAmount : (purpose === 'addon' ? addonAmountUSD : (purpose === 'entry' ? pricingCfg.entryUSD : paymentAmountUSD(purpose, plan, billing, pricingCfg))));
+    let amountKES = purpose === 'trial_extension' ? 130 : paymentAmountKES(amountUSD);
+
+    function isExpiredUnpaidTrial(value = profile) {
+      const trial = value.freeTrial || {};
+      const expiry = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
+      return trial.status === 'expired' && expiry > 0 && expiry <= Date.now() && value.paid !== true && value.hasPaid !== true && value.adminOverride !== true;
+    }
+    function selectTrialCheckout(nextPurpose) {
+      if (!trialExpiredCheckout || !isExpiredUnpaidTrial()) return;
+      purpose = nextPurpose;
+      amountUSD = purpose === 'trial_extension' ? 1 : Number(pricingCfg.entryUSD || 0);
+      amountKES = purpose === 'trial_extension' ? 130 : paymentAmountKES(amountUSD);
+      document.getElementById('paymentSubtitle').textContent = paymentTitle();
+      document.getElementById('paymentPrice').textContent = `${amountUSD.toFixed(2)}`;
+      document.getElementById('paymentPeriod').textContent = paymentPeriod();
+      document.getElementById('trialExtendChoice').classList.toggle('btn-gold', purpose === 'trial_extension');
+      document.getElementById('trialEntryChoice').classList.toggle('btn-gold', purpose === 'entry');
+      document.getElementById('trialExtendChoice').classList.toggle('btn-outline', purpose !== 'trial_extension');
+      document.getElementById('trialEntryChoice').classList.toggle('btn-outline', purpose !== 'entry');
+    }
 
     function paymentTitle() {
       if (purpose === 'subscription') return `${planLabel(plan)} ${billing === 'annual' ? 'Annual' : 'Monthly'} Plan`;
       if (purpose === 'tokens') return `${tokenCount.toLocaleString()} Tokens`;
       if (purpose === 'addon') return ({ boost: 'Profile Boost', superlike_pack: 'Super Like Pack', incognito: 'Incognito Mode' })[addon] || 'Add-on';
       if (purpose === 'priority_support') return 'Priority Support Request';
+      if (purpose === 'trial_extension') return '7-Day Trial Extension';
       return 'Private Membership Access';
     }
     function paymentPeriod() {
@@ -133,6 +158,7 @@
       if (purpose === 'tokens') return `${tokenCount.toLocaleString()} tokens · 100 tokens = $1`;
       if (purpose === 'addon') return 'One-time add-on purchase';
       if (purpose === 'priority_support') return 'One-time support request · scheduled manually';
+      if (purpose === 'trial_extension') return '7 additional days of Trial access · Existing Trial limits remain unchanged';
       return 'One-time access fee · Lifetime membership';
     }
     function returnUrl() { return purpose === 'tokens' ? '/app/wallet/' : (purpose === 'entry' ? '/app/dashboard/' : (purpose === 'priority_support' ? '/app/chat/?tab=support' : '/app/profile/')); }
@@ -148,7 +174,7 @@
       document.getElementById('loader').classList.add('hidden');
     }
     async function validateInviteToken() {
-      if (purpose !== 'entry') return true;
+      if (purpose !== 'entry' || trialExpiredCheckout) return true;
       const res = await fetch('/api/validate-invite-token', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: inviteToken, uid: currentUser.uid })
@@ -157,7 +183,7 @@
       return res.ok && data.valid === true;
     }
     async function markInviteTokenUsed() {
-      if (purpose !== 'entry' || isRenewal || !inviteToken) return;
+      if (purpose !== 'entry' || isRenewal || trialExpiredCheckout || !inviteToken) return;
       await fetch('/api/validate-invite-token', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'mark-used', token: inviteToken, uid: currentUser.uid })
@@ -172,11 +198,14 @@
       const isPesapalCallback = params.get('pesapal') === 'callback';
       const trialExpiry = profile.freeTrial?.expiresAt?.toDate ? profile.freeTrial.expiresAt.toDate() : new Date(profile.freeTrial?.expiresAt || 0);
       const activeTrial = profile.status === 'active_member' && profile.freeTrial?.status === 'active' && trialExpiry.getTime() > Date.now();
+      if ((purpose === 'trial_extension' || trialExpiredCheckout) && !isExpiredUnpaidTrial(profile)) { showInvalidInvite(); return; }
+      if (purpose === 'trial_extension' && profile.status !== 'approved_pending_payment' && profile.status !== 'active_member') { showInvalidInvite(); return; }
       if (purpose === 'entry' && !isPesapalCallback && (!snap.exists() || (!(isRenewal && profile.status === 'active_member') && !(profile.adminApproved || ['approved_pending_invite','approved_pending_payment'].includes(profile.status) || activeTrial)))) {
         const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
-      if (purpose === 'entry' && !isRenewal && !isPesapalCallback && !inviteToken && !activeTrial) { showInvalidInvite(); return; }
+      if (purpose === 'entry' && !trialExpiredCheckout && !isRenewal && !isPesapalCallback && !inviteToken && !activeTrial) { showInvalidInvite(); return; }
+      if (purpose === 'trial_extension' && !trialExpiredCheckout) { showInvalidInvite(); return; }
       if (purpose !== 'entry' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
         const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
@@ -189,6 +218,12 @@
       document.getElementById('paymentPrice').innerHTML = pricingCfg.entryPromoActive && purpose === 'entry' ? `<span style="text-decoration:line-through;color:var(--muted);font-size:1rem;margin-right:0.5rem;">$${pricingCfg.entryOriginalUSD.toFixed(2)}</span>$${amountUSD.toFixed(2)}<div style="font-size:12px;color:var(--gold);margin-top:0.35rem;">${pricingCfg.entryPromoLabel || 'Promo active'}</div>` : `$${amountUSD.toFixed(2)}`;
       if (profile.phone) document.getElementById('pesapalPhone').value = profile.phone;
       document.getElementById('paymentPeriod').textContent = paymentPeriod();
+      if (trialExpiredCheckout) {
+        document.getElementById('trialCheckoutChoices').style.display = 'flex';
+        document.getElementById('trialExtendChoice').addEventListener('click', () => selectTrialCheckout('trial_extension'));
+        document.getElementById('trialEntryChoice').addEventListener('click', () => selectTrialCheckout('entry'));
+        selectTrialCheckout(purpose === 'trial_extension' ? 'trial_extension' : 'entry');
+      }
       document.getElementById('loader').classList.add('hidden');
       selectMethod('printpay');
       handlePesapalReturn();
