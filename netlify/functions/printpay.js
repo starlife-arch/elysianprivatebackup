@@ -219,7 +219,7 @@ async function complete(checkoutId, statusData) {
       if (Number(payment.amountUSD) !== 1 || Number(payment.amountKes) !== 130) throw new Error('Invalid Trial extension amount.');
       const trial = completedUser.freeTrial || {};
       const oldExpiryMs = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : new Date(trial.expiresAt || 0).getTime();
-      if (trial.status !== 'expired' || !oldExpiryMs || oldExpiryMs > Date.now() || completedUser.paid === true || completedUser.hasPaid === true || completedUser.adminOverride === true || completedUser.banned === true) {
+      if (trial.status !== 'expired' || !oldExpiryMs || oldExpiryMs > Date.now() || completedUser.paid === true || completedUser.hasPaid === true || completedUser.adminOverride === true || completedUser.banned === true || completedUser.role === 'admin') {
         throw new Error('This Trial is no longer eligible for extension.');
       }
       const nextExpiry = getAdmin().firestore.Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000);
