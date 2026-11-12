@@ -108,16 +108,17 @@ export async function expireSubscriptionIfNeeded(uid, profile) {
   if (!isSubscriptionExpired(profile)) return { expired: false, profile };
   const storedSub = profile.subscription || {};
   const previousPlan = storedSub.plan || profile.plan || 'standard';
-  const expiredFor = dateOnly(storedSub.nextBillingDate);
+  const expiredBillingDate = storedSub.nextBillingDate || null;
+  const expiredFor = dateOnly(expiredBillingDate);
   const updates = {
     subscription: {
       ...storedSub,
-      previousPlan,
+      previousPlan: storedSub.plan || null,
       plan: 'standard',
       billing: 'included',
       status: 'expired',
       expiredAt: new Date().toISOString(),
-      expiredBillingDate: expiredFor,
+      expiredBillingDate,
       nextBillingDate: null
     },
     vaultBadge: false,
