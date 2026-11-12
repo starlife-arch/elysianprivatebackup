@@ -137,7 +137,7 @@
       amountUSD = purpose === 'trial_extension' ? 1 : Number(pricingCfg.entryUSD || 0);
       amountKES = purpose === 'trial_extension' ? 130 : paymentAmountKES(amountUSD);
       document.getElementById('paymentSubtitle').textContent = paymentTitle();
-      document.getElementById('paymentPrice').textContent = '
+      document.getElementById('paymentPrice').textContent = '$' + amountUSD.toFixed(2);
       document.getElementById('paymentPeriod').textContent = paymentPeriod();
       document.getElementById('perksList').style.display = purpose === 'trial_extension' ? 'none' : '';
       document.getElementById('trialExtendChoice').classList.toggle('btn-gold', purpose === 'trial_extension');
