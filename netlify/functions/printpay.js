@@ -46,6 +46,9 @@ async function sendNotifications(payment, user) {
     telegramPayload = { event: 'addon_purchased', ...telegramBase, addon: payment.addon, amountUSD: payment.amountUSD };
     emailPayload = { type: 'addon_purchased', ...emailBase, addon: payment.addon, amountUSD: payment.amountUSD, amountKes: payment.amountKes };
 
+  } else if (payment.purpose === 'trial_extension') {
+    telegramPayload = { event: 'trial_extended', ...telegramBase, amountUSD: 1, durationDays: 7 };
+    emailPayload = { type: 'trial_extended', ...emailBase, amountUSD: 1, durationDays: 7 };
   } else if (payment.purpose === 'priority_support') {
     telegramPayload = {
       event: 'priority_support_requested', ...telegramBase,
@@ -78,6 +81,8 @@ async function sendNotifications(payment, user) {
         ? `DateVault: Payment confirmed. Your ${planLabel(payment.plan)} plan is now active.`
         : payment.purpose === 'addon'
           ? `DateVault: Your ${({ boost: 'Profile Boost', superlike_pack: 'Super Like Pack', incognito: 'Incognito Mode' })[payment.addon] || 'add-on'} purchase is confirmed.`
+          : payment.purpose === 'trial_extension'
+          ? 'DateVault: Your Trial has been extended by 7 days. Your Trial limits and benefits remain unchanged.'
           : payment.purpose === 'priority_support'
           ? 'DateVault: Your priority support purchase was confirmed. Thank you.'
           : 'DateVault: Your membership payment was confirmed. Thank you.';
@@ -125,7 +130,17 @@ async function start(event) {
     }
   }
   if (purpose === 'addon' && !['boost', 'superlike_pack', 'incognito'].includes(addon)) return json(400, { error: 'Invalid add-on selection.' });
-  if (!['entry', 'subscription', 'priority_support', 'tokens', 'addon'].includes(purpose)) return json(400, { error: 'Unsupported payment purpose.' });
+  if (purpose === 'trial_extension') {
+    if (Number(amountUSD) !== 1 || kes !== 130) return json(400, { error: 'A 7-day Trial extension costs exactly $1 (KES 130).' });
+    const member = await db().collection('users').doc(uid).get();
+    const user = member.exists ? member.data() : {};
+    const trial = user.freeTrial || {};
+    const expiryMs = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : new Date(trial.expiresAt || 0).getTime();
+    if (trial.status !== 'expired' || !expiryMs || expiryMs > Date.now() || user.paid === true || user.hasPaid === true || user.adminOverride === true || user.banned === true || user.role === 'admin') {
+      return json(403, { error: 'Only an expired, unpaid Trial can be extended.' });
+    }
+  }
+  if (!['entry', 'subscription', 'priority_support', 'tokens', 'addon', 'trial_extension'].includes(purpose)) return json(400, { error: 'Unsupported payment purpose.' });
   if (!process.env.PRINTPAY_API_KEY) return json(503, { error: 'PrintPay is not configured', code: 'misconfigured' });
   let upstream = await fetchJSON(PRINTPAY_URL, { method: 'POST', headers: { Accept: 'application/json' }, form: true }, { x_api_key: process.env.PRINTPAY_API_KEY, phone_number: phone, amount: kes });
   if (upstream.status >= 400) {
@@ -199,6 +214,29 @@ async function complete(checkoutId, statusData) {
       const currentUses = Number(completedUser.addons?.superlikePack?.remainingUses || 0);
       const addonData = { active: true, purchasedAt: now, expiresAt, remainingUses: payment.addon === 'superlike_pack' ? currentUses + 10 : null };
       tx.update(userRef, { [`addons.${addonKey}`]: addonData, ...(payment.addon === 'boost' ? { boostActive: true, boostExpiresAt: expiresAt } : {}) });
+
+    } else if (payment.purpose === 'trial_extension') {
+      if (Number(payment.amountUSD) !== 1 || Number(payment.amountKes) !== 130) throw new Error('Invalid Trial extension amount.');
+      const trial = completedUser.freeTrial || {};
+      const oldExpiryMs = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : new Date(trial.expiresAt || 0).getTime();
+      if (trial.status !== 'expired' || !oldExpiryMs || oldExpiryMs > Date.now() || completedUser.paid === true || completedUser.hasPaid === true || completedUser.adminOverride === true || completedUser.banned === true) {
+        throw new Error('This Trial is no longer eligible for extension.');
+      }
+      const nextExpiry = getAdmin().firestore.Timestamp.fromMillis(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      tx.update(userRef, {
+        status: 'active_member', paid: false, hasPaid: false,
+        plan: 'free_trial', stage: 'trial',
+        'freeTrial.status': 'active',
+        'freeTrial.expiresAt': nextExpiry,
+        'freeTrial.durationDays': 7,
+        'subscription.plan': 'free_trial',
+        'subscription.billing': 'trial',
+        'subscription.status': 'active',
+        'subscription.nextBillingDate': null,
+        trialExtensionCount: getAdmin().firestore.FieldValue.increment(1),
+        lastTrialExtensionAt: now,
+        lastTrialExtensionPayment: `printpay_${checkoutId}`
+      });
 
     } else if (payment.purpose === 'priority_support') {
       const reqRef = db().collection('priority_support_requests').doc();
