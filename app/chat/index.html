@@ -490,8 +490,8 @@
           if (likedByMe || likedByOther) {
             const reaction = document.createElement('div');
             reaction.className = 'dv-message-like-reaction';
-            reaction.textContent = likedByMe && likedByOther ? '\\u2665 You both liked this'
-              : likedByMe ? '\\u2665 You liked this' : '\\u2665 They liked this';
+            reaction.textContent = likedByMe && likedByOther ? '\u2665 You both liked this'
+              : likedByMe ? '\u2665 You liked this' : '\u2665 They liked this';
             reaction.style.cssText = 'display:inline-flex;align-self:flex-start;margin-top:7px;padding:3px 8px;border-radius:999px;background:rgba(201,168,76,.14);color:var(--gold);font-size:10px;font-weight:700;';
             bubble.appendChild(reaction);
           }
