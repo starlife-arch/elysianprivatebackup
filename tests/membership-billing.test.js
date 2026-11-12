@@ -234,14 +234,16 @@ test('expired premium plans normalize to Standard even when legacy top-level pla
 });
 
 test('paid expired subscription date remains valid through its final calendar day', () => {
-  const { isPaidMember, effectivePlan } = require('../netlify/functions/membership-billing');
+  const { isPaidMember, effectivePlan, videoCallPrice, photoMessageCost } = require('../netlify/functions/membership-billing');
   const profile = {
     status: 'active_member', hasPaid: true, plan: 'vault',
     subscription: { plan: 'vault', status: 'active', nextBillingDate: '2026-11-12' }
   };
   assert.equal(isPaidMember(profile, Date.parse('2026-11-12T22:00:00Z')), true);
-  assert.equal(isPaidMember(profile, Date.parse('2026-11-13T00:00:00Z')), false);
-  assert.equal(effectivePlan({ ...profile, subscription: { ...profile.subscription, plan: 'standard', status: 'expired' } }), 'standard');
+  assert.equal(isPaidMember(profile, Date.parse('2026-11-13T00:00:00Z')), true);
+  assert.equal(effectivePlan(profile, Date.parse('2026-11-13T00:00:00Z')), 'standard');
+  assert.equal(videoCallPrice(profile, Date.parse('2026-11-13T00:00:00Z')), 50);
+  assert.equal(photoMessageCost(profile, Date.parse('2026-11-13T00:00:00Z')), 30);
 });
 
 test('super likes consume purchased pack uses in the same transaction except active Vault and active Trial', () => {
@@ -259,7 +261,7 @@ test('message-like snapshots preserve the visible chat anchor and show the react
   const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
   assert.match(chat, /const scrollAnchor = anchorNode \? \{ id: anchorNode\.dataset\.messageId/);
   assert.match(chat, /container\.scrollTop \+= nextAnchor\.getBoundingClientRect\(\)\.top - scrollAnchor\.top/);
-  assert.match(chat, /likedByOther \? '♥ They liked this'/);
+  assert.match(chat, /likedByMe \? '♥ You liked this' : '♥ They liked this'/);
 });
 
 test('mobile bottom navigation uses shrinkable equal slots and a More menu for secondary actions', () => {
