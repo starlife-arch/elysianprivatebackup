@@ -80,12 +80,14 @@ function isFreeTrialActive(user = {}) {
 function effectiveSwipePlan(user = {}) {
   const sub = user.subscription || {};
   const plan = sub.plan || user.plan || "standard";
+  if (!["elite", "vault"].includes(plan)) return plan;
   const next = sub.nextBillingDate;
   const expiryDate = next?.toDate ? next.toDate().toISOString().slice(0, 10)
     : next?.toMillis ? new Date(next.toMillis()).toISOString().slice(0, 10)
     : (typeof next === "string" ? next.slice(0, 10) : null);
-  if (["elite", "vault"].includes(plan) && sub.status === "active" && expiryDate
-      && new Date().toISOString().slice(0, 10) > expiryDate) return "standard";
+  // Premium access is fail-closed: missing/inactive/invalid expiry is not unlimited.
+  if (sub.status !== "active" || !expiryDate || Number.isNaN(Date.parse(expiryDate))
+      || new Date().toISOString().slice(0, 10) > expiryDate) return "standard";
   return plan;
 }
 
@@ -102,9 +104,10 @@ function isActiveVaultPlan(user = {}) {
   const expiryDate = next?.toDate ? next.toDate().toISOString().slice(0, 10)
     : next?.toMillis ? new Date(next.toMillis()).toISOString().slice(0, 10)
     : (typeof next === "string" ? next.slice(0, 10) : null);
-  const notExpired = !expiryDate || new Date().toISOString().slice(0, 10) <= expiryDate;
+  const validExpiry = Boolean(expiryDate) && !Number.isNaN(Date.parse(expiryDate))
+    && new Date().toISOString().slice(0, 10) <= expiryDate;
   const paid = user.hasPaid === true || user.paid === true || (user.status === "active_member" && !user.freeTrial);
-  return paid && plan === "vault" && (!sub.status || sub.status === "active") && notExpired && !isFreeTrialActive(user);
+  return paid && plan === "vault" && sub.status === "active" && validExpiry && !isFreeTrialActive(user);
 }
 
 function toMillis(value) {
