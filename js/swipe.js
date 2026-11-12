@@ -77,11 +77,22 @@ function isFreeTrialActive(user = {}) {
   return trial.status === 'active' && toMillis(trial.expiresAt) > Date.now();
 }
 
+function effectiveSwipePlan(user = {}) {
+  const sub = user.subscription || {};
+  const plan = sub.plan || user.plan || "standard";
+  const next = sub.nextBillingDate;
+  const expiryDate = next?.toDate ? next.toDate().toISOString().slice(0, 10)
+    : next?.toMillis ? new Date(next.toMillis()).toISOString().slice(0, 10)
+    : (typeof next === "string" ? next.slice(0, 10) : null);
+  if (["elite", "vault"].includes(plan) && sub.status === "active" && expiryDate
+      && new Date().toISOString().slice(0, 10) > expiryDate) return "standard";
+  return plan;
+}
+
 function isPaidStandard(user = {}) {
-  const plan = user.subscription?.plan || user.plan;
   const paid = user.hasPaid === true || user.paid === true
     || (user.status === "active_member" && !isFreeTrialActive(user));
-  return paid && plan === "standard" && !isFreeTrialActive(user);
+  return paid && effectiveSwipePlan(user) === "standard" && !isFreeTrialActive(user);
 }
 
 function isActiveVaultPlan(user = {}) {
