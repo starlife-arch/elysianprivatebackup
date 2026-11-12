@@ -251,6 +251,10 @@
       const el = document.getElementById('superLikeCounter');
       if (!el) return;
       const plan = getSubscription(myProfile).plan;
+      if (plan === 'free_trial') {
+        el.textContent = `Free-trial likes: ${Math.max(0, Number(myProfile.likesRemaining ?? 3))} remaining`;
+        return;
+      }
       if (plan === 'vault') {
         el.textContent = 'Unlimited super likes';
         return;
@@ -396,7 +400,9 @@
       const superLike = document.getElementById('superLikeActionBtn');
       if (like) { like.disabled = likeLocked || standardLocked; like.style.opacity = like.disabled ? '0.45' : ''; like.title = likeLocked ? 'Your free-trial like allowance has been used' : standardLocked ? 'Daily swipes used' : 'Like'; }
       if (pass) { pass.disabled = passLocked || standardLocked; pass.style.opacity = pass.disabled ? '0.45' : ''; pass.title = passLocked ? 'Your free-trial pass allowance has been used' : standardLocked ? 'Daily swipes used' : 'Pass'; }
-      if (superLike) { superLike.disabled = likeLocked; superLike.style.opacity = superLike.disabled ? '0.45' : ''; superLike.title = likeLocked ? 'Your free-trial like allowance has been used' : 'Super Like'; }
+      const superLikeLocked = likeLocked || (!trial && getSubscription(myProfile).plan !== 'vault'
+        && Number(myProfile.addons?.superlikePack?.remainingUses || 0) < 1);
+      if (superLike) { superLike.disabled = superLikeLocked; superLike.style.opacity = superLike.disabled ? '0.45' : ''; superLike.title = likeLocked ? 'Your free-trial like allowance has been used' : superLikeLocked ? 'Buy a Super Like Pack to continue' : 'Super Like'; }
     }
     function showLikeLimitNotice() {
       const notice = document.getElementById('likeLimitNotice');
@@ -494,32 +500,23 @@
           showLikeLimitNotice();
           return;
         }
-        if (plan === 'standard' || plan === 'elite') {
-          const pack = myProfile.addons?.superlikePack;
-          const packUses = Number(pack?.remainingUses || 0);
-          if (packUses <= 0) {
+        if (plan !== 'vault' && !isFreeTrialMember()) {
+          const packUses = Number(myProfile.addons?.superlikePack?.remainingUses || 0);
+          if (myProfile.addons?.superlikePack?.active !== true || packUses <= 0) {
             showToast('Buy a Super Like Pack in your wallet to use super likes');
             return;
           }
-          const newPackUses = packUses - 1;
-          await updateDoc(doc(db, 'users', myUser.uid), {
-            'addons.superlikePack.remainingUses': newPackUses,
-            ...(newPackUses === 0 ? { 'addons.superlikePack.active': false } : {}),
-            'addons.superlikePack.updatedAt': serverTimestamp(),
-            lastSuperLikeAt: serverTimestamp()
-          });
-          myProfile.addons = myProfile.addons || {};
-          myProfile.addons.superlikePack = {
-            ...(myProfile.addons.superlikePack || {}),
-            remainingUses: newPackUses,
-            active: newPackUses > 0
-          };
         }
 
         try {
           const isMatch = await recordSwipe(myUser.uid, prof.id, 'superlike');
           if (isFreeTrialMember()) await refreshStandardLikeState();
+          const latestUser = await getDoc(doc(db, 'users', myUser.uid));
+          if (latestUser.exists()) {
+            myProfile = { ...myProfile, ...latestUser.data() };
+          }
           updateSuperLikeCounter();
+          updateLikeButtonState();
           top.style.transition = 'transform 0.4s ease, opacity 0.4s';
           top.style.transform = 'translateY(-120%) scale(0.8)';
           top.style.opacity = '0';
