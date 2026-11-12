@@ -12,6 +12,14 @@ function isTrialActive(user = {}, now = Date.now()) {
   return trial.status === 'active' && toMillis(trial.expiresAt) > now;
 }
 
+function dateOnly(value) {
+  if (!value) return null;
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (typeof value.toDate === 'function') return value.toDate().toISOString().slice(0, 10);
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return null;
+}
+
 function effectivePlan(user = {}, now = Date.now()) {
   if (isTrialActive(user, now)) return 'free_trial';
   const subscription = user.subscription || {};
@@ -24,7 +32,7 @@ function isPaidMember(user = {}, now = Date.now()) {
   const paid = trial || user.hasPaid === true || user.paid === true || subscription.status === 'active';
   if (!paid) return false;
   if (subscription.status === 'active' && subscription.nextBillingDate
-      && toMillis(subscription.nextBillingDate) < now) return false;
+      && new Date(now).toISOString().slice(0, 10) > dateOnly(subscription.nextBillingDate)) return false;
   return ['free_trial', 'standard', 'elite', 'vault'].includes(effectivePlan(user, now));
 }
 
