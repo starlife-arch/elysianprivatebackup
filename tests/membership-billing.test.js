@@ -101,7 +101,7 @@ test('expired members can navigate away from renewal and switch accounts', () =>
   assert.match(payment, /const isRenewal = params\.get\('renewal'\) === '1'/);
   assert.match(payment, /isRenewal && profile\.status === 'active_member'/);
   assert.match(payment, /!isRenewal && !isPesapalCallback && inviteToken/);
-  assert.match(payment, /purpose !== 'entry' \|\| isRenewal \|\| !inviteToken/);
+  assert.match(payment, /purpose !== 'entry' \|\| isRenewal \|\| trialExpiredCheckout \|\| !inviteToken/);
 });
 
 test('chat page has no literal escaped newline tokens in executable JavaScript', () => {
@@ -197,7 +197,9 @@ test('paid Trial extension is fixed-price, eligibility-checked and does not gran
   assert.match(source, /trial\.status !== 'expired'[\s\S]*?user\.paid === true/);
   const start = source.slice(source.indexOf("if (purpose === 'trial_extension')"), source.indexOf("if (!['entry'", source.indexOf("if (purpose === 'trial_extension')")));
   assert.match(start, /A 7-day Trial extension costs exactly \$1 \(KES 130\)/);
-  const extension = source.slice(source.indexOf("} else if (payment.purpose === 'trial_extension')"), source.indexOf("} else if (payment.purpose === 'priority_support')", source.indexOf("} else if (payment.purpose === 'trial_extension')")));
+  const completeStart = source.indexOf("async function complete");
+  const extensionStart = source.indexOf("} else if (payment.purpose === 'trial_extension')", completeStart);
+  const extension = source.slice(extensionStart, source.indexOf("} else if (payment.purpose === 'priority_support')", extensionStart));
   assert.match(extension, /'freeTrial\.expiresAt': nextExpiry/);
   assert.match(extension, /trialExtensionCount: getAdmin\(\)\.firestore\.FieldValue\.increment\(1\)/);
   assert.doesNotMatch(extension, /likesRemaining|passesRemaining|likesGranted|passesGranted|walletBalance/);
