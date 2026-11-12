@@ -190,3 +190,25 @@ test('custom wallet token purchases require at least 30 tokens and validate cust
   assert.match(printpay, /tokenCount >= 30/);
   assert.match(printpay, /usd - tokenCount \/ 100/);
 });
+
+test('paid Trial extension is fixed-price, eligibility-checked and does not grant extra allowances', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../netlify/functions/printpay.js'), 'utf8');
+  assert.match(source, /purpose === 'trial_extension'[\s\S]*?Number\(amountUSD\) !== 1 \|\| kes !== 130/);
+  assert.match(source, /trial\.status !== 'expired'[\s\S]*?user\.paid === true/);
+  const start = source.slice(source.indexOf("if (purpose === 'trial_extension')"), source.indexOf("if (!['entry'", source.indexOf("if (purpose === 'trial_extension')")));
+  assert.match(start, /A 7-day Trial extension costs exactly \$1 \(KES 130\)/);
+  const extension = source.slice(source.indexOf("} else if (payment.purpose === 'trial_extension')"), source.indexOf("} else if (payment.purpose === 'priority_support')", source.indexOf("} else if (payment.purpose === 'trial_extension')")));
+  assert.match(extension, /'freeTrial\.expiresAt': nextExpiry/);
+  assert.match(extension, /trialExtensionCount: getAdmin\(\)\.firestore\.FieldValue\.increment\(1\)/);
+  assert.doesNotMatch(extension, /likesRemaining|passesRemaining|likesGranted|passesGranted|walletBalance/);
+});
+
+test('only expired unpaid Trial accounts receive the two checkout choices', () => {
+  const auth = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
+  const payment = fs.readFileSync(path.join(__dirname, '../account/payment/index.html'), 'utf8');
+  assert.match(auth, /d\.freeTrial\?\.status === "expired" && d\.paid !== true && d\.hasPaid !== true[\s\S]*?trialExpired=1/);
+  assert.match(payment, /trialCheckoutChoices/);
+  assert.match(payment, /selectTrialCheckout\('trial_extension'\)/);
+  assert.match(payment, /isExpiredUnpaidTrial\(profile\)/);
+  assert.match(payment, /purpose === 'entry' \|\| purpose === 'trial_extension'/);
+});
