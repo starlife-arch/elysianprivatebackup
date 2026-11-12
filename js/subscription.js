@@ -67,9 +67,13 @@ export function planRank(plan) {
 }
 
 export function hasPlan(profile, minimumPlan) {
-  if (getSubscription(profile).plan === 'free_trial') return false;
   const sub = getSubscription(profile);
-  return sub.status === 'active' && planRank(sub.plan) >= planRank(minimumPlan) && !isSubscriptionExpired(profile);
+  if (sub.plan === 'free_trial' || sub.plan === 'none') return false;
+  const expiredPremiumDowngrade = sub.plan === 'standard' && sub.status === 'expired' && hasActiveMembership(profile);
+  const statusAllowsAccess = sub.status === 'active' || expiredPremiumDowngrade;
+  const minimum = planRank(minimumPlan);
+  if (isSubscriptionExpired(profile) && minimum > planRank('standard')) return false;
+  return statusAllowsAccess && planRank(sub.plan) >= minimum;
 }
 
 export function isVault(profile) {
