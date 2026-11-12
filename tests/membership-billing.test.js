@@ -217,8 +217,8 @@ test('only expired unpaid Trial accounts receive the two checkout choices', () =
 
 test('expired-trial payment page has valid price rendering and no duplicated trailing document', () => {
   const payment = fs.readFileSync(path.join(__dirname, '../account/payment/index.html'), 'utf8');
-  assert.match(payment, /document\.getElementById\('paymentPrice'\)\.textContent = '\$' \+ amountUSD\.toFixed\(2\);/);
-  assert.equal((payment.match(/<\\/html>/gi) || []).length, 1);
+  assert.match(payment, /document\\.getElementById\\('paymentPrice'\\)\\.textContent = '\\$' \\+ amountUSD\\.toFixed\\(2\\);/);
+  assert.equal(payment.split('</html>').length - 1, 1);
   assert.ok(payment.trimEnd().endsWith('</html>'));
-  assert.doesNotMatch(payment, /paymentPrice'\\)\\.textContent = '\\s*\\n/);
+  assert.equal(payment.includes("textContent = '\\n"), false);
 });
