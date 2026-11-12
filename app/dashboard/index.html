@@ -194,6 +194,24 @@
 
     async function init() {
       const { user, profile } = await requireMember();
+      // Server-side migration/validation keeps legacy premium accounts compatible
+      // with the strict Firestore Vault entitlement rule.
+      try {
+        const idToken = await user.getIdToken();
+        const sync = await fetch("/api/subscription-entitlement-sync", {
+          method: "POST", headers: { Authorization: "Bearer " + idToken }
+        });
+        const result = await sync.json().catch(() => ({}));
+        if (!sync.ok) throw new Error(result.error || "Membership entitlement could not be checked.");
+        if (result.expired) {
+          profile.subscription = { ...(profile.subscription || {}), plan: "standard", status: "expired", nextBillingDate: null };
+          profile.plan = "standard";
+          profile.vaultBadge = false;
+        }
+      } catch (error) {
+        console.error("Membership entitlement sync failed:", error);
+        showToast("We could not refresh your membership access. Please reload if premium features remain locked.");
+      }
       myUser = user; myProfile = profile; startCallListener(myUser.uid, myProfile);
       showPushNotificationNudge(myUser.uid, showToast).catch(error => console.error('Could not show notification prompt', error));
       const pricingSnap = await getDoc(doc(db, 'config', 'pricing'));
