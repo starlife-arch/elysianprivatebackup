@@ -161,7 +161,7 @@
       if (purpose === 'trial_extension') return '7 additional days of Trial access · Existing Trial limits remain unchanged';
       return 'One-time access fee · Lifetime membership';
     }
-    function returnUrl() { return purpose === 'tokens' ? '/app/wallet/' : (purpose === 'entry' ? '/app/dashboard/' : (purpose === 'priority_support' ? '/app/chat/?tab=support' : '/app/profile/')); }
+    function returnUrl() { return purpose === 'tokens' ? '/app/wallet/' : (purpose === 'entry' || purpose === 'trial_extension' ? '/app/dashboard/' : (purpose === 'priority_support' ? '/app/chat/?tab=support' : '/app/profile/')); }
     function setPaymentVisible(visible) {
       ['paymentPrice','paymentPeriod','perksList','paymentMethodsLabel','pesapalOpt','printpayOpt','paystackOpt','pesapalForm','printpayForm','paystackForm'].forEach(id => {
         const el = document.getElementById(id);
