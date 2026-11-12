@@ -73,7 +73,7 @@ service cloud.firestore {
       let plan = u.get('subscription', {}).get('plan', u.get('plan', null));
       let paid = u.get('hasPaid', false) == true
         || u.get('paid', false) == true
-        || (u.get('status', '') == 'active_member' && !isTrialActive(u));
+        || (u.get('status', '') == 'active_member' && !u.keys().hasAny(['freeTrial']));
       return paid && !isTrialActive(u) && plan == 'standard';
     }
     function isPaidVaultUser(u) {
@@ -81,9 +81,16 @@ service cloud.firestore {
       let plan = sub.get('plan', u.get('plan', null));
       let paid = u.get('hasPaid', false) == true
         || u.get('paid', false) == true
-        || u.get('status', '') == 'active_member';
+        || (u.get('status', '') == 'active_member' && !u.keys().hasAny(['freeTrial']));
       return paid && !isTrialActive(u) && plan == 'vault'
         && sub.get('status', 'active') == 'active';
+    }
+    function isUnpaidExpiredTrial(u) {
+      let trial = u.get('freeTrial', {});
+      let hasTrialRecord = u.keys().hasAny(['freeTrial']);
+      let paid = u.get('hasPaid', false) == true || u.get('paid', false) == true
+        || u.get('subscription', {}).get('status', '') == 'active';
+      return hasTrialRecord && !isTrialActive(u) && !paid;
     }
     function superLikePackSpent(userPath) {
       let beforePack = get(userPath).data.get('addons', {}).get('superlikePack', {});
@@ -146,10 +153,12 @@ service cloud.firestore {
               && trialLikeExpected >= 0
               && getAfter(userPath).data.get('likesRemaining', -1) == trialLikeExpected
               && getAfter(userPath).data.freeTrial.likesUsed == b.get('freeTrial', {}).get('likesUsed', 0) + 1))
-          : (isSuperLike
-              ? (isPaidVaultUser(b) || superLikePackSpent(userPath))
-              : (!isPaidStandardUser(b)
-                 || (expected >= 0 && getAfter(userPath).data.get('likesRemaining', -1) == expected))));
+          : (isUnpaidExpiredTrial(b)
+              ? false
+              : (isSuperLike
+                  ? (isPaidVaultUser(b) || superLikePackSpent(userPath))
+                  : (!isPaidStandardUser(b)
+                     || (expected >= 0 && getAfter(userPath).data.get('likesRemaining', -1) == expected)))));
     }
 
     function selfRequestedReverification() {
