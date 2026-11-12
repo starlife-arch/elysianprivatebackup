@@ -70,20 +70,27 @@ service cloud.firestore {
         && trial.get('expiresAt', request.time) > request.time;
     }
     function isPaidStandardUser(u) {
-      let plan = u.get('subscription', {}).get('plan', u.get('plan', null));
+      let sub = u.get('subscription', {});
+      let plan = sub.get('plan', u.get('plan', null));
+      let expiresAt = sub.get('nextBillingAt', null);
+      let expiredPremium = (plan == 'elite' || plan == 'vault')
+        && (expiresAt == null || expiresAt <= request.time);
       let paid = u.get('hasPaid', false) == true
         || u.get('paid', false) == true
         || (u.get('status', '') == 'active_member' && !u.keys().hasAny(['freeTrial']));
-      return paid && !isTrialActive(u) && plan == 'standard';
+      return paid && !isTrialActive(u) && (plan == 'standard' || expiredPremium);
     }
     function isPaidVaultUser(u) {
       let sub = u.get('subscription', {});
       let plan = sub.get('plan', u.get('plan', null));
+      let expiresAt = sub.get('nextBillingAt', null);
       let paid = u.get('hasPaid', false) == true
         || u.get('paid', false) == true
         || (u.get('status', '') == 'active_member' && !u.keys().hasAny(['freeTrial']));
+      // Unlimited Vault Super Likes require a server-written, future expiry timestamp.
       return paid && !isTrialActive(u) && plan == 'vault'
-        && sub.get('status', 'active') == 'active';
+        && sub.get('status', '') == 'active'
+        && expiresAt != null && expiresAt > request.time;
     }
     function isUnpaidExpiredTrial(u) {
       let trial = u.get('freeTrial', {});
