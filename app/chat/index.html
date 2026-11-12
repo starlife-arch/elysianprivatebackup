@@ -435,6 +435,12 @@
 
     function renderMessages(msgs) {
       const container = document.getElementById('messages');
+      const oldScrollTop = container.scrollTop;
+      const wasNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 90;
+      const containerTop = container.getBoundingClientRect().top;
+      const anchorNode = [...container.children].find(node => node.dataset.messageId
+        && node.getBoundingClientRect().bottom > containerTop + 4);
+      const scrollAnchor = anchorNode ? { id: anchorNode.dataset.messageId, top: anchorNode.getBoundingClientRect().top } : null;
       currentMessages = msgs;
       container.innerHTML = '';
       if (!msgs.length) {
@@ -449,6 +455,7 @@
       msgs.forEach(m => {
         const isOut = m.senderUID === myUser.uid;
         const wrap = document.createElement('div');
+        wrap.dataset.messageId = m.id;
         wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
         if (m.type === 'call') {
           const duration = Number(m.durationSeconds || 0);
@@ -477,6 +484,17 @@
             img.dataset.zoomImage = 'true'; bubble.appendChild(img);
           }
           if (m.text) { const body = document.createElement('div'); body.textContent = m.text; bubble.appendChild(body); }
+          const likedBy = Array.isArray(m.likedBy) ? m.likedBy : [];
+          const likedByMe = likedBy.includes(myUser.uid);
+          const likedByOther = Boolean(theirUID && likedBy.includes(theirUID));
+          if (likedByMe || likedByOther) {
+            const reaction = document.createElement('div');
+            reaction.className = 'dv-message-like-reaction';
+            reaction.textContent = likedByMe && likedByOther ? '\u2665 You both liked this'
+              : likedByMe ? '\u2665 You liked this' : '\u2665 They liked this';
+            reaction.style.cssText = 'display:inline-flex;align-self:flex-start;margin-top:7px;padding:3px 8px;border-radius:999px;background:rgba(201,168,76,.14);color:var(--gold);font-size:10px;font-weight:700;';
+            bubble.appendChild(reaction);
+          }
         }
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:8px;align-items:center;margin:3px 4px 8px;font-size:11px';
@@ -496,7 +514,15 @@
         wrap.appendChild(bubble); wrap.appendChild(time); if(actions.childNodes.length)wrap.appendChild(actions);
         container.appendChild(wrap);
       });
-      container.scrollTop = container.scrollHeight;
+      if (wasNearBottom) {
+        container.scrollTop = container.scrollHeight;
+      } else if (scrollAnchor) {
+        const nextAnchor = [...container.children].find(node => node.dataset.messageId === scrollAnchor.id);
+        if (nextAnchor) container.scrollTop += nextAnchor.getBoundingClientRect().top - scrollAnchor.top;
+        else container.scrollTop = oldScrollTop;
+      } else {
+        container.scrollTop = oldScrollTop;
+      }
       container.onclick = async event => {
         const image = event.target.closest('img[data-zoom-image]');
         if (image) {

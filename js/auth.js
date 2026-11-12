@@ -7,7 +7,7 @@ import {
 import {
   doc, getDoc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { expireSubscriptionIfNeeded, hasActiveMembership } from "./subscription.js";
+import { expireSubscriptionIfNeeded, hasActiveMembership, getSubscription } from "./subscription.js";
 
 export { hasActiveMembership };
 
@@ -46,8 +46,8 @@ export function deriveStage(profile = {}) {
   const trial = profile.freeTrial || {};
   const trialExpiry = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
   if (profile.status === 'active_member' && trial.status === 'active' && trialExpiry > Date.now()) return 'freeTrial';
-  const plan = profile.plan || profile.subscription?.plan || "none";
-  if ((plan === "elite" || plan === "vault" || profile.stage === "elite" || profile.stage === "vault") && hasActiveMembership(profile)) return plan === "vault" ? "vault" : "elite";
+  const plan = getSubscription(profile).plan;
+  if ((plan === "elite" || plan === "vault") && hasActiveMembership(profile)) return plan;
   if (hasActiveMembership(profile)) return "paid";
   if (profile.adminApproved === true || profile.status === "approved_pending_invite" || profile.status === "approved_pending_payment") return "adminApproved";
   if (profile.verificationSubmitted === true || profile.status === "pending_admin_review") return "verificationSubmitted";
@@ -61,7 +61,7 @@ export function normalizeProfile(profile = {}) {
   const trial = profile.freeTrial || {};
   const trialExpiry = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
   const isTrial = profile.status === 'active_member' && trial.status === 'active' && trialExpiry > Date.now();
-  const plan = isTrial ? 'free_trial' : activeMembership ? (profile.plan || profile.subscription?.plan || "standard") : "none";
+  const plan = isTrial ? 'free_trial' : activeMembership ? getSubscription(profile).plan : "none";
   return {
     ...profile,
     stage,

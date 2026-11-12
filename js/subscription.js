@@ -31,6 +31,13 @@ export function hasActiveMembership(profile = {}) {
     && (profile.hasPaid === true || profile.paid === true);
 }
 
+export function isSubscriptionExpired(profile = {}) {
+  const sub = profile.subscription || {};
+  const plan = sub.plan || profile.plan || "standard";
+  if (!['elite', 'vault'].includes(plan) || sub.status !== 'active' || !sub.nextBillingDate) return false;
+  return new Date().toISOString().slice(0, 10) > dateOnly(sub.nextBillingDate);
+}
+
 export function getSubscription(profile = {}) {
   const sub = profile.subscription || {};
   const trial = profile.freeTrial || {};
@@ -39,31 +46,20 @@ export function getSubscription(profile = {}) {
     return { plan: 'free_trial', billing: 'trial', status: 'active', startDate: trial.startedAt || profile.activatedAt || null, nextBillingDate: null, prioritySupportRequests: sub.prioritySupportRequests || 0, previousPlan: sub.previousPlan || null };
   }
   if (!hasActiveMembership(profile)) {
-    return {
-      plan: 'none',
-      billing: null,
-      status: 'inactive',
-      startDate: null,
-      nextBillingDate: null,
-      prioritySupportRequests: sub.prioritySupportRequests || 0,
-      previousPlan: sub.previousPlan || null
-    };
+    return { plan: 'none', billing: null, status: 'inactive', startDate: null, nextBillingDate: null,
+      prioritySupportRequests: sub.prioritySupportRequests || 0, previousPlan: sub.previousPlan || null };
   }
+  const expired = isSubscriptionExpired(profile);
+  const storedPlan = sub.plan || profile.plan || "standard";
   return {
-    plan: sub.plan || profile.plan || "standard",
-    billing: sub.billing || "included",
-    status: sub.status || "active",
+    plan: expired ? 'standard' : storedPlan,
+    billing: expired ? 'included' : (sub.billing || "included"),
+    status: expired ? 'expired' : (sub.status || "active"),
     startDate: sub.startDate || profile.activatedAt || null,
-    nextBillingDate: sub.nextBillingDate || null,
+    nextBillingDate: expired ? null : (sub.nextBillingDate || null),
     prioritySupportRequests: sub.prioritySupportRequests || 0,
-    previousPlan: sub.previousPlan || null
+    previousPlan: expired ? (sub.previousPlan || storedPlan) : (sub.previousPlan || null)
   };
-}
-
-export function isSubscriptionExpired(profile = {}) {
-  const sub = getSubscription(profile);
-  if (!['elite', 'vault'].includes(sub.plan) || sub.status !== 'active' || !sub.nextBillingDate) return false;
-  return new Date().toISOString().slice(0, 10) > dateOnly(sub.nextBillingDate);
 }
 
 export function planRank(plan) {
@@ -71,9 +67,13 @@ export function planRank(plan) {
 }
 
 export function hasPlan(profile, minimumPlan) {
-  if (getSubscription(profile).plan === 'free_trial') return false;
   const sub = getSubscription(profile);
-  return sub.status === 'active' && planRank(sub.plan) >= planRank(minimumPlan) && !isSubscriptionExpired(profile);
+  if (sub.plan === 'free_trial' || sub.plan === 'none') return false;
+  const expiredPremiumDowngrade = sub.plan === 'standard' && sub.status === 'expired' && hasActiveMembership(profile);
+  const statusAllowsAccess = sub.status === 'active' || expiredPremiumDowngrade;
+  const minimum = planRank(minimumPlan);
+  if (isSubscriptionExpired(profile) && minimum > planRank('standard')) return false;
+  return statusAllowsAccess && planRank(sub.plan) >= minimum;
 }
 
 export function isVault(profile) {
@@ -110,17 +110,19 @@ export function paymentAmountKES(usd) {
 
 export async function expireSubscriptionIfNeeded(uid, profile) {
   if (!isSubscriptionExpired(profile)) return { expired: false, profile };
-  const sub = getSubscription(profile);
-  const expiredFor = dateOnly(sub.nextBillingDate);
+  const storedSub = profile.subscription || {};
+  const previousPlan = storedSub.plan || profile.plan || 'standard';
+  const expiredBillingDate = storedSub.nextBillingDate || null;
+  const expiredFor = dateOnly(expiredBillingDate);
   const updates = {
     subscription: {
-      ...sub,
-      previousPlan: sub.plan,
+      ...storedSub,
+      previousPlan: storedSub.plan || null,
       plan: 'standard',
       billing: 'included',
       status: 'expired',
       expiredAt: new Date().toISOString(),
-      expiredBillingDate: expiredFor,
+      expiredBillingDate,
       nextBillingDate: null
     },
     vaultBadge: false,
@@ -134,7 +136,7 @@ export async function expireSubscriptionIfNeeded(uid, profile) {
         body: JSON.stringify({
           type: 'subscription_expired', email: profile.email,
           name: profile.displayName || profile.firstName || profile.name || 'Member',
-          memberId: profile.memberId, plan: planLabel(sub.plan)
+          memberId: profile.memberId, plan: planLabel(previousPlan)
         })
       });
       await updateDoc(doc(db, 'users', uid), { subscriptionExpirationEmailSentFor: expiredFor });
@@ -143,7 +145,7 @@ export async function expireSubscriptionIfNeeded(uid, profile) {
   try {
     await fetch('/api/telegram-notify', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ event: 'subscription_expired', uid, memberId: profile.memberId, name: profile.displayName || profile.name || profile.email, email: profile.email, plan: sub.plan })
+      body: JSON.stringify({ event: 'subscription_expired', uid, memberId: profile.memberId, name: profile.displayName || profile.name || profile.email, email: profile.email, plan: previousPlan })
     });
   } catch(e) {}
   return { expired: true, profile: { ...profile, ...updates } };
