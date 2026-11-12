@@ -64,15 +64,36 @@ service cloud.firestore {
       let n = exists(path) ? get(path).data.get('standardDailyLikes', 5) : 5;
       return n == 0 ? 5 : (n < 1 ? 1 : n);
     }
-    function isPaidStandardUser(u) {
-      let plan = u.get('plan', u.get('subscription', {}).get('plan', null));
+    function isTrialActive(u) {
       let trial = u.get('freeTrial', {});
-      let isTrial = trial.get('status', '') == 'active'
+      return trial.get('status', '') == 'active'
         && trial.get('expiresAt', request.time) > request.time;
+    }
+    function isPaidStandardUser(u) {
+      let plan = u.get('subscription', {}).get('plan', u.get('plan', null));
       let paid = u.get('hasPaid', false) == true
         || u.get('paid', false) == true
-        || (u.get('status', '') == 'active_member' && !u.keys().hasAny(['freeTrial']));
-      return paid && !isTrial && plan == 'standard';
+        || (u.get('status', '') == 'active_member' && !isTrialActive(u));
+      return paid && !isTrialActive(u) && plan == 'standard';
+    }
+    function isPaidVaultUser(u) {
+      let sub = u.get('subscription', {});
+      let plan = sub.get('plan', u.get('plan', null));
+      let paid = u.get('hasPaid', false) == true
+        || u.get('paid', false) == true
+        || u.get('status', '') == 'active_member';
+      return paid && !isTrialActive(u) && plan == 'vault'
+        && sub.get('status', 'active') == 'active';
+    }
+    function superLikePackSpent(userPath) {
+      let beforePack = get(userPath).data.get('addons', {}).get('superlikePack', {});
+      let afterPack = getAfter(userPath).data.get('addons', {}).get('superlikePack', {});
+      return beforePack.get('active', false) == true
+        && beforePack.get('remainingUses', 0) > 0
+        && afterPack.get('remainingUses', 0) == beforePack.get('remainingUses', 0) - 1
+        && (afterPack.get('remainingUses', 0) == 0
+          ? afterPack.get('active', false) == false
+          : afterPack.get('active', false) == true);
     }
     function likesWindowExpired(u) {
       return u.get('likesResetAt', null) == null || u.likesResetAt <= request.time;
@@ -85,18 +106,15 @@ service cloud.firestore {
       let a = request.resource.data;
       let lim = standardDailyLimit();
       let trial = b.get('freeTrial', {});
-      let trialActive = trial.get('status', '') == 'active'
-        && trial.get('expiresAt', request.time) > request.time;
-      let hasTrial = b.keys().hasAny(['freeTrial']);
+      let trialActive = isTrialActive(b);
       let afterTrial = a.get('freeTrial', {});
       let likeSpent = a.get('likesRemaining', b.get('likesRemaining', 3)) == b.get('likesRemaining', 3) - 1
         && afterTrial.get('likesUsed', 0) == trial.get('likesUsed', 0) + 1;
       let passSpent = a.get('passesRemaining', b.get('passesRemaining', 3)) == b.get('passesRemaining', 3) - 1
         && afterTrial.get('passesUsed', 0) == trial.get('passesUsed', 0) + 1;
       return !keys.hasAny(['likesRemaining', 'passesRemaining', 'likesResetAt', 'freeTrial'])
-        || (hasTrial
-            ? (trialActive
-               && !keys.hasAny(['likesResetAt'])
+        || (trialActive
+            ? (!keys.hasAny(['likesResetAt'])
                && ((likeSpent && a.likesRemaining >= 0 && a.get('passesRemaining', 3) == b.get('passesRemaining', 3))
                  || (passSpent && a.passesRemaining >= 0 && a.get('likesRemaining', 3) == b.get('likesRemaining', 3))))
             : (!isPaidStandardUser(b)
@@ -106,35 +124,32 @@ service cloud.firestore {
                     && a.likesResetAt <= request.time + duration.value(30, 'h'))
                  : (!keys.hasAny(['likesResetAt'])
                     && a.likesRemaining >= 0
-                    && a.likesRemaining <= b.get('likesRemaining', lim)))));
+                    && a.likesRemaining <= b.get('likesRemaining', lim))));
     }
-    // A new like/pass by a paid Standard member must come with exactly one
-    // swipe being used from the allowance, in the same write. Super likes use
-    // the Super Like Pack instead.
+    // Super Likes are free only while a paid Vault plan is active. Trial users
+    // spend a trial like; all other paid tiers consume one purchased pack use.
     function swipeChargeOk(uid) {
       let userPath = /databases/$(database)/documents/users/$(uid);
       let b = get(userPath).data;
       let lim = standardDailyLimit();
       let expected = likesWindowExpired(b) ? lim - 1 : b.get('likesRemaining', lim) - 1;
-      let trial = b.get('freeTrial', {});
-      let trialActive = trial.get('status', '') == 'active'
-        && trial.get('expiresAt', request.time) > request.time;
+      let trialActive = isTrialActive(b);
       let trialLikeExpected = b.get('likesRemaining', 3) - 1;
       let trialPassExpected = b.get('passesRemaining', 3) - 1;
-      let hasTrial = b.keys().hasAny(['freeTrial']);
-      return (hasTrial
-          ? (trialActive
-             && ((request.resource.data.direction == 'nope'
-                  && trialPassExpected >= 0
-                  && getAfter(userPath).data.get('passesRemaining', -1) == trialPassExpected
-                  && getAfter(userPath).data.freeTrial.passesUsed == trial.get('passesUsed', 0) + 1)
-               || (request.resource.data.direction == 'like'
-                 && trialLikeExpected >= 0
-                 && getAfter(userPath).data.get('likesRemaining', -1) == trialLikeExpected
-                 && getAfter(userPath).data.freeTrial.likesUsed == trial.get('likesUsed', 0) + 1)))
-          : (!isPaidStandardUser(b)
-             || request.resource.data.get('isSuperLike', false) == true
-             || (expected >= 0 && getAfter(userPath).data.get('likesRemaining', -1) == expected)));
+      let isSuperLike = request.resource.data.get('isSuperLike', false) == true;
+      return (trialActive
+          ? ((request.resource.data.direction == 'nope'
+              && trialPassExpected >= 0
+              && getAfter(userPath).data.get('passesRemaining', -1) == trialPassExpected
+              && getAfter(userPath).data.freeTrial.passesUsed == b.get('freeTrial', {}).get('passesUsed', 0) + 1)
+            || (request.resource.data.direction == 'like'
+              && trialLikeExpected >= 0
+              && getAfter(userPath).data.get('likesRemaining', -1) == trialLikeExpected
+              && getAfter(userPath).data.freeTrial.likesUsed == b.get('freeTrial', {}).get('likesUsed', 0) + 1))
+          : (isSuperLike
+              ? (isPaidVaultUser(b) || superLikePackSpent(userPath))
+              : (!isPaidStandardUser(b)
+                 || (expected >= 0 && getAfter(userPath).data.get('likesRemaining', -1) == expected))));
     }
 
     function selfRequestedReverification() {
@@ -168,8 +183,7 @@ service cloud.firestore {
         allow create: if isOwner(uid)
           && request.resource.data.direction in ['like', 'superlike', 'nope']
           && swipeChargeOk(uid);
-        allow update: if isOwner(uid)
-          && request.resource.data.direction in ['like', 'superlike', 'nope'];
+        allow update: if false;
         allow delete: if isOwner(uid) || isAdmin();
       }
       match /matches/{matchUID} {
