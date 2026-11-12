@@ -222,3 +222,52 @@ test('expired-trial payment page has valid price rendering and no duplicated tra
   assert.ok(payment.trimEnd().endsWith('</html>'));
   assert.equal(payment.includes("textContent = '\\n"), false);
 });
+
+
+test('expired premium plans normalize to Standard even when legacy top-level plan remains premium', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../js/auth.js'), 'utf8');
+  const subscription = fs.readFileSync(path.join(__dirname, '../js/subscription.js'), 'utf8');
+  assert.match(source, /activeMembership \? getSubscription\(profile\)\.plan/);
+  assert.match(source, /const plan = getSubscription\(profile\)\.plan/);
+  assert.match(subscription, /const previousPlan = storedSub\.plan \|\| profile\.plan \|\| 'standard'/);
+  assert.match(subscription, /\.\.\.storedSub,[\s\S]*?plan: 'standard'[\s\S]*?status: 'expired'/);
+});
+
+test('paid expired subscription date remains valid through its final calendar day', () => {
+  const { isPaidMember, effectivePlan } = require('../netlify/functions/membership-billing');
+  const profile = {
+    status: 'active_member', hasPaid: true, plan: 'vault',
+    subscription: { plan: 'vault', status: 'active', nextBillingDate: '2026-11-12' }
+  };
+  assert.equal(isPaidMember(profile, Date.parse('2026-11-12T22:00:00Z')), true);
+  assert.equal(isPaidMember(profile, Date.parse('2026-11-13T00:00:00Z')), false);
+  assert.equal(effectivePlan({ ...profile, subscription: { ...profile.subscription, plan: 'standard', status: 'expired' } }), 'standard');
+});
+
+test('super likes consume purchased pack uses in the same transaction except active Vault and active Trial', () => {
+  const swipe = fs.readFileSync(path.join(__dirname, '../js/swipe.js'), 'utf8');
+  const dashboard = fs.readFileSync(path.join(__dirname, '../app/dashboard/index.html'), 'utf8');
+  const rules = fs.readFileSync(path.join(__dirname, '../firestore.rules'), 'utf8');
+  assert.match(swipe, /if \(isSuperLike && !trialActive && !isActiveVaultPlan\(user\)\)/);
+  assert.match(swipe, /'addons\.superlikePack\.remainingUses': remaining/);
+  assert.match(rules, /function superLikePackSpent\(userPath\)/);
+  assert.doesNotMatch(rules, /\|\| request\.resource\.data\.get\('isSuperLike', false\) == true/);
+  assert.doesNotMatch(dashboard, /await updateDoc\(doc\(db, 'users', myUser\.uid\), \{\s*'addons\.superlikePack\.remainingUses'/);
+});
+
+test('message-like snapshots preserve the visible chat anchor and show the reaction to the other participant', () => {
+  const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(chat, /const scrollAnchor = anchorNode \? \{ id: anchorNode\.dataset\.messageId/);
+  assert.match(chat, /container\.scrollTop \+= nextAnchor\.getBoundingClientRect\(\)\.top - scrollAnchor\.top/);
+  assert.match(chat, /likedByOther \? '♥ They liked this'/);
+});
+
+test('mobile bottom navigation uses shrinkable equal slots and a More menu for secondary actions', () => {
+  const css = fs.readFileSync(path.join(__dirname, '../css/style.css'), 'utf8');
+  const dashboard = fs.readFileSync(path.join(__dirname, '../app/dashboard/index.html'), 'utf8');
+  assert.match(css, /\.bottom-nav \.nav-item\s*\{[^}]*flex: 1 1 0/);
+  assert.match(css, /\.mobile-more-menu/);
+  assert.match(dashboard, /id="mobileMoreButton"/);
+  assert.match(dashboard, /id="moreCreatorMarket"/);
+  assert.match(dashboard, /id="moreInstallApp"/);
+});
