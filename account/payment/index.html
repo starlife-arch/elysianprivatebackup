@@ -129,7 +129,7 @@
     function isExpiredUnpaidTrial(value = profile) {
       const trial = value.freeTrial || {};
       const expiry = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
-      return trial.status === 'expired' && expiry > 0 && expiry <= Date.now() && value.paid !== true && value.hasPaid !== true && value.adminOverride !== true;
+      return trial.status === 'expired' && expiry > 0 && expiry <= Date.now() && value.paid !== true && value.hasPaid !== true && value.adminOverride !== true && value.banned !== true;
     }
     function selectTrialCheckout(nextPurpose) {
       if (!trialExpiredCheckout || !isExpiredUnpaidTrial()) return;
@@ -139,6 +139,7 @@
       document.getElementById('paymentSubtitle').textContent = paymentTitle();
       document.getElementById('paymentPrice').textContent = `${amountUSD.toFixed(2)}`;
       document.getElementById('paymentPeriod').textContent = paymentPeriod();
+      document.getElementById('perksList').style.display = purpose === 'trial_extension' ? 'none' : '';
       document.getElementById('trialExtendChoice').classList.toggle('btn-gold', purpose === 'trial_extension');
       document.getElementById('trialEntryChoice').classList.toggle('btn-gold', purpose === 'entry');
       document.getElementById('trialExtendChoice').classList.toggle('btn-outline', purpose !== 'trial_extension');
@@ -223,6 +224,8 @@
         document.getElementById('trialExtendChoice').addEventListener('click', () => selectTrialCheckout('trial_extension'));
         document.getElementById('trialEntryChoice').addEventListener('click', () => selectTrialCheckout('entry'));
         selectTrialCheckout(purpose === 'trial_extension' ? 'trial_extension' : 'entry');
+      } else {
+        document.getElementById('perksList').style.display = purpose === 'trial_extension' ? 'none' : '';
       }
       document.getElementById('loader').classList.add('hidden');
       selectMethod('printpay');
