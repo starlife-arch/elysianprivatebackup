@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Connecting wallet | DateVault</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#111018;color:#f7f4fb;font:16px system-ui,sans-serif}
+    main{width:min(440px,calc(100% - 32px));padding:32px;border:1px solid #393244;border-radius:20px;background:#1b1924;text-align:center}
+    h1{font-size:23px;margin:0 0 12px}p{color:#b8b1c5;line-height:1.6}a{color:#c6a6ff}
+  </style>
+</head>
+<body>
+  <main><h1>Connecting your shared wallet</h1><p id="status" role="status">Verifying your secure Market session…</p><p id="fallback" hidden><a href="https://market.elysiandate.site/wallet">Return to Creator Market wallet</a></p></main>
+  <script type="module">
+    const status = document.getElementById("status");
+    const fallback = document.getElementById("fallback");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    // Strip the one-time credential before making requests or loading modules.
+    window.history.replaceState(null, "", "/market-wallet-sso.html");
+    try {
+      if (!code) throw new Error("The secure wallet link is missing. Return to Market and try again.");
+      const response = await fetch("/api/market-wallet-sso-redeem", {
+        method: "POST", credentials: "same-origin", cache: "no-store",
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ code })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.ok || !result.customToken) throw new Error(result.error || "Could not connect your wallet.");
+      const [{ auth }, { signInWithCustomToken }] = await Promise.all([
+        import("./js/firebase.js"),
+        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js")
+      ]);
+      await signInWithCustomToken(auth, result.customToken);
+      window.location.replace("/app/wallet/");
+    } catch (error) {
+      status.textContent = error.message || "Could not connect your wallet. Return to Market and try again.";
+      fallback.hidden = false;
+    }
+  </script>
+</body>
+</html>
