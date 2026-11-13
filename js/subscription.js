@@ -38,6 +38,7 @@ export function isSubscriptionExpired(profile = {}) {
   // Admin grants are independent of payment billing metadata. A grant with no
   // explicit end date remains active; a dated grant expires at the end of that day.
   if (sub.adminAssigned === true) {
+    if (sub.adminLifetime === true && !sub.expiresAt && !sub.nextBillingDate) return false;
     const rawAdminExpiry = sub.expiresAt || sub.nextBillingDate || null;
     if (!rawAdminExpiry) return false;
     const adminExpiry = dateOnly(rawAdminExpiry);
@@ -136,6 +137,7 @@ export async function expireSubscriptionIfNeeded(uid, profile) {
       billing: 'included',
       status: 'expired',
       adminAssigned: false,
+      adminLifetime: false,
       expiredAt: new Date().toISOString(),
       expiredBillingDate,
       expiresAt: null,
