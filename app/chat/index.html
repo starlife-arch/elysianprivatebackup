@@ -513,24 +513,56 @@
           }
           if (m.text) { const body = document.createElement('div'); body.textContent = m.text; bubble.appendChild(body); }
         }
+        const reactions = m.reactions && typeof m.reactions === 'object' ? m.reactions : {};
+        const reactionRow = document.createElement('div');
+        reactionRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:2px 0 0;align-self:'+(isOut?'flex-end':'flex-start')+';max-width:min(320px,78vw)';
+        Object.entries(reactions).forEach(([symbol, users]) => {
+          const members = Array.isArray(users) ? users : [];
+          if (!members.length) return;
+          const chip = document.createElement('button');
+          chip.type = 'button'; chip.dataset.messageReaction = m.id; chip.dataset.reaction = symbol;
+          chip.textContent = symbol + (members.length > 1 ? ' ' + members.length : '');
+          chip.setAttribute('aria-label', 'Remove or add ' + symbol + ' reaction; ' + members.length + ' reactions');
+          chip.style.cssText = 'border:1px solid rgba(201,168,76,.45);background:rgba(201,168,76,.12);border-radius:14px;padding:3px 8px;font-size:13px;line-height:1.2;cursor:pointer;color:var(--text)';
+          reactionRow.appendChild(chip);
+        });
         const actions = document.createElement('div');
-        actions.style.cssText = 'display:flex;gap:8px;align-items:center;margin:3px 4px 8px;font-size:11px';
+        actions.style.cssText = 'display:flex;gap:9px;align-items:center;margin:2px 0 0;align-self:'+(isOut?'flex-end':'flex-start')+';max-width:min(320px,78vw)';
         if (m.type !== 'call' && m.type !== 'gift') {
-          const reply = document.createElement('button');
-          reply.type='button'; reply.textContent='Reply'; reply.dataset.replyMessage=m.id;
-          reply.style.cssText='background:none;border:0;color:var(--muted);padding:3px 5px;cursor:pointer';
-          const likedBy = Array.isArray(m.likedBy) ? m.likedBy : [];
-          const liked = likedBy.includes(myUser.uid);
+          const liked = Array.isArray(m.likedBy) && m.likedBy.includes(myUser.uid);
           const like = document.createElement('button');
-          like.type='button'; like.textContent=(liked?'\u2665 Liked':'\u2661 Like') + (likedBy.length ? ' · ' + likedBy.length : ''); like.dataset.likeMessage=m.id;
-          like.setAttribute('aria-label', (liked ? 'Unlike' : 'Like') + ' message; ' + likedBy.length + ' likes');
-          like.style.cssText='background:'+(liked?'rgba(255,70,105,.28)':'rgba(255,255,255,.12)')+';border:1px solid '+(liked?'#ff6b8a':'rgba(255,255,255,.42)')+';border-radius:999px;color:'+(liked?'#ff7894':'#f2f2f2')+';padding:8px 14px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 1px 8px rgba(0,0,0,.22);'
-          actions.append(reply,like);
+          like.type='button'; like.dataset.likeMessage=m.id;
+          like.textContent=(liked?'♥':'♡') + (Array.isArray(m.likedBy) && m.likedBy.length ? ' ' + m.likedBy.length : '');
+          like.setAttribute('aria-label', (liked ? 'Unlike' : 'Like') + ' message');
+          like.style.cssText='display:inline-flex;align-items:center;gap:4px;background:none;border:0;border-radius:8px;color:'+(liked?'#ff7894':'var(--muted)')+';padding:3px 5px;font-size:13px;font-weight:650;cursor:pointer';
+          const reply = document.createElement('button');
+          reply.type='button'; reply.dataset.replyMessage=m.id; reply.title='Reply'; reply.setAttribute('aria-label','Reply to message');
+          reply.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 6 6v1"/></svg>';
+          reply.style.cssText='display:inline-grid;place-items:center;background:none;border:0;color:var(--muted);padding:4px;cursor:pointer';
+          const react = document.createElement('button');
+          react.type='button'; react.dataset.openReactions=m.id; react.textContent='React'; react.title='Choose a reaction'; react.setAttribute('aria-label','Choose a reaction');
+          react.style.cssText='background:none;border:0;color:var(--muted);padding:3px 5px;font-size:11px;cursor:pointer';
+          const picker = document.createElement('div');
+          picker.dataset.reactionPicker=m.id; picker.hidden=true;
+          picker.style.cssText='display:flex;gap:7px;align-items:center;padding:5px 8px;margin-top:2px;align-self:'+(isOut?'flex-end':'flex-start')+';background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:0 4px 14px rgba(0,0,0,.2)';
+          ['\\u{1F44D}','\\u{2764}','\\u{1F602}','\\u{1F62E}','\\u{1F622}','\\u{1F525}'].forEach(symbol => {
+            const choice=document.createElement('button'); choice.type='button'; choice.dataset.messageReaction=m.id; choice.dataset.reaction=symbol;
+            choice.textContent=symbol; choice.setAttribute('aria-label','React with '+symbol);
+            choice.style.cssText='background:none;border:0;padding:3px;font-size:19px;cursor:pointer';
+            picker.appendChild(choice);
+          });
+          actions.append(reply,like,react);
+          wrap.appendChild(bubble);
+          if (reactionRow.childNodes.length) wrap.appendChild(reactionRow);
+          wrap.appendChild(actions); wrap.appendChild(picker);
+          bubble.dataset.replySwipe='true'; bubble.style.touchAction='pan-y';
+        } else {
+          wrap.appendChild(bubble);
         }
         const time = document.createElement('div');
         time.className = 'msg-time';
         time.textContent = (m.sentAt ? formatTime(m.sentAt.toDate ? m.sentAt.toDate() : new Date()) : '') + (isOut && hasPlan(myProfile, 'elite') ? (m.read ? ' · Read' : ' · Sent') : '');
-        wrap.appendChild(bubble); wrap.appendChild(time); if(actions.childNodes.length)wrap.appendChild(actions);
+        wrap.appendChild(time);
         container.appendChild(wrap);
       });
       if (wasNearBottom) {
