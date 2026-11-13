@@ -1,5 +1,5 @@
 const { json, parseBody, preflight } = require('./_helpers');
-const { photoMessageCost } = require('./membership-billing');
+const { photoMessageCost, videoMessageCost } = require('./membership-billing');
 
 let _db, _admin;
 const BOOST_COST = 299;
@@ -205,6 +205,38 @@ async function sendImages(uid, body) {
   };
 }
 
+async function sendVideo(uid, body) {
+  const { toUID, videoURL } = body;
+  if (!toUID || toUID === uid || typeof videoURL !== 'string') throw new Error('Choose one video for this conversation.');
+  let parsed;
+  try { parsed = new URL(videoURL); } catch (_) { throw new Error('The video URL is invalid.'); }
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com' || !/(?:^|\\/)video\\/upload\\//.test(parsed.pathname)) {
+    throw new Error('Only securely hosted DateVault chat videos can be sent.');
+  }
+  const conversationId = [uid, toUID].sort().join('_');
+  const senderRef = _db.collection('users').doc(uid), recipientRef = _db.collection('users').doc(toUID);
+  const matchRef = _db.collection('matches').doc(conversationId);
+  const mineBlockRef = senderRef.collection('blocked').doc(toUID), theirBlockRef = recipientRef.collection('blocked').doc(uid);
+  const messageRef = matchRef.collection('messages').doc();
+  let balance = 0, cost = null;
+  await _db.runTransaction(async tx => {
+    const [sender, recipient, match, mineBlock, theirBlock] = await Promise.all([tx.get(senderRef), tx.get(recipientRef), tx.get(matchRef), tx.get(mineBlockRef), tx.get(theirBlockRef)]);
+    if (!sender.exists || !recipient.exists || !match.exists || match.data()?.unmatched) throw new Error('You can only send videos to an active match.');
+    if (mineBlock.exists || theirBlock.exists) throw new Error('Messaging is blocked for this conversation.');
+    const profile = sender.data();
+    cost = videoMessageCost(profile);
+    if (cost === null) throw new Error('An active membership is required to send videos.');
+    if (profile.walletFrozen || profile.banned || profile.suspended || profile.accountSuspended) throw new Error('Your wallet or account is currently restricted.');
+    const current = Number(profile.walletBalance || 0);
+    if (!Number.isSafeInteger(current) || current < cost) throw Object.assign(new Error('Not enough tokens. Trial and Standard videos cost 40 tokens; Elite and Vault videos cost 20 tokens.'), { status: 402, balance: current, cost, required: cost });
+    balance = current - cost;
+    tx.update(senderRef, { walletBalance: balance });
+    tx.set(txn(uid), { type: 'chat_video', amount: -cost, toUID, note: 'Video message', createdAt: ts(), status: 'completed' });
+    tx.set(messageRef, { senderUID: uid, text: null, videoURL, sentAt: ts(), read: false, likedBy: [] });
+    tx.update(matchRef, { lastMessage: 'Video', lastMessageAt: ts(), ['hasUnread_' + toUID]: true });
+  });
+  return { ok: true, balance, cost, messageId: messageRef.id };
+}
 exports.handler = async event => {
   const options = preflight(event);
   if (options) return options;
@@ -218,6 +250,7 @@ exports.handler = async event => {
       : body.action === 'superlike_pack' ? await addon(user.uid, 'superlike_pack')
       : body.action === 'incognito' ? await addon(user.uid, 'incognito')
       : body.action === 'send_image' || body.action === 'send_images' ? await sendImages(user.uid, body)
+      : body.action === 'send_video' ? await sendVideo(user.uid, body)
       : null;
     if (!data) return json(400, { error: 'Unknown wallet action' });
     return json(200, data);
