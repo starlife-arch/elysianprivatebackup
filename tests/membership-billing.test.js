@@ -346,13 +346,17 @@ test('video messages are charged atomically at the correct tier price', () => {
   assert.match(sendVideo, /parsed\.hostname !== 'res\.cloudinary\.com'/);
 });
 
-test('chat video picker displays tier pricing and video likes clearly', () => {
+test('chat video picker displays tier pricing and makes likes visible for every message type', () => {
   const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
   assert.match(chat, /id="videoInput" accept="video\/\*"/);
   assert.match(chat, /function videoTokenCost\(\)/);
   assert.match(chat, /return \['elite', 'vault'\]\.includes\(plan\) \? 20 : 40;/);
   assert.match(chat, /video\.controls = true/);
   assert.match(chat, /likedBy\.length/);
-  assert.match(chat, /liked your video/);
-  assert.match(chat, /font-size:13px;font-weight:800/);
+  assert.match(chat, /m\.videoURL \? 'your video' : m\.imageURL \? 'your photo' : 'your message'/);
+  assert.match(chat, /' liked ' \+ likedContent/);
+  assert.match(chat, /if \(likedBy\.length\)/);
+  assert.match(chat, /rgba\(255,70,105,\.18\)/);
+  assert.match(chat, /likedBy\.length \? ' · ' \+ likedBy\.length/);
+  assert.match(chat, /aria-label', \(liked \? 'Unlike' : 'Like'\)/);
 });
