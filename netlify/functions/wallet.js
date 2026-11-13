@@ -211,7 +211,8 @@ exports.handler = async event => {
   try {
     if (event.httpMethod !== 'POST') return json(405, { error: 'POST required' });
     const user = await caller(event), body = parseBody(event);
-    const data = body.action === 'extend_trial_tokens' ? await extendTrialWithTokens(user.uid, body)\n      : body.action === 'gift' ? await gift(user.uid, body)
+    const data = body.action === 'extend_trial_tokens' ? await extendTrialWithTokens(user.uid, body)
+      : body.action === 'gift' ? await gift(user.uid, body)
       : body.action === 'withdraw' ? await withdraw(user.uid, body)
       : body.action === 'boost' ? await boost(user.uid)
       : body.action === 'superlike_pack' ? await addon(user.uid, 'superlike_pack')
