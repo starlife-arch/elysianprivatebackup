@@ -46,7 +46,7 @@ async function extendTrialWithTokens(uid, body) {
     if (!userSnap.exists) throw Object.assign(new Error('Account not found.'), { status: 404 });
     const data = userSnap.data(), trial = data.freeTrial || {};
     const expiry = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
-    if (trial.status !== 'expired' || !expiry || expiry > Date.now() || data.paid === true || data.hasPaid === true || data.adminOverride === true || data.banned === true || data.role === 'admin' || data.accountSuspended === true) {
+    if (trial.status !== 'expired' || !expiry || expiry > Date.now() || data.paid === true || data.hasPaid === true || data.adminOverride === true || data.banned === true || data.suspended === true || data.accountSuspended === true || data.marketBanned === true || data.role === 'admin') {
       throw Object.assign(new Error('Only an expired, unpaid Trial can be extended.'), { status: 403 });
     }
     if (data.walletFrozen) throw Object.assign(new Error('Your wallet is on hold. Contact support.'), { status: 403 });
