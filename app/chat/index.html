@@ -477,6 +477,7 @@
         const likedBy = Array.isArray(m.likedBy) ? m.likedBy : [];
         const wrap = document.createElement('div');
         wrap.dataset.messageId = m.id;
+        if (isOut && m.type !== 'call' && m.type !== 'gift' && !m.deleted) wrap.dataset.ownMessage = 'true';
         wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
         if (m.type === 'call') {
           const duration = Number(m.durationSeconds || 0);
@@ -490,8 +491,15 @@
         if (m.type === 'gift') {
           bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in') + ' gift-bubble';
           bubble.innerHTML = `<strong>${isOut ? 'You sent' : 'You received'} ${Number(m.giftAmount || 0).toLocaleString()} tokens</strong><div class="muted" style="font-size:11px">Token gift</div>`;
+        } else if (m.deleted === true || m.deletedAt) {
+          bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in');
+          bubble.style.cssText = 'opacity:.68;font-style:italic';
+          bubble.textContent = 'This message was deleted';
         } else {
           bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in');
+          if (m.edited === true) {
+            const edited = document.createElement('span'); edited.textContent = 'Edited'; edited.style.cssText='display:block;font-size:10px;opacity:.65;margin-bottom:3px'; bubble.appendChild(edited);
+          }
           if (m.replyTo) {
             const quote = document.createElement('div');
             quote.style.cssText = 'padding:6px 9px;margin-bottom:7px;border-left:3px solid var(--gold);background:rgba(0,0,0,.12);border-radius:6px;font-size:11px;opacity:.85';
@@ -691,12 +699,55 @@
         }
       };
       let replySwipeStart = null;
+      let messageHoldTimer = null;
+      let heldMessageId = null;
+      const clearMessageHold = () => { if (messageHoldTimer) clearTimeout(messageHoldTimer); messageHoldTimer = null; };
+      const showOwnMessageActions = messageId => {
+        const message = currentMessages.find(item => item.id === messageId);
+        if (!message || message.senderUID !== myUser.uid || message.deleted || message.deletedAt || ['call','gift'].includes(message.type)) return;
+        const media = !!(message.imageURL || message.videoURL);
+        const sheet = openSheet({ label:'Message options', content:`<div style="display:grid;gap:10px"><p class="muted" style="font-size:13px;margin:0">Each successful edit or delete costs 10 tokens.</p>${!media && typeof message.text === 'string' ? '<button id="dv-edit-own-message" class="btn btn-outline btn-full">Edit message · 10 tokens</button>' : ''}<button id="dv-delete-own-message" class="btn btn-danger btn-full">Delete message · 10 tokens</button><button id="dv-cancel-own-message" class="btn btn-outline btn-full">Cancel</button></div>` });
+        requestAnimationFrame(() => {
+          sheet.element.querySelector('#dv-cancel-own-message')?.addEventListener('click',()=>sheet.close());
+          sheet.element.querySelector('#dv-edit-own-message')?.addEventListener('click',()=>{
+            sheet.close();
+            const next = window.prompt('Edit your message (10 tokens):', message.text || '');
+            if (next === null || next.trim() === '' || next.trim() === message.text) return;
+            performMessageChange('edit', message, next.trim());
+          });
+          sheet.element.querySelector('#dv-delete-own-message')?.addEventListener('click',()=>{
+            sheet.close();
+            if (window.confirm('Delete this message for both people? This costs 10 tokens.')) performMessageChange('delete', message);
+          });
+        });
+      };
+      async function performMessageChange(action, message, nextText) {
+        try {
+          const token = await myUser.getIdToken();
+          const response = await fetch('/api/wallet', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+token}, body:JSON.stringify({action:action+'_chat_message',toUID:theirUID,messageId:message.id,text:nextText,requestId:crypto.randomUUID().replace(/-/g,'')}) });
+          const data = await response.json().catch(()=>({}));
+          if (!response.ok) throw new Error(data.error || 'Could not update message.');
+          myProfile.walletBalance = data.balance;
+          showToast(action === 'edit' ? 'Message edited. 10 tokens used.' : 'Message deleted. 10 tokens used.');
+        } catch(error) { showToast(error.message || 'Could not update message.'); }
+      }
+      container.oncontextmenu = event => {
+        const own = event.target.closest('[data-own-message="true"]');
+        if (own) { event.preventDefault(); showOwnMessageActions(own.dataset.messageId); }
+      };
       container.onpointerdown = event => {
+        const own = event.target.closest('[data-own-message="true"]');
+        if (own && !event.target.closest('button,a,video')) {
+          heldMessageId = own.dataset.messageId;
+          clearMessageHold();
+          messageHoldTimer = setTimeout(()=>{const id=heldMessageId;clearMessageHold();if(id)showOwnMessageActions(id);},550);
+        }
         const bubble = event.target.closest('[data-reply-swipe="true"]');
         if (!bubble || event.target.closest('button,a,video')) { replySwipeStart = null; return; }
         replySwipeStart = { x:event.clientX, y:event.clientY, id:bubble.parentElement?.dataset.messageId, pointerId:event.pointerId };
       };
       container.onpointerup = event => {
+        clearMessageHold(); heldMessageId = null;
         if (!replySwipeStart || replySwipeStart.pointerId !== event.pointerId) return;
         const dx = event.clientX - replySwipeStart.x, dy = event.clientY - replySwipeStart.y;
         const messageId = replySwipeStart.id; replySwipeStart = null;
@@ -709,7 +760,7 @@
         preview.style.display = 'block';
         document.getElementById('msgInput').focus();
       };
-      container.onpointercancel = () => { replySwipeStart = null; };
+      container.onpointercancel = () => { clearMessageHold(); heldMessageId = null; replySwipeStart = null; };
     }
 
     window.openMemberProfile = function() {
