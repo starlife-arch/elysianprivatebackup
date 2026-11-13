@@ -264,8 +264,9 @@ test('message-like snapshots preserve the visible chat anchor and show the react
   assert.match(chat, /const scrollAnchor = anchorNode \? \{ id: anchorNode\.dataset\.messageId/);
   assert.match(chat, /container\.scrollTop \+= nextAnchor\.getBoundingClientRect\(\)\.top - scrollAnchor\.top/);
   assert.match(chat, /likedByMe && likedByOther/);
-  assert.match(chat, /likedByMe \? '\\u2665 You liked this'/);
+  assert.match(chat, /You liked this/);
   assert.match(chat, /theirProfile\?\.displayName/);
+  assert.match(chat, /const isOut = m\.senderUID === myUser\.uid;\s*const likedBy = Array\.isArray\(m\.likedBy\)/);
 });
 
 test('mobile bottom navigation uses shrinkable equal slots and a More menu for secondary actions', () => {
