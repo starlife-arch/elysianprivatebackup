@@ -534,7 +534,7 @@
           const liked = Array.isArray(m.likedBy) && m.likedBy.includes(myUser.uid);
           const like = document.createElement('button');
           like.type='button'; like.dataset.likeMessage=m.id;
-          like.textContent=(liked?'\u2665':'\u2661') + (Array.isArray(m.likedBy) && m.likedBy.length ? ' ' + m.likedBy.length : '');
+          like.textContent=(liked?'\u2665 Liked':'\u2661 Like') + (Array.isArray(m.likedBy) && m.likedBy.length ? ' ' + m.likedBy.length : '');
           like.setAttribute('aria-label', (liked ? 'Unlike' : 'Like') + ' message');
           like.style.cssText='display:inline-flex;align-items:center;gap:4px;background:none;border:0;border-radius:8px;color:'+(liked?'#ff7894':'var(--muted)')+';padding:3px 5px;font-size:13px;font-weight:650;cursor:pointer';
           const reply = document.createElement('button');
