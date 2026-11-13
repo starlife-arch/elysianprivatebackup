@@ -522,7 +522,7 @@
           const likedBy = Array.isArray(m.likedBy) ? m.likedBy : [];
           const liked = likedBy.includes(myUser.uid);
           const like = document.createElement('button');
-          like.type='button'; like.textContent=(liked?'♥ Liked':'♡ Like') + (likedBy.length ? ' · ' + likedBy.length : ''); like.dataset.likeMessage=m.id;
+          like.type='button'; like.textContent=(liked?'\\u2665 Liked':'\\u2661 Like') + (likedBy.length ? ' · ' + likedBy.length : ''); like.dataset.likeMessage=m.id;
           like.setAttribute('aria-label', (liked ? 'Unlike' : 'Like') + ' message; ' + likedBy.length + ' likes');
           like.style.cssText='background:'+(liked?'rgba(255,70,105,.28)':'rgba(255,255,255,.12)')+';border:1px solid '+(liked?'#ff6b8a':'rgba(255,255,255,.42)')+';border-radius:999px;color:'+(liked?'#ff7894':'#f2f2f2')+';padding:8px 14px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 1px 8px rgba(0,0,0,.22);'
           actions.append(reply,like);
