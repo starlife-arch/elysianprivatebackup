@@ -103,8 +103,11 @@
     <div class="chat-messages" id="messages"></div>
     <div id="replyPreview" style="display:none;margin:0 12px;padding:8px 12px;border-left:3px solid var(--gold);background:var(--surface);border-radius:8px;font-size:12px;color:var(--muted);"><span id="replyPreviewText"></span><button id="cancelReply" type="button" style="float:right;background:none;border:0;color:var(--muted);">Cancel</button></div>
     <div id="imagePriceNotice" style="display:none;padding:5px 14px;text-align:center;font-size:11px;color:var(--muted);background:var(--surface);">Photos cost 30 tokens each. <a href="/app/wallet/" style="color:var(--gold);">Buy tokens in Wallet</a>.</div>
+    <div id="videoPriceNotice" style="display:none;padding:7px 14px;text-align:center;font-size:12px;font-weight:700;color:var(--gold);background:rgba(201,168,76,.10);">Video messages: 40 tokens (Trial / Standard) · 20 tokens (Elite / Vault)</div>
     <div class="chat-input-bar">
       <button class="attach-btn" id="giftBtn" title="Send token gift" aria-label="Send token gift" style="background:none;border:none;color:var(--gold);cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:44px;height:44px;"><i data-icon="gift" data-size="22"></i></button>
+      <button class="attach-btn" id="videoBtn" title="Send video" aria-label="Send video" onclick="document.getElementById(&quot;videoInput&quot;).click()" style="background:none;border:0;color:var(--gold);cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:38px;height:44px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg></button>
+      <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="sendVideo(this)"/>
       <button class="attach-btn" id="imageBtn" onclick="document.getElementById('imgInput').click()" style="background:none;border:none;color:var(--muted);cursor:pointer;flex-shrink:0;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
       </button>
@@ -213,7 +216,7 @@
     import { hasPlan, isVault, getSubscription, hasActiveMembership, isSubscriptionExpired } from "../../js/subscription.js";
     import { db } from "../../js/auth.js";
     import { sendMessage, listenMessages, fetchConversations } from "../../js/chat.js";
-    import { uploadToCloudinary } from "../../js/verification.js";
+    import { uploadToCloudinary, uploadVideoToCloudinary } from "../../js/verification.js";
     import { openSheet } from "../../js/sheet.js";
     import {
       doc, setDoc, getDoc, addDoc, getDocs, updateDoc, deleteDoc,
@@ -221,7 +224,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let myUser, myProfile, theirUID = null, theirProfile = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
-    let blockedByMe = false, blockedMe = false, sendingMessage = false, sendingImage = false, openChatRequest = 0;
+    let blockedByMe = false, blockedMe = false, sendingMessage = false, sendingImage = false, sendingVideo = false, openChatRequest = 0;
     let selectedReportReason = '';
     let replyingTo = null;
     let currentMessages = [];
@@ -242,6 +245,17 @@
         return ['elite', 'vault'].includes(plan) ? 0 : 30;
       } catch (error) {
         console.error('Could not determine photo-message eligibility', error);
+        return null;
+      }
+    }
+
+    function videoTokenCost() {
+      try {
+        if (!myProfile || !hasActiveMembership(myProfile) || isSubscriptionExpired(myProfile)) return null;
+        const plan = getSubscription(myProfile).plan;
+        return ['elite', 'vault'].includes(plan) ? 20 : 40;
+      } catch (error) {
+        console.error('Could not determine video-message eligibility', error);
         return null;
       }
     }
@@ -416,14 +430,19 @@
       const input = document.getElementById('msgInput');
       const sendBtn = document.getElementById('sendBtn');
       const uploadBtn = document.getElementById('imageBtn');
+      const videoBtn = document.getElementById('videoBtn');
       const giftBtn = document.getElementById('giftBtn');
       const text = document.getElementById('blockToggleText');
       if (text) text.textContent = blockedByMe ? 'Unblock User' : 'Block User';
       const blocked = blockedByMe || blockedMe;
       const photoCost = imageTokenCost();
       const canSendPhotos = photoCost !== null;
+      const videoCost = videoTokenCost();
+      const canSendVideos = videoCost !== null;
       const priceNotice = document.getElementById('imagePriceNotice');
       if (priceNotice) priceNotice.style.display = photoCost === 30 ? 'block' : 'none';
+      const videoNotice = document.getElementById('videoPriceNotice');
+      if (videoNotice) videoNotice.style.display = canSendVideos ? 'block' : 'none';
       if (input) {
         input.disabled = blocked;
         input.placeholder = blockedByMe ? 'You blocked this member. Unblock to message again.' : (blockedMe ? 'You cannot message this member.' : 'Type a message...');
@@ -431,6 +450,7 @@
       if (sendBtn) sendBtn.disabled = blocked;
       if (giftBtn) { giftBtn.disabled = blocked; giftBtn.title = blocked ? 'Gifting is unavailable in a blocked conversation' : 'Send token gift'; }
       if (uploadBtn) { uploadBtn.disabled = blocked || !canSendPhotos; uploadBtn.title = !canSendPhotos ? 'An active membership is required to send photos' : photoCost ? '30 tokens per photo — buy tokens in Wallet' : 'Free photo messages'; }
+      if (videoBtn) { videoBtn.disabled = blocked || !canSendVideos; videoBtn.title = !canSendVideos ? 'An active membership is required to send videos' : videoCost + ' tokens per video'; }
     }
 
     function renderMessages(msgs) {
@@ -454,6 +474,7 @@
       }
       msgs.forEach(m => {
         const isOut = m.senderUID === myUser.uid;
+        const likedBy = Array.isArray(m.likedBy) ? m.likedBy : [];
         const wrap = document.createElement('div');
         wrap.dataset.messageId = m.id;
         wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
@@ -483,16 +504,23 @@
             img.style.cssText = 'max-width:min(240px,65vw);max-height:320px;object-fit:cover;border-radius:12px;cursor:zoom-in;display:block';
             img.dataset.zoomImage = 'true'; bubble.appendChild(img);
           }
+          if (m.videoURL) {
+            const video = document.createElement('video');
+            video.src = m.videoURL; video.controls = true; video.playsInline = true; video.preload = 'metadata';
+            video.style.cssText = 'display:block;width:min(320px,72vw);max-height:420px;border-radius:14px;background:#000;';
+            video.setAttribute('aria-label', 'Video message');
+            bubble.appendChild(video);
+          }
           if (m.text) { const body = document.createElement('div'); body.textContent = m.text; bubble.appendChild(body); }
-          const likedBy = Array.isArray(m.likedBy) ? m.likedBy : [];
           const likedByMe = likedBy.includes(myUser.uid);
           const likedByOther = Boolean(theirUID && likedBy.includes(theirUID));
-          if (likedByMe || likedByOther) {
+          const likedContent = m.videoURL ? 'video' : m.imageURL ? 'photo' : 'message';
+          if (likedBy.length) {
             const reaction = document.createElement('div');
             reaction.className = 'dv-message-like-reaction';
-            reaction.textContent = likedByMe && likedByOther ? '\u2665 You both liked this'
-              : likedByMe ? '\u2665 You liked this' : '\u2665 They liked this';
-            reaction.style.cssText = 'display:inline-flex;align-self:flex-start;margin-top:7px;padding:3px 8px;border-radius:999px;background:rgba(201,168,76,.14);color:var(--gold);font-size:10px;font-weight:700;';
+            reaction.textContent = likedByMe && likedByOther ? '\\u2665 You both liked this'
+              : likedByMe ? '\\u2665 You liked this ' + likedContent : '\\u2665 ' + (theirProfile?.displayName || theirProfile?.name || 'They') + ' liked this ' + likedContent;
+            reaction.style.cssText = 'display:inline-flex;align-self:flex-start;flex-wrap:wrap;gap:5px;margin-top:9px;padding:8px 12px;border-radius:999px;background:rgba(255,70,105,.18);border:1px solid rgba(255,90,120,.60);color:#ff6b8a;font-size:13px;font-weight:800;box-shadow:0 2px 14px rgba(255,70,105,.16);';
             bubble.appendChild(reaction);
           }
         }
@@ -504,8 +532,9 @@
           reply.style.cssText='background:none;border:0;color:var(--muted);padding:3px 5px;cursor:pointer';
           const liked = Array.isArray(m.likedBy) && m.likedBy.includes(myUser.uid);
           const like = document.createElement('button');
-          like.type='button'; like.textContent=liked?'Liked':'Like'; like.dataset.likeMessage=m.id;
-          like.style.cssText='background:none;border:0;color:'+(liked?'var(--gold)':'var(--muted)')+';padding:3px 5px;cursor:pointer';
+          like.type='button'; like.textContent=(liked?'\\u2665 Liked':'\\u2661 Like') + (likedBy.length ? ' · ' + likedBy.length : ''); like.dataset.likeMessage=m.id;
+          like.setAttribute('aria-label', (liked ? 'Unlike' : 'Like') + ' message; ' + likedBy.length + ' likes');
+          like.style.cssText='background:'+(liked?'rgba(255,70,105,.20)':'rgba(255,255,255,.07)')+';border:1px solid '+(liked?'rgba(255,90,120,.7)':'var(--border)')+';border-radius:999px;color:'+(liked?'#ff6b8a':'var(--text)')+';padding:7px 13px;font-size:13px;font-weight:800;cursor:pointer;'
           actions.append(reply,like);
         }
         const time = document.createElement('div');
@@ -612,6 +641,40 @@
         try { const token = await myUser.getIdToken(); const res = await fetch('/.netlify/functions/video-call', { method:'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`}, body:JSON.stringify({toUID:theirUID}) }); const data = await res.json(); if (res.status === 402) { showToast(`Not enough tokens. You need ${data.cost || callCost} tokens. Buy tokens in your Wallet.`); return; } if (!res.ok) throw new Error(data.error); myProfile.walletBalance=data.tokenBalance; sheet.close(); const call=openSheet({label:'Video call',content:'<div id="callContainer" style="height:70vh"></div><p class="muted">Wallet: '+data.tokenBalance+' tokens</p><button class="btn btn-danger" id="reportCall">Report or Block</button>'}); const frame=window.DailyIframe.createFrame(call.element.querySelector('#callContainer'),{showLeaveButton:true}); await frame.join({url:data.roomURL,token:data.token}); frame.on('left-meeting',()=>updateDoc(doc(db,'videoCallInvites',data.inviteId),{status:'ended'})); call.element.querySelector('#reportCall').onclick=()=>window.doReport(); } catch(e) { showToast(e.message || 'Could not start video call.'); }
       };
     });
+
+    window.sendVideo = async function(input) {
+      const file = input.files?.[0], recipient = theirUID;
+      if (!file || !recipient || sendingVideo) return;
+      if (!file.type.startsWith('video/')) { showToast('Choose a video file.'); input.value = ''; return; }
+      if (file.size > 50 * 1024 * 1024) { showToast('Videos must be 50 MB or smaller.'); input.value = ''; return; }
+      const cost = videoTokenCost();
+      if (cost === null) { showToast('An active membership is required to send videos.'); input.value = ''; return; }
+      if (Number(myProfile.walletBalance || 0) < cost) { showToast('You need ' + cost + ' tokens to send this video. Top up your Wallet.'); input.value = ''; return; }
+      sendingVideo = true;
+      const button = document.getElementById('videoBtn');
+      if (button) button.disabled = true;
+      try {
+        await refreshBlockState(recipient);
+        applyBlockState();
+        if (blockedByMe || blockedMe) throw new Error('Messaging is blocked.');
+        showToast('Uploading video…');
+        const videoURL = await uploadVideoToCloudinary(file, 'datevault/chat');
+        const token = await myUser.getIdToken();
+        const response = await fetch('/.netlify/functions/wallet', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ action: 'send_video', toUID: recipient, videoURL })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not send video.');
+        myProfile.walletBalance = data.balance;
+        showToast('Video sent · ' + data.cost + ' tokens charged.');
+      } catch (error) {
+        showToast(error.message || 'Video failed to send.');
+      } finally {
+        sendingVideo = false; input.value = '';
+        if (button) button.disabled = blockedByMe || blockedMe || videoTokenCost() === null;
+      }
+    };
 
     window.sendImage = async function(input) {
       const selected = Array.from(input.files || []);

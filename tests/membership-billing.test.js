@@ -2,21 +2,22 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { videoCallPrice, photoMessageCost } = require('../netlify/functions/membership-billing');
+const { videoCallPrice, photoMessageCost, videoMessageCost } = require('../netlify/functions/membership-billing');
 
 const now = Date.parse('2026-11-08T00:00:00Z');
 const future = new Date(now + 86400000).toISOString();
 const tiers = [
-  ['Free Trial', { freeTrial: { status: 'active', expiresAt: future }, plan: 'standard' }, 100, 30],
-  ['Standard', { paid: true, plan: 'standard' }, 50, 30],
-  ['Elite', { paid: true, plan: 'elite' }, 50, 0],
-  ['Vault', { paid: true, plan: 'vault' }, 50, 0]
+  ['Free Trial', { freeTrial: { status: 'active', expiresAt: future }, plan: 'standard' }, 100, 30, 40],
+  ['Standard', { paid: true, plan: 'standard' }, 50, 30, 40],
+  ['Elite', { paid: true, plan: 'elite' }, 50, 0, 20],
+  ['Vault', { paid: true, plan: 'vault' }, 50, 0, 20]
 ];
 
-for (const [name, profile, callCost, photoCost] of tiers) {
+for (const [name, profile, callCost, photoCost, videoCost] of tiers) {
   test(name + ' membership pricing', () => {
     assert.equal(videoCallPrice(profile, now), callCost);
     assert.equal(photoMessageCost(profile, now), photoCost);
+    assert.equal(videoMessageCost(profile, now), videoCost);
   });
 }
 
@@ -24,6 +25,7 @@ test('expired free trial without paid membership is not eligible', () => {
   const profile = { freeTrial: { status: 'active', expiresAt: new Date(now - 1000).toISOString() }, plan: 'standard' };
   assert.equal(videoCallPrice(profile, now), null);
   assert.equal(photoMessageCost(profile, now), null);
+  assert.equal(videoMessageCost(profile, now), null);
 });
 
 test('expired Elite or Vault subscriptions fall back to Standard entitlements', () => {
@@ -261,7 +263,10 @@ test('message-like snapshots preserve the visible chat anchor and show the react
   const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
   assert.match(chat, /const scrollAnchor = anchorNode \? \{ id: anchorNode\.dataset\.messageId/);
   assert.match(chat, /container\.scrollTop \+= nextAnchor\.getBoundingClientRect\(\)\.top - scrollAnchor\.top/);
-  assert.match(chat, /likedByMe \? '\\u2665 You liked this' : '\\u2665 They liked this'/);
+  assert.match(chat, /likedByMe && likedByOther/);
+  assert.match(chat, /You liked this/);
+  assert.match(chat, /theirProfile\?\.displayName/);
+  assert.match(chat, /const isOut = m\.senderUID === myUser\.uid;\s*const likedBy = Array\.isArray\(m\.likedBy\)/);
 });
 
 test('mobile bottom navigation uses shrinkable equal slots and a More menu for secondary actions', () => {
@@ -330,4 +335,31 @@ test('DateVault More actions no longer depend on removed topbar controls', () =>
   assert.ok(dashboard.includes("moreCreatorMarket") && dashboard.includes("await openCreatorMarket(myUser)"));
   assert.ok(dashboard.includes("moreInstallApp") && dashboard.includes("promptEvent.prompt()"));
   assert.match(dashboard, /dashboard-topbar-brand/);
+});
+
+test('video messages are charged atomically at the correct tier price', () => {
+  const wallet = fs.readFileSync(path.join(__dirname, '../netlify/functions/wallet.js'), 'utf8');
+  const sendVideo = wallet.slice(wallet.indexOf('async function sendVideo'), wallet.indexOf('exports.handler'));
+  assert.match(wallet, /body\.action === 'send_video' \? await sendVideo\(user\.uid, body\)/);
+  assert.match(sendVideo, /videoMessageCost\(profile\)/);
+  assert.match(sendVideo, /amount: -cost/);
+  assert.match(sendVideo, /type: 'chat_video'/);
+  assert.match(sendVideo, /tx\.set\(messageRef, \{ senderUID: uid, text: null, videoURL/);
+  assert.match(sendVideo, /await _db\.runTransaction\(async tx =>/);
+  assert.match(sendVideo, /parsed\.hostname !== 'res\.cloudinary\.com'/);
+});
+
+test('chat video picker displays tier pricing and makes likes visible for every message type', () => {
+  const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(chat, /id="videoInput" accept="video\/\*"/);
+  assert.match(chat, /function videoTokenCost\(\)/);
+  assert.match(chat, /return \['elite', 'vault'\]\.includes\(plan\) \? 20 : 40;/);
+  assert.match(chat, /video\.controls = true/);
+  assert.match(chat, /likedBy\.length/);
+  assert.match(chat, /m\.videoURL \? 'video' : m\.imageURL \? 'photo' : 'message'/);
+  assert.match(chat, /' liked this ' \+ likedContent/);
+  assert.match(chat, /if \(likedBy\.length\)/);
+  assert.match(chat, /rgba\(255,70,105,\.18\)/);
+  assert.match(chat, /likedBy\.length \? ' · ' \+ likedBy\.length/);
+  assert.match(chat, /aria-label', \(liked \? 'Unlike' : 'Like'\)/);
 });

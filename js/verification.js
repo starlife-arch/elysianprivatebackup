@@ -16,6 +16,18 @@ export async function uploadToCloudinary(file, folder = "datevault") {
   throw new Error("Upload failed: " + JSON.stringify(data));
 }
 
+// Upload chat video clips to Cloudinary's video resource type.
+export async function uploadVideoToCloudinary(file, folder = "datevault/chat") {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("upload_preset", CLOUDINARY_PRESET);
+  fd.append("folder", folder);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/video/upload`, { method: "POST", body: fd });
+  const data = await res.json();
+  if (data.secure_url) return data.secure_url;
+  throw new Error("Video upload failed: " + (data.error?.message || "Please try again."));
+}
+
 // ── Save verification data to Firestore ──
 export async function submitVerification(uid, verificationData) {
   await updateDoc(doc(db, "users", uid), {
