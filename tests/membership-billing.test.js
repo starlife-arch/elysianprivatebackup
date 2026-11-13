@@ -373,6 +373,11 @@ test('chat actions sit below each message with compact controls, reaction choice
   assert.match(chat, /Math\.abs\(dx\) < 58/);
   assert.match(chat, /data-open-reactions/);
   assert.match(chat, /data-message-reaction/);
+  assert.match(chat, /picker\.style\.cssText='display:none/);
+  assert.match(chat, /picker\.style\.display = picker\.hidden \? 'none' : 'flex'/);
+  assert.match(chat, /data-expand-reactions/);
+  assert.match(chat, /data-full-reactions/);
+  assert.match(chat, /\\u2764\\uFE0F/);
   assert.match(chat, /reactionGlyphs/);
   assert.match(chat, /reactions\.' \+ symbol/);
   assert.match(chat, /wrap\.appendChild\(bubble\)/);
