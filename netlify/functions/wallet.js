@@ -233,15 +233,16 @@ async function manageChatMessage(uid, body, action) {
     }
     if (mineBlock.exists || theirBlock.exists) throw Object.assign(new Error('Messaging is blocked for this conversation.'), { status: 403 });
     const msg = message.data(), profile = sender.data();
-    if (msg.senderUID !== uid) throw Object.assign(new Error('You can only change your own messages.'), { status: 403 });
-    if (msg.deletedAt || msg.deleted === true) throw Object.assign(new Error('This message has already been deleted.'), { status: 409 });
+    if (action !== 'delete_for_me' && msg.senderUID !== uid) throw Object.assign(new Error('You can only edit or delete your own messages for everyone.'), { status: 403 });
+    if (msg.deletedAt || msg.deleted === true) throw Object.assign(new Error('This message has already been deleted for everyone.'), { status: 409 });
+    if (Array.isArray(msg.hiddenFor) && msg.hiddenFor.includes(uid)) throw Object.assign(new Error('This message is already hidden for you.'), { status: 409 });
     if (msg.type === 'gift' || msg.type === 'call') throw Object.assign(new Error('This message cannot be changed.'), { status: 400 });
     if (action === 'edit') {
       if (typeof msg.text !== 'string' || msg.imageURL || msg.videoURL) throw Object.assign(new Error('Only text messages can be edited.'), { status: 400 });
       const nextText = String(text || '').trim();
       if (!nextText || nextText.length > 2000) throw Object.assign(new Error('Enter text up to 2,000 characters.'), { status: 400 });
       if (nextText === msg.text) throw Object.assign(new Error('There are no changes to save.'), { status: 400 });
-    } else if (action === 'delete') {
+    } else if (action === 'delete' || action === 'delete_for_me') {
       if (typeof msg.text !== 'string' && !msg.imageURL && !msg.videoURL) throw Object.assign(new Error('This message cannot be deleted.'), { status: 400 });
     }
     if (profile.walletFrozen || profile.banned || profile.suspended || profile.accountSuspended) {
@@ -253,9 +254,11 @@ async function manageChatMessage(uid, body, action) {
     }
     balance = current - 10;
     tx.update(senderRef, { walletBalance: balance });
-    tx.create(ledgerRef, { type: action === 'edit' ? 'chat_message_edit' : 'chat_message_delete', amount: -10, toUID, messageId, note: action === 'edit' ? 'Edit chat message' : 'Delete chat message', createdAt: ts(), status: 'completed', balanceAfter: balance, requestId });
+    tx.create(ledgerRef, { type: action === 'edit' ? 'chat_message_edit' : (action === 'delete_for_me' ? 'chat_message_delete_for_me' : 'chat_message_delete'), amount: -10, toUID, messageId, note: action === 'edit' ? 'Edit chat message' : (action === 'delete_for_me' ? 'Delete chat message for me' : 'Delete chat message for everyone'), createdAt: ts(), status: 'completed', balanceAfter: balance, requestId });
     if (action === 'edit') {
       tx.update(messageRef, { text: String(text).trim(), edited: true, editedAt: ts() });
+    } else if (action === 'delete_for_me') {
+      tx.update(messageRef, { hiddenFor: admin().firestore.FieldValue.arrayUnion(uid) });
     } else {
       tx.update(messageRef, { text: null, imageURL: admin().firestore.FieldValue.delete(), videoURL: admin().firestore.FieldValue.delete(), deleted: true, deletedAt: ts(), deletedBy: uid });
     }
@@ -311,6 +314,7 @@ exports.handler = async event => {
       : body.action === 'send_video' ? await sendVideo(user.uid, body)
       : body.action === 'edit_chat_message' ? await manageChatMessage(user.uid, body, 'edit')
       : body.action === 'delete_chat_message' ? await manageChatMessage(user.uid, body, 'delete')
+      : body.action === 'delete_chat_message_for_me' ? await manageChatMessage(user.uid, body, 'delete_for_me')
       : null;
     if (!data) return json(400, { error: 'Unknown wallet action' });
     return json(200, data);
