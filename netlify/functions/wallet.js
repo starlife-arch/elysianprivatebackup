@@ -205,6 +205,7 @@ async function sendImages(uid, body) {
   };
 }
 
+// Server-authoritative video pricing and the wallet debit/message write share one transaction.
 async function sendVideo(uid, body) {
   const { toUID, videoURL } = body;
   if (!toUID || toUID === uid || typeof videoURL !== 'string') throw new Error('Choose one video for this conversation.');
