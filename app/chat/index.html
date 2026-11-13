@@ -517,8 +517,8 @@
           if (likedByMe || likedByOther) {
             const reaction = document.createElement('div');
             reaction.className = 'dv-message-like-reaction' + (m.videoURL ? ' dv-video-like-reaction' : '');
-            reaction.textContent = likedByMe && likedByOther ? '♥ You both liked this'
-              : likedByMe ? '♥ You liked this' : '♥ ' + (theirProfile?.displayName || theirProfile?.name || 'They') + (m.videoURL ? ' liked your video' : ' liked this');
+            reaction.textContent = likedByMe && likedByOther ? '\u2665 You both liked this'
+              : likedByMe ? '\u2665 You liked this' : '\u2665 ' + (theirProfile?.displayName || theirProfile?.name || 'They') + (m.videoURL ? ' liked your video' : ' liked this');
             reaction.style.cssText = m.videoURL
               ? 'display:inline-flex;align-self:flex-start;margin-top:9px;padding:8px 12px;border-radius:999px;background:rgba(255,70,105,.18);border:1px solid rgba(255,90,120,.55);color:#ff6b8a;font-size:13px;font-weight:800;box-shadow:0 2px 14px rgba(255,70,105,.16);'
               : 'display:inline-flex;align-self:flex-start;margin-top:7px;padding:3px 8px;border-radius:999px;background:rgba(201,168,76,.14);color:var(--gold);font-size:10px;font-weight:700;';
@@ -533,7 +533,7 @@
           reply.style.cssText='background:none;border:0;color:var(--muted);padding:3px 5px;cursor:pointer';
           const liked = Array.isArray(m.likedBy) && m.likedBy.includes(myUser.uid);
           const like = document.createElement('button');
-          like.type='button'; like.textContent=(liked?'♥ Liked':'♡ Like') + (likedBy.length ? ' · ' + likedBy.length : ''); like.dataset.likeMessage=m.id;
+          like.type='button'; like.textContent=(liked?'\u2665 Liked':'\u2661 Like') + (likedBy.length ? ' · ' + likedBy.length : ''); like.dataset.likeMessage=m.id;
           like.style.cssText=m.videoURL
             ? 'background:'+(liked?'rgba(255,70,105,.20)':'rgba(255,255,255,.07)')+';border:1px solid '+(liked?'rgba(255,90,120,.7)':'var(--border)')+';border-radius:999px;color:'+(liked?'#ff6b8a':'var(--text)')+';padding:7px 13px;font-size:13px;font-weight:800;cursor:pointer;'
             : 'background:none;border:0;color:'+(liked?'var(--gold)':'var(--muted)')+';padding:3px 5px;cursor:pointer';
