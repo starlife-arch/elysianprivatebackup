@@ -378,6 +378,13 @@ test('chat actions sit below each message with compact controls, reaction choice
   assert.match(chat, /data-expand-reactions/);
   assert.match(chat, /data-full-reactions/);
   assert.match(chat, /\\u2764\\uFE0F/);
+  assert.match(chat, /const emojiGroups = \{/);
+  assert.match(chat, /fullSearch\.type='search'/);
+  assert.match(chat, /fullSearch\.addEventListener\('input',drawEmojiGrid\)/);
+  assert.match(chat, /categoryBar\.querySelectorAll\('\[data-emoji-category\]'\)/);
+  for (const category of ['Smileys','People','Animals','Food','Travel','Activities','Objects','Symbols','Flags']) assert.ok(chat.includes(category+': [['), 'Missing emoji category '+category);
+  assert.match(chat, /activeEmojiCategory==='All'/);
+
   assert.match(chat, /reactionGlyphs/);
   assert.match(chat, /reactions\.' \+ symbol/);
   assert.match(chat, /wrap\.appendChild\(bubble\)/);
