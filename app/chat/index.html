@@ -532,7 +532,7 @@
           const liked = Array.isArray(m.likedBy) && m.likedBy.includes(myUser.uid);
           const like = document.createElement('button');
           like.type='button'; like.dataset.likeMessage=m.id;
-          like.textContent=(liked?'♥':'♡') + (Array.isArray(m.likedBy) && m.likedBy.length ? ' ' + m.likedBy.length : '');
+          like.textContent=(liked?'\u2665':'\u2661') + (Array.isArray(m.likedBy) && m.likedBy.length ? ' ' + m.likedBy.length : '');
           like.setAttribute('aria-label', (liked ? 'Unlike' : 'Like') + ' message');
           like.style.cssText='display:inline-flex;align-items:center;gap:4px;background:none;border:0;border-radius:8px;color:'+(liked?'#ff7894':'var(--muted)')+';padding:3px 5px;font-size:13px;font-weight:650;cursor:pointer';
           const reply = document.createElement('button');
@@ -545,7 +545,7 @@
           const picker = document.createElement('div');
           picker.dataset.reactionPicker=m.id; picker.hidden=true;
           picker.style.cssText='display:flex;gap:7px;align-items:center;padding:5px 8px;margin-top:2px;align-self:'+(isOut?'flex-end':'flex-start')+';background:var(--surface);border:1px solid var(--border);border-radius:18px;box-shadow:0 4px 14px rgba(0,0,0,.2)';
-          ['\\u{1F44D}','\\u{2764}','\\u{1F602}','\\u{1F62E}','\\u{1F622}','\\u{1F525}'].forEach(symbol => {
+          ['\u{1F44D}','\u{2764}','\u{1F602}','\u{1F62E}','\u{1F622}','\u{1F525}'].forEach(symbol => {
             const choice=document.createElement('button'); choice.type='button'; choice.dataset.messageReaction=m.id; choice.dataset.reaction=symbol;
             choice.textContent=symbol; choice.setAttribute('aria-label','React with '+symbol);
             choice.style.cssText='background:none;border:0;padding:3px;font-size:19px;cursor:pointer';
