@@ -35,8 +35,17 @@ export function isSubscriptionExpired(profile = {}) {
   const sub = profile.subscription || {};
   const plan = sub.plan || profile.plan || "standard";
   if (!['elite', 'vault'].includes(plan)) return false;
+  // Admin grants are independent of payment billing metadata. A grant with no
+  // explicit end date remains active; a dated grant expires at the end of that day.
+  if (sub.adminAssigned === true) {
+    const rawAdminExpiry = sub.expiresAt || sub.nextBillingDate || null;
+    if (!rawAdminExpiry) return false;
+    const adminExpiry = dateOnly(rawAdminExpiry);
+    if (!adminExpiry || Number.isNaN(Date.parse(adminExpiry))) return true;
+    return new Date().toISOString().slice(0, 10) > adminExpiry;
+  }
   const expiry = dateOnly(sub.nextBillingDate);
-  // Treat incomplete or inactive premium records as expired, never as unlimited access.
+  // Treat incomplete or inactive paid premium records as expired, never as unlimited access.
   if (sub.status !== 'active' || !expiry || Number.isNaN(Date.parse(expiry))) return true;
   return new Date().toISOString().slice(0, 10) > expiry;
 }
@@ -115,19 +124,25 @@ export async function expireSubscriptionIfNeeded(uid, profile) {
   if (!isSubscriptionExpired(profile)) return { expired: false, profile };
   const storedSub = profile.subscription || {};
   const previousPlan = storedSub.plan || profile.plan || 'standard';
-  const expiredBillingDate = storedSub.nextBillingDate || null;
+  const expiredBillingDate = storedSub.adminAssigned
+    ? (storedSub.expiresAt || storedSub.nextBillingDate || null)
+    : (storedSub.nextBillingDate || null);
   const expiredFor = dateOnly(expiredBillingDate);
   const updates = {
     subscription: {
       ...storedSub,
-      previousPlan: storedSub.plan || null,
+      previousPlan,
       plan: 'standard',
       billing: 'included',
       status: 'expired',
+      adminAssigned: false,
       expiredAt: new Date().toISOString(),
       expiredBillingDate,
+      expiresAt: null,
       nextBillingDate: null
     },
+    plan: 'standard',
+    stage: 'paid',
     vaultBadge: false,
     subscriptionExpiredAt: serverTimestamp()
   };
