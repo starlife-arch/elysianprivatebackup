@@ -711,13 +711,21 @@
           sheet.element.querySelector('#dv-cancel-own-message')?.addEventListener('click',()=>sheet.close());
           sheet.element.querySelector('#dv-edit-own-message')?.addEventListener('click',()=>{
             sheet.close();
-            const next = window.prompt('Edit your message (10 tokens):', message.text || '');
-            if (next === null || next.trim() === '' || next.trim() === message.text) return;
-            performMessageChange('edit', message, next.trim());
+            const editor = openSheet({ label:'Edit message', content:'<div style="display:grid;gap:10px"><textarea id="dv-edit-message-text" rows="4" maxlength="2000" style="width:100%;padding:12px;border-radius:10px;background:#0b1422;color:#fff;border:1px solid #405675;resize:vertical"></textarea><p class="muted" style="font-size:12px;margin:0">Saving this edit costs 10 tokens.</p><button id="dv-save-message-edit" class="btn btn-gold btn-full">Save edit · 10 tokens</button><button id="dv-cancel-message-edit" class="btn btn-outline btn-full">Cancel</button></div>' });
+            requestAnimationFrame(()=>{
+              const input=editor.element.querySelector('#dv-edit-message-text');
+              input.value=message.text||'';
+              editor.element.querySelector('#dv-cancel-message-edit')?.addEventListener('click',()=>editor.close());
+              editor.element.querySelector('#dv-save-message-edit')?.addEventListener('click',()=>{
+                const next=input.value.trim();
+                if(!next||next===message.text){showToast('Enter a changed message first.');return;}
+                editor.close();performMessageChange('edit',message,next);
+              });
+            });
           });
           sheet.element.querySelector('#dv-delete-own-message')?.addEventListener('click',()=>{
             sheet.close();
-            if (window.confirm('Delete this message for both people? This costs 10 tokens.')) performMessageChange('delete', message);
+            performMessageChange('delete', message);
           });
         });
       };
