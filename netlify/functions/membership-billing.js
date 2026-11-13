@@ -43,9 +43,13 @@ function videoCallPrice(user = {}, now = Date.now()) {
   return effectivePlan(user, now) === 'free_trial' ? 100 : 50;
 }
 
+function videoMessageCost(user = {}, now = Date.now()) {
+  if (!isPaidMember(user, now)) return null;
+  return ['elite', 'vault'].includes(effectivePlan(user, now)) ? 20 : 40;
+}
 function photoMessageCost(user = {}, now = Date.now()) {
   if (!isPaidMember(user, now)) return null;
   return ['elite', 'vault'].includes(effectivePlan(user, now)) ? 0 : 30;
 }
 
-module.exports = { toMillis, isTrialActive, effectivePlan, isPaidMember, videoCallPrice, photoMessageCost };
+module.exports = { toMillis, isTrialActive, effectivePlan, isPaidMember, videoCallPrice, photoMessageCost, videoMessageCost };
