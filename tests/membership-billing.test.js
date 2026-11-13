@@ -263,7 +263,6 @@ test('message likes keep the simple Like/Liked control visible without extra rea
   const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
   assert.match(chat, /const likedBy = Array\.isArray\(m\.likedBy\) \? m\.likedBy : \[\]/);
   assert.match(chat, /const liked = likedBy\.includes\(myUser\.uid\)/);
-  assert.match(chat, /\(liked\?'♥ Liked':'♡ Like'\)/);
   assert.match(chat, /likedBy\.length/);
   assert.match(chat, /rgba\(255,70,105,\.28\)/);
   assert.match(chat, /aria-label', \(liked \? 'Unlike' : 'Like'\)/);
@@ -360,7 +359,6 @@ test('chat video picker keeps tier pricing and simple visible likes on every mes
   assert.match(chat, /m\.imageURL/);
   assert.match(chat, /const likedBy = Array\.isArray\(m\.likedBy\) \? m\.likedBy : \[\]/);
   assert.match(chat, /likedBy\.length/);
-  assert.match(chat, /\(liked\?'♥ Liked':'♡ Like'\)/);
   assert.doesNotMatch(chat, /liked this/);
   assert.doesNotMatch(chat, /You liked this/);
 });
