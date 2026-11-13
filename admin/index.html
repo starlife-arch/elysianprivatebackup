@@ -1012,6 +1012,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
         'subscription.billing': 'admin',
         'subscription.startDate': new Date().toISOString().slice(0, 10),
         'subscription.adminAssigned': true,
+        'subscription.adminLifetime': !expiry,
         'subscription.assignedAt': serverTimestamp(),
         'subscription.assignedBy': 'admin',
         'subscription.previousPlan': null,
@@ -1029,6 +1030,7 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
       };
       updates['subscription.nextBillingDate'] = expiry || null;
       updates['subscription.expiresAt'] = expiry || null;
+      updates['subscription.adminLifetime'] = !expiry;
       await updateDoc(doc(db, 'users', uid), updates);
       const member = allUsers.find(u => u.id === uid) || {};
       const planLabel = String(plan || 'standard').charAt(0).toUpperCase() + String(plan || 'standard').slice(1);
