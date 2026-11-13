@@ -514,13 +514,15 @@
           if (m.text) { const body = document.createElement('div'); body.textContent = m.text; bubble.appendChild(body); }
         }
         const reactions = m.reactions && typeof m.reactions === 'object' ? m.reactions : {};
+        const reactionGlyphs = { thumbs_up:'\\u{1F44D}', heart:'\\u2764', laugh:'\\u{1F602}', wow:'\\u{1F62E}', sad:'\\u{1F622}', fire:'\\u{1F525}' };
         const reactionRow = document.createElement('div');
         reactionRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:2px 0 0;align-self:'+(isOut?'flex-end':'flex-start')+';max-width:min(320px,78vw)';
-        Object.entries(reactions).forEach(([symbol, users]) => {
+        Object.entries(reactions).forEach(([reaction, users]) => {
+          const symbol = reactionGlyphs[reaction] || '';
           const members = Array.isArray(users) ? users : [];
           if (!members.length) return;
           const chip = document.createElement('button');
-          chip.type = 'button'; chip.dataset.messageReaction = m.id; chip.dataset.reaction = symbol;
+          chip.type = 'button'; chip.dataset.messageReaction = m.id; chip.dataset.reaction = reaction;
           chip.textContent = symbol + (members.length > 1 ? ' ' + members.length : '');
           chip.setAttribute('aria-label', 'Remove or add ' + symbol + ' reaction; ' + members.length + ' reactions');
           chip.style.cssText = 'border:1px solid rgba(201,168,76,.45);background:rgba(201,168,76,.12);border-radius:14px;padding:3px 8px;font-size:13px;line-height:1.2;cursor:pointer;color:var(--text)';
