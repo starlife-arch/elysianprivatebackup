@@ -210,7 +210,7 @@ async function sendVideo(uid, body) {
   if (!toUID || toUID === uid || typeof videoURL !== 'string') throw new Error('Choose one video for this conversation.');
   let parsed;
   try { parsed = new URL(videoURL); } catch (_) { throw new Error('The video URL is invalid.'); }
-  if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com' || !/(?:^|\\/)video\\/upload\\//.test(parsed.pathname)) {
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com' || !/(?:^|\/)video\/upload\//.test(parsed.pathname)) {
     throw new Error('Only securely hosted DateVault chat videos can be sent.');
   }
   const conversationId = [uid, toUID].sort().join('_');
