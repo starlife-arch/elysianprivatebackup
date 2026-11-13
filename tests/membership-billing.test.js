@@ -264,7 +264,7 @@ test('message likes keep the simple Like/Liked control visible without extra rea
   assert.match(chat, /const likedBy = Array\.isArray\(m\.likedBy\) \? m\.likedBy : \[\]/);
   assert.match(chat, /const liked = likedBy\.includes\(myUser\.uid\)/);
   assert.match(chat, /likedBy\.length/);
-  assert.match(chat, /rgba\(255,70,105,\.28\)/);
+  assert.match(chat, /display:inline-flex;align-items:center/);
   assert.match(chat, /aria-label', \(liked \? 'Unlike' : 'Like'\)/);
   assert.doesNotMatch(chat, /You liked this/);
   assert.doesNotMatch(chat, /theirProfile\?\.displayName/);
@@ -360,5 +360,23 @@ test('chat video picker keeps tier pricing and simple visible likes on every mes
   assert.match(chat, /const likedBy = Array\.isArray\(m\.likedBy\) \? m\.likedBy : \[\]/);
   assert.match(chat, /likedBy\.length/);
   assert.doesNotMatch(chat, /liked this/);
+  assert.doesNotMatch(chat, /You liked this/);
+});
+
+
+test('chat actions sit below each message with compact controls, reaction choices and swipe-to-reply', () => {
+  const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(chat, /align-self:'\+\(isOut\?'flex-end':'flex-start'\)/);
+  assert.match(chat, /data-reply-swipe/);
+  assert.match(chat, /container\.onpointerdown/);
+  assert.match(chat, /container\.onpointerup/);
+  assert.match(chat, /Math\.abs\(dx\) < 58/);
+  assert.match(chat, /data-open-reactions/);
+  assert.match(chat, /data-message-reaction/);
+  assert.match(chat, /reactionGlyphs/);
+  assert.match(chat, /reactions\.' \+ symbol/);
+  assert.match(chat, /wrap\.appendChild\(bubble\)/);
+  assert.match(chat, /wrap\.appendChild\(actions\)/);
+  assert.doesNotMatch(chat, /reply\.textContent='Reply'/);
   assert.doesNotMatch(chat, /You liked this/);
 });
