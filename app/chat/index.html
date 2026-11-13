@@ -514,7 +514,7 @@
           if (m.text) { const body = document.createElement('div'); body.textContent = m.text; bubble.appendChild(body); }
         }
         const reactions = m.reactions && typeof m.reactions === 'object' ? m.reactions : {};
-        const reactionGlyphs = { thumbs_up:'\\u{1F44D}', heart:'\\u2764', laugh:'\\u{1F602}', wow:'\\u{1F62E}', sad:'\\u{1F622}', fire:'\\u{1F525}' };
+        const reactionGlyphs = { thumbs_up:'\u{1F44D}', heart:'\u2764', laugh:'\u{1F602}', wow:'\u{1F62E}', sad:'\u{1F622}', fire:'\u{1F525}' };
         const reactionRow = document.createElement('div');
         reactionRow.style.cssText = 'display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin:2px 0 0;align-self:'+(isOut?'flex-end':'flex-start')+';max-width:min(320px,78vw)';
         Object.entries(reactions).forEach(([reaction, users]) => {
