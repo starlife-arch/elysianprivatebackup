@@ -409,3 +409,28 @@ test('admin-assigned premium plans use the expiry field read by subscriptions', 
   assert.match(subscription, /stage: 'paid'/);
   assert.match(dashboard, /updates\['subscription\.nextBillingDate'\] = expiry \|\| null/);
 });
+
+test('blank admin plan expiry is explicitly lifetime and remains active', () => {
+  const admin = fs.readFileSync(path.join(__dirname, '../js/admin.js'), 'utf8');
+  const dashboard = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+  const subscription = fs.readFileSync(path.join(__dirname, '../js/subscription.js'), 'utf8');
+  assert.match(admin, /'subscription\.adminLifetime': !expiry/);
+  assert.match(admin, /updates\['subscription\.nextBillingDate'\] = expiry \|\| null/);
+  assert.match(dashboard, /'subscription\.adminLifetime': !expiry/);
+  assert.match(subscription, /sub\.adminLifetime === true && !sub\.expiresAt && !sub\.nextBillingDate\) return false/);
+  assert.match(subscription, /adminLifetime: false/);
+});
+
+test('chat message edit and delete are server charged at ten tokens', () => {
+  const wallet = fs.readFileSync(path.join(__dirname, '../netlify/functions/wallet.js'), 'utf8');
+  const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(wallet, /async function manageChatMessage/);
+  assert.match(wallet, /current < 10/);
+  assert.match(wallet, /amount: -10/);
+  assert.match(wallet, /Only text messages can be edited/);
+  assert.match(wallet, /You can only change your own messages/);
+  assert.match(chat, /setTimeout\(\(\)=>\{const id=heldMessageId/);
+  assert.match(chat, /edit_chat_message/);
+  assert.match(chat, /delete_chat_message/);
+  assert.match(chat, /This message was deleted/);
+});
