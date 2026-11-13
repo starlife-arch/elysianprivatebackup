@@ -139,6 +139,67 @@ async function expireStaleAddons(profile) {
   }));
 }
 
-async function load() { $('walletError').hidden = true; try { const session = await requireMember(); uid = session.user.uid; const profile = session.profile || {}; const datingWalletFeatures = profile.status === 'active_member' && (profile.paid === true || profile.hasPaid === true || profile.freeTrial?.status === 'active'); if (!datingWalletFeatures) { $('addonsSection').style.display = 'none'; $('withdrawBtn').closest('section').style.display = 'none'; const nav = document.querySelector('.bottom-nav'); if (nav) nav.style.display = 'none'; } else { startCallListener(uid, profile); } if (datingWalletFeatures && !stopNotifications) stopNotifications = listenForNotifications(uid, hasSomethingNew => { $('chatBadge').style.display = hasSomethingNew ? 'block' : 'none'; }); await expireStaleAddons(profile); balance = await getWalletBalance(uid); frozen = !!profile.walletFrozen; $('balance').textContent = balance.toLocaleString(); $('frozenBanner').hidden = !frozen; renderPacks(); setupCustomTokenPurchase(); const pricingCfg = await loadPricingCfg(); renderAddons(profile, pricingCfg); $('withdrawBtn').disabled = frozen || balance < WITHDRAWAL_TOKENS; $('withdrawalHint').textContent = frozen ? 'Your wallet is on hold — contact support' : balance < WITHDRAWAL_TOKENS ? `You need ${(WITHDRAWAL_TOKENS - balance).toLocaleString()} more tokens.` : '3,000 tokens converts to $15.'; $('withdrawBtn').onclick = withdrawalSheet; try { const withdrawals = await getDocs(query(collection(db, 'withdrawals'), where('uid', '==', uid), orderBy('createdAt', 'desc'))); $('withdrawals').innerHTML = withdrawals.docs.map(item => `<div>${item.data().status} · $${item.data().payout || 15}</div>`).join(''); } catch (error) { console.error('Could not load withdrawals', error); $('withdrawals').innerHTML = '<p class="gift-error">Couldn’t load withdrawal history.</p>'; } try { history = await getTransactionHistory(uid, 50); renderTx(); } catch (error) { console.error('Could not load wallet history', error); $('transactions').innerHTML = '<p class="gift-error">Couldn’t load activity.</p>'; } } catch (error) { failure(error); } finally { $('loader').classList.add('hidden'); } }
+async function load() {
+  $('walletError').hidden = true;
+  try {
+    const session = await requireMember();
+    uid = session.user.uid;
+    const profile = session.profile || {};
+    const datingWalletFeatures = profile.status === 'active_member' &&
+      (profile.paid === true || profile.hasPaid === true || profile.freeTrial?.status === 'active');
+
+    if (!datingWalletFeatures) {
+      $('addonsSection').style.display = 'none';
+      $('withdrawBtn').closest('section').style.display = 'none';
+      const nav = document.querySelector('.bottom-nav');
+      if (nav) nav.style.display = 'none';
+    } else {
+      startCallListener(uid, profile);
+      if (!stopNotifications) {
+        stopNotifications = listenForNotifications(uid, hasSomethingNew => {
+          $('chatBadge').style.display = hasSomethingNew ? 'block' : 'none';
+        });
+      }
+      await expireStaleAddons(profile);
+    }
+
+    balance = await getWalletBalance(uid);
+    frozen = !!profile.walletFrozen;
+    $('balance').textContent = balance.toLocaleString();
+    $('frozenBanner').hidden = !frozen;
+    renderPacks();
+    setupCustomTokenPurchase();
+
+    if (datingWalletFeatures) {
+      const pricingCfg = await loadPricingCfg();
+      renderAddons(profile, pricingCfg);
+      $('withdrawBtn').disabled = frozen || balance < WITHDRAWAL_TOKENS;
+      $('withdrawalHint').textContent = frozen ? 'Your wallet is on hold — contact support' :
+        balance < WITHDRAWAL_TOKENS ? `You need ${(WITHDRAWAL_TOKENS - balance).toLocaleString()} more tokens.` :
+        '3,000 tokens converts to $15.';
+      $('withdrawBtn').onclick = withdrawalSheet;
+      try {
+        const withdrawals = await getDocs(query(collection(db, 'withdrawals'), where('uid', '==', uid), orderBy('createdAt', 'desc')));
+        $('withdrawals').innerHTML = withdrawals.docs.map(item =>
+          `<div>${item.data().status} · ${item.data().payout || 15}</div>`).join('');
+      } catch (error) {
+        console.error('Could not load withdrawals', error);
+        $('withdrawals').innerHTML = '<p class="gift-error">Couldn’t load withdrawal history.</p>';
+      }
+    }
+
+    try {
+      history = await getTransactionHistory(uid, 50);
+      renderTx();
+    } catch (error) {
+      console.error('Could not load wallet history', error);
+      $('transactions').innerHTML = '<p class="gift-error">Couldn’t load activity.</p>';
+    }
+  } catch (error) {
+    failure(error);
+  } finally {
+    $('loader').classList.add('hidden');
+  }
+}
 
 load();
