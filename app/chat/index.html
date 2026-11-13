@@ -644,6 +644,40 @@
       };
     });
 
+    window.sendVideo = async function(input) {
+      const file = input.files?.[0], recipient = theirUID;
+      if (!file || !recipient || sendingVideo) return;
+      if (!file.type.startsWith('video/')) { showToast('Choose a video file.'); input.value = ''; return; }
+      if (file.size > 50 * 1024 * 1024) { showToast('Videos must be 50 MB or smaller.'); input.value = ''; return; }
+      const cost = videoTokenCost();
+      if (cost === null) { showToast('An active membership is required to send videos.'); input.value = ''; return; }
+      if (Number(myProfile.walletBalance || 0) < cost) { showToast('You need ' + cost + ' tokens to send this video. Top up your Wallet.'); input.value = ''; return; }
+      sendingVideo = true;
+      const button = document.getElementById('videoBtn');
+      if (button) button.disabled = true;
+      try {
+        await refreshBlockState(recipient);
+        applyBlockState();
+        if (blockedByMe || blockedMe) throw new Error('Messaging is blocked.');
+        showToast('Uploading video…');
+        const videoURL = await uploadVideoToCloudinary(file, 'datevault/chat');
+        const token = await myUser.getIdToken();
+        const response = await fetch('/.netlify/functions/wallet', {
+          method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+          body: JSON.stringify({ action: 'send_video', toUID: recipient, videoURL })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Could not send video.');
+        myProfile.walletBalance = data.balance;
+        showToast('Video sent · ' + data.cost + ' tokens charged.');
+      } catch (error) {
+        showToast(error.message || 'Video failed to send.');
+      } finally {
+        sendingVideo = false; input.value = '';
+        if (button) button.disabled = blockedByMe || blockedMe || videoTokenCost() === null;
+      }
+    };
+
     window.sendImage = async function(input) {
       const selected = Array.from(input.files || []);
       const recipient = theirUID;
