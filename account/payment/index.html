@@ -239,7 +239,10 @@
       }
       if (purpose === 'entry' && !trialExpiredCheckout && !isRenewal && !isPesapalCallback && !inviteToken && !activeTrial) { showInvalidInvite(); return; }
       if (purpose === 'trial_extension' && !trialExpiredCheckout) { showInvalidInvite(); return; }
-      if (purpose !== 'entry' && purpose !== 'trial_extension' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
+      if (purpose === 'tokens' && (!snap.exists() || profile.banned === true || profile.suspended === true || profile.accountSuspended === true || profile.marketBanned === true)) {
+        showInvalidInvite(); return;
+      }
+      if (purpose !== 'entry' && purpose !== 'trial_extension' && purpose !== 'tokens' && (!snap.exists() || profile.status !== 'active_member' || profile.banned)) {
         const { routeUser } = await import('../../js/auth.js');
         routeUser(user); return;
       }
