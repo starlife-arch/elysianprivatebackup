@@ -512,17 +512,6 @@
             bubble.appendChild(video);
           }
           if (m.text) { const body = document.createElement('div'); body.textContent = m.text; bubble.appendChild(body); }
-          const likedByMe = likedBy.includes(myUser.uid);
-          const likedByOther = Boolean(theirUID && likedBy.includes(theirUID));
-          const likedContent = m.videoURL ? 'video' : m.imageURL ? 'photo' : 'message';
-          if (likedBy.length) {
-            const reaction = document.createElement('div');
-            reaction.className = 'dv-message-like-reaction';
-            reaction.textContent = likedByMe && likedByOther ? '\\u2665 You both liked this'
-              : likedByMe ? '\\u2665 You liked this ' + likedContent : '\\u2665 ' + (theirProfile?.displayName || theirProfile?.name || 'They') + ' liked this ' + likedContent;
-            reaction.style.cssText = 'display:inline-flex;align-self:flex-start;flex-wrap:wrap;gap:5px;margin-top:9px;padding:8px 12px;border-radius:999px;background:rgba(255,70,105,.18);border:1px solid rgba(255,90,120,.60);color:#ff6b8a;font-size:13px;font-weight:800;box-shadow:0 2px 14px rgba(255,70,105,.16);';
-            bubble.appendChild(reaction);
-          }
         }
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:8px;align-items:center;margin:3px 4px 8px;font-size:11px';
@@ -532,9 +521,9 @@
           reply.style.cssText='background:none;border:0;color:var(--muted);padding:3px 5px;cursor:pointer';
           const liked = Array.isArray(m.likedBy) && m.likedBy.includes(myUser.uid);
           const like = document.createElement('button');
-          like.type='button'; like.textContent=(liked?'\\u2665 Liked':'\\u2661 Like') + (likedBy.length ? ' · ' + likedBy.length : ''); like.dataset.likeMessage=m.id;
+          like.type='button'; like.textContent=(liked?'♥ Liked':'♡ Like') + (likedBy.length ? ' · ' + likedBy.length : ''); like.dataset.likeMessage=m.id;
           like.setAttribute('aria-label', (liked ? 'Unlike' : 'Like') + ' message; ' + likedBy.length + ' likes');
-          like.style.cssText='background:'+(liked?'rgba(255,70,105,.20)':'rgba(255,255,255,.07)')+';border:1px solid '+(liked?'rgba(255,90,120,.7)':'var(--border)')+';border-radius:999px;color:'+(liked?'#ff6b8a':'var(--text)')+';padding:7px 13px;font-size:13px;font-weight:800;cursor:pointer;'
+          like.style.cssText='background:'+(liked?'rgba(255,70,105,.28)':'rgba(255,255,255,.12)')+';border:1px solid '+(liked?'#ff6b8a':'rgba(255,255,255,.42)')+';border-radius:999px;color:'+(liked?'#ff7894':'#f2f2f2')+';padding:8px 14px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 1px 8px rgba(0,0,0,.22);'
           actions.append(reply,like);
         }
         const time = document.createElement('div');
