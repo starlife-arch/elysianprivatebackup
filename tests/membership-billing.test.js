@@ -434,3 +434,14 @@ test('chat message edit and delete are server charged at ten tokens', () => {
   assert.match(chat, /action\+'_chat_message'/);
   assert.match(chat, /This message was deleted/);
 });
+
+test('chat supports paid delete-for-me and delete-for-everyone', () => {
+  const wallet = fs.readFileSync(path.join(__dirname, '../netlify/functions/wallet.js'), 'utf8');
+  const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(wallet, /delete_chat_message_for_me/);
+  assert.match(wallet, /hiddenFor: admin\(\)\.firestore\.FieldValue\.arrayUnion\(uid\)/);
+  assert.match(wallet, /msg\.senderUID !== uid/);
+  assert.match(chat, /Delete for me · 10 tokens/);
+  assert.match(chat, /Delete for everyone · 10 tokens/);
+  assert.match(chat, /m\.hiddenFor\.includes\(myUser\.uid\)/);
+});
