@@ -23,6 +23,6 @@ test('Market wallet callback strips the one-time code before exchanging it', () 
 
 test('Market-only accounts are allowed through the token checkout gate, but banned accounts are not', () => {
   const html = fs.readFileSync(path.join(root, 'account/payment/index.html'), 'utf8');
-  assert.match(html, /purpose === 'tokens' && \(!snap\.exists\|\| profile\.banned === true/);
+  assert.match(html, /purpose === 'tokens' && \\(!snap\\.exists\\(\\) \\|\\| profile\\.banned === true/);
   assert.match(html, /purpose !== 'tokens'/);
 });
