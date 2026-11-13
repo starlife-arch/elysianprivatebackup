@@ -561,7 +561,7 @@
           quick.appendChild(more);
           const full=document.createElement('div'); full.dataset.fullReactions=m.id; full.hidden=true;
           full.style.cssText='display:none;grid-template-columns:repeat(7, minmax(28px,1fr));gap:4px;width:100%;padding-top:6px;border-top:1px solid #344a68;margin-top:3px';
-          const allEmojis=['\u{1F44D}','\u{1F44E}','\u2764\uFE0F','\u{1F499}','\u{1F49A}','\u{1F49B}','\u{1F49C}','\u{1F602}','\u{1F923}','\u{1F60D}','\u{1F970}','\u{1F618}','\u{1F60A}','\u{1F914}','\u{1F62E}','\u{1F62D}','\u{1F622}','\u{1F621}','\u{1F64F}','\u{1F91D}','\u{1F44F}','\u{1F389}','\u{1F525}','\u{1F4AF}','\u{1F680}','\u{1F31F}','\u{1F4AA}','\u{1F37E}','\u{1F984}','\u{1F4A1}','\u{1F48E}','\u{1F440}','\u{1F4AF}','\u{1F64C}','\u{1F91T}'];
+          const allEmojis=['\u{1F44D}','\u{1F44E}','\u2764\uFE0F','\u{1F499}','\u{1F49A}','\u{1F49B}','\u{1F49C}','\u{1F602}','\u{1F923}','\u{1F60D}','\u{1F970}','\u{1F618}','\u{1F60A}','\u{1F914}','\u{1F62E}','\u{1F62D}','\u{1F622}','\u{1F621}','\u{1F64F}','\u{1F91D}','\u{1F44F}','\u{1F389}','\u{1F525}','\u{1F4AF}','\u{1F680}','\u{1F31F}','\u{1F4AA}','\u{1F37E}','\u{1F984}','\u{1F4A1}','\u{1F48E}','\u{1F440}','\u{1F4AF}','\u{1F64C}'];
           allEmojis.filter(Boolean).forEach(symbol=>{
             const choice=document.createElement('button'); choice.type='button'; choice.dataset.messageReaction=m.id; choice.dataset.reaction=symbol;
             choice.textContent=symbol; choice.setAttribute('aria-label','React with '+symbol);
@@ -612,7 +612,17 @@
         const reactionToggle = event.target.closest('button[data-open-reactions]');
         if (reactionToggle) {
           const picker = container.querySelector('[data-reaction-picker="'+reactionToggle.dataset.openReactions+'"]');
-          if (picker) picker.hidden = !picker.hidden;
+          container.querySelectorAll('[data-reaction-picker]').forEach(node => {
+            if (node !== picker) { node.hidden = true; node.style.display = 'none'; }
+          });
+          if (picker) { picker.hidden = !picker.hidden; picker.style.display = picker.hidden ? 'none' : 'flex'; }
+          return;
+        }
+        const expandReactions = event.target.closest('button[data-expand-reactions]');
+        if (expandReactions) {
+          const picker = container.querySelector('[data-reaction-picker="'+expandReactions.dataset.expandReactions+'"]');
+          const full = picker?.querySelector('[data-full-reactions]');
+          if (full) { full.hidden = !full.hidden; full.style.display = full.hidden ? 'none' : 'grid'; }
           return;
         }
         const reactionButton = event.target.closest('button[data-message-reaction]');
