@@ -362,3 +362,21 @@ test('chat video picker keeps tier pricing and simple visible likes on every mes
   assert.doesNotMatch(chat, /liked this/);
   assert.doesNotMatch(chat, /You liked this/);
 });
+
+
+test('chat actions sit below each message with compact controls, reaction choices and swipe-to-reply', () => {
+  const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
+  assert.match(chat, /align-self:'\+\(isOut\?'flex-end':'flex-start'\)/);
+  assert.match(chat, /data-reply-swipe/);
+  assert.match(chat, /container\.onpointerdown/);
+  assert.match(chat, /container\.onpointerup/);
+  assert.match(chat, /Math\.abs\(dx\) < 58/);
+  assert.match(chat, /data-open-reactions/);
+  assert.match(chat, /data-message-reaction/);
+  assert.match(chat, /reactionGlyphs/);
+  assert.match(chat, /reactions\.' \+ symbol/);
+  assert.match(chat, /wrap\.appendChild\(bubble\)/);
+  assert.match(chat, /wrap\.appendChild\(actions\)/);
+  assert.doesNotMatch(chat, /reply\.textContent='Reply'/);
+  assert.doesNotMatch(chat, /You liked this/);
+});
