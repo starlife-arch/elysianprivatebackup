@@ -356,8 +356,8 @@ test('chat video picker displays tier pricing and makes likes visible for every 
   assert.match(chat, /return \['elite', 'vault'\]\.includes\(plan\) \? 20 : 40;/);
   assert.match(chat, /video\.controls = true/);
   assert.match(chat, /likedBy\.length/);
-  assert.match(chat, /m\.videoURL \? 'your video' : m\.imageURL \? 'your photo' : 'your message'/);
-  assert.match(chat, /' liked ' \+ likedContent/);
+  assert.match(chat, /m\.videoURL \? 'video' : m\.imageURL \? 'photo' : 'message'/);
+  assert.match(chat, /' liked this ' \+ likedContent/);
   assert.match(chat, /if \(likedBy\.length\)/);
   assert.match(chat, /rgba\(255,70,105,\.18\)/);
   assert.match(chat, /likedBy\.length \? ' · ' \+ likedBy\.length/);
