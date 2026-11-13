@@ -263,7 +263,7 @@ test('message-like snapshots preserve the visible chat anchor and show the react
   const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
   assert.match(chat, /const scrollAnchor = anchorNode \? \{ id: anchorNode\.dataset\.messageId/);
   assert.match(chat, /container\.scrollTop \+= nextAnchor\.getBoundingClientRect\(\)\.top - scrollAnchor\.top/);
-  assert.match(chat, /likedByMe \? '♥ You liked this' : '♥ ' \+/);
+  assert.match(chat, /likedByMe \? '\\u2665 You liked this' : '\\u2665 ' \+/);
 });
 
 test('mobile bottom navigation uses shrinkable equal slots and a More menu for secondary actions', () => {
