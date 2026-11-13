@@ -258,7 +258,6 @@ async function manageChatMessage(uid, body, action) {
       tx.update(messageRef, { text: String(text).trim(), edited: true, editedAt: ts() });
     } else {
       tx.update(messageRef, { text: null, imageURL: admin().firestore.FieldValue.delete(), videoURL: admin().firestore.FieldValue.delete(), deleted: true, deletedAt: ts(), deletedBy: uid });
-      tx.update(matchRef, { lastMessage: 'Message deleted', lastMessageAt: ts() });
     }
   });
   return { ok: true, balance, charged: 10 };
