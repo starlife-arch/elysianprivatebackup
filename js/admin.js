@@ -392,19 +392,28 @@ export async function assignPlan(uid, plan, expiry = null) {
   const updates = {
     'subscription.plan': plan,
     'subscription.status': 'active',
+    'subscription.billing': 'admin',
+    'subscription.startDate': new Date().toISOString().slice(0, 10),
     'subscription.adminAssigned': true,
     'subscription.assignedAt': serverTimestamp(),
     'subscription.assignedBy': 'admin',
+    'subscription.previousPlan': null,
+    'subscription.expiredAt': null,
+    'subscription.expiredBillingDate': null,
+    'subscriptionExpirationEmailSentFor': null,
     plan,
     hasPaid: true,
     paid: true,
     stage: plan,
-    status: 'active_member'
+    status: 'active_member',
+    vaultBadge: plan === 'vault',
+    accessExpiry: null,
+    freeTrial: { status: 'inactive', expiresAt: null }
   };
-  if (expiry) {
-    updates['subscription.expiresAt'] = expiry;
-    updates.accessExpiry = expiry;
-  }
+  // The subscription engine reads nextBillingDate. Keep expiresAt as a
+  // compatibility mirror, but never leave an old expiry attached to a grant.
+  updates['subscription.nextBillingDate'] = expiry || null;
+  updates['subscription.expiresAt'] = expiry || null;
 
   await updateDoc(doc(db, "users", uid), updates);
   const snap = await getDoc(doc(db, "users", uid));
