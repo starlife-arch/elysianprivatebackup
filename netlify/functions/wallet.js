@@ -206,6 +206,66 @@ async function sendImages(uid, body) {
 }
 
 // Server-authoritative video pricing and the wallet debit/message write share one transaction.
+
+async function manageChatMessage(uid, body, action) {
+  const { toUID, messageId, text, requestId } = body;
+  if (!toUID || toUID === uid || typeof messageId !== 'string' || !/^[A-Za-z0-9_-]{1,150}$/.test(messageId)) {
+    throw Object.assign(new Error('Invalid message request.'), { status: 400 });
+  }
+  if (!/^[A-Za-z0-9_-]{16,80}$/.test(String(requestId || ''))) {
+    throw Object.assign(new Error('Please retry this action.'), { status: 400 });
+  }
+  const conversationId = [uid, toUID].sort().join('_');
+  const senderRef = _db.collection('users').doc(uid);
+  const recipientRef = _db.collection('users').doc(toUID);
+  const matchRef = _db.collection('matches').doc(conversationId);
+  const messageRef = matchRef.collection('messages').doc(messageId);
+  const ledgerRef = senderRef.collection('walletTransactions').doc('chat_message_' + requestId);
+  let balance = 0;
+  await _db.runTransaction(async tx => {
+    const [sender, recipient, match, message, prior, mineBlock, theirBlock] = await Promise.all([
+      tx.get(senderRef), tx.get(recipientRef), tx.get(matchRef), tx.get(messageRef), tx.get(ledgerRef),
+      tx.get(senderRef.collection('blocked').doc(toUID)), tx.get(recipientRef.collection('blocked').doc(uid))
+    ]);
+    if (prior.exists) { balance = Number(prior.data().balanceAfter || 0); return; }
+    if (!sender.exists || !recipient.exists || !match.exists || match.data()?.unmatched || !message.exists) {
+      throw Object.assign(new Error('This message is no longer available.'), { status: 404 });
+    }
+    if (mineBlock.exists || theirBlock.exists) throw Object.assign(new Error('Messaging is blocked for this conversation.'), { status: 403 });
+    const msg = message.data(), profile = sender.data();
+    if (action !== 'delete_for_me' && msg.senderUID !== uid) throw Object.assign(new Error('You can only edit or delete your own messages for everyone.'), { status: 403 });
+    if (msg.deletedAt || msg.deleted === true) throw Object.assign(new Error('This message has already been deleted for everyone.'), { status: 409 });
+    if (Array.isArray(msg.hiddenFor) && msg.hiddenFor.includes(uid)) throw Object.assign(new Error('This message is already hidden for you.'), { status: 409 });
+    if (msg.type === 'gift' || msg.type === 'call') throw Object.assign(new Error('This message cannot be changed.'), { status: 400 });
+    if (action === 'edit') {
+      if (typeof msg.text !== 'string' || msg.imageURL || msg.videoURL) throw Object.assign(new Error('Only text messages can be edited.'), { status: 400 });
+      const nextText = String(text || '').trim();
+      if (!nextText || nextText.length > 2000) throw Object.assign(new Error('Enter text up to 2,000 characters.'), { status: 400 });
+      if (nextText === msg.text) throw Object.assign(new Error('There are no changes to save.'), { status: 400 });
+    } else if (action === 'delete' || action === 'delete_for_me') {
+      if (typeof msg.text !== 'string' && !msg.imageURL && !msg.videoURL) throw Object.assign(new Error('This message cannot be deleted.'), { status: 400 });
+    }
+    if (profile.walletFrozen || profile.banned || profile.suspended || profile.accountSuspended) {
+      throw Object.assign(new Error('Your wallet or account is currently restricted.'), { status: 403 });
+    }
+    const current = Number(profile.walletBalance || 0);
+    if (!Number.isSafeInteger(current) || current < 10) {
+      throw Object.assign(new Error('You need 10 tokens to edit or delete a message.'), { status: 402, balance: current, required: 10 });
+    }
+    balance = current - 10;
+    tx.update(senderRef, { walletBalance: balance });
+    tx.create(ledgerRef, { type: action === 'edit' ? 'chat_message_edit' : (action === 'delete_for_me' ? 'chat_message_delete_for_me' : 'chat_message_delete'), amount: -10, toUID, messageId, note: action === 'edit' ? 'Edit chat message' : (action === 'delete_for_me' ? 'Delete chat message for me' : 'Delete chat message for everyone'), createdAt: ts(), status: 'completed', balanceAfter: balance, requestId });
+    if (action === 'edit') {
+      tx.update(messageRef, { text: String(text).trim(), edited: true, editedAt: ts() });
+    } else if (action === 'delete_for_me') {
+      tx.update(messageRef, { hiddenFor: admin().firestore.FieldValue.arrayUnion(uid) });
+    } else {
+      tx.update(messageRef, { text: null, imageURL: admin().firestore.FieldValue.delete(), videoURL: admin().firestore.FieldValue.delete(), deleted: true, deletedAt: ts(), deletedBy: uid });
+    }
+  });
+  return { ok: true, balance, charged: 10 };
+}
+
 async function sendVideo(uid, body) {
   const { toUID, videoURL } = body;
   if (!toUID || toUID === uid || typeof videoURL !== 'string') throw new Error('Choose one video for this conversation.');
@@ -252,6 +312,9 @@ exports.handler = async event => {
       : body.action === 'incognito' ? await addon(user.uid, 'incognito')
       : body.action === 'send_image' || body.action === 'send_images' ? await sendImages(user.uid, body)
       : body.action === 'send_video' ? await sendVideo(user.uid, body)
+      : body.action === 'edit_chat_message' ? await manageChatMessage(user.uid, body, 'edit')
+      : body.action === 'delete_chat_message' ? await manageChatMessage(user.uid, body, 'delete')
+      : body.action === 'delete_chat_message_for_me' ? await manageChatMessage(user.uid, body, 'delete_for_me')
       : null;
     if (!data) return json(400, { error: 'Unknown wallet action' });
     return json(200, data);

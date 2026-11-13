@@ -472,11 +472,12 @@
         const note = blockedByMe ? 'You blocked this member. Unblock to message again.' : 'This member is unavailable for messaging.';
         container.innerHTML = `<div style="text-align:center;padding:0.75rem;color:var(--danger);font-size:12px;border:1px solid rgba(224,92,110,0.25);border-radius:12px;margin-bottom:0.5rem;">${note}</div>`;
       }
-      msgs.forEach(m => {
+      msgs.filter(m => !(Array.isArray(m.hiddenFor) && m.hiddenFor.includes(myUser.uid))).forEach(m => {
         const isOut = m.senderUID === myUser.uid;
         const likedBy = Array.isArray(m.likedBy) ? m.likedBy : [];
         const wrap = document.createElement('div');
         wrap.dataset.messageId = m.id;
+        if (m.type !== 'call' && m.type !== 'gift' && !m.deleted) wrap.dataset.ownMessage = 'true';
         wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
         if (m.type === 'call') {
           const duration = Number(m.durationSeconds || 0);
@@ -490,8 +491,15 @@
         if (m.type === 'gift') {
           bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in') + ' gift-bubble';
           bubble.innerHTML = `<strong>${isOut ? 'You sent' : 'You received'} ${Number(m.giftAmount || 0).toLocaleString()} tokens</strong><div class="muted" style="font-size:11px">Token gift</div>`;
+        } else if (m.deleted === true || m.deletedAt) {
+          bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in');
+          bubble.style.cssText = 'opacity:.68;font-style:italic';
+          bubble.textContent = 'This message was deleted';
         } else {
           bubble.className = 'msg ' + (isOut ? 'msg-out' : 'msg-in');
+          if (m.edited === true) {
+            const edited = document.createElement('span'); edited.textContent = 'Edited'; edited.style.cssText='display:block;font-size:10px;opacity:.65;margin-bottom:3px'; bubble.appendChild(edited);
+          }
           if (m.replyTo) {
             const quote = document.createElement('div');
             quote.style.cssText = 'padding:6px 9px;margin-bottom:7px;border-left:3px solid var(--gold);background:rgba(0,0,0,.12);border-radius:6px;font-size:11px;opacity:.85';
@@ -530,7 +538,7 @@
         });
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:8px;align-items:center;margin:2px 0 0;align-self:'+(isOut?'flex-end':'flex-start')+';max-width:min(320px,78vw)';
-        if (m.type !== 'call' && m.type !== 'gift') {
+        if (m.type !== 'call' && m.type !== 'gift' && !m.deleted && !m.deletedAt) {
           const liked = likedBy.includes(myUser.uid);
           const like = document.createElement('button');
           like.type='button'; like.dataset.likeMessage=m.id;
@@ -691,12 +699,72 @@
         }
       };
       let replySwipeStart = null;
+      let messageHoldTimer = null;
+      let heldMessageId = null;
+      const clearMessageHold = () => { if (messageHoldTimer) clearTimeout(messageHoldTimer); messageHoldTimer = null; };
+      const showOwnMessageActions = messageId => {
+        const message = currentMessages.find(item => item.id === messageId);
+        if (!message || message.deleted || message.deletedAt || ['call','gift'].includes(message.type)) return;
+        const isOwn = message.senderUID === myUser.uid;
+        const media = !!(message.imageURL || message.videoURL);
+        const sheet = openSheet({ label:'Message options', content:`<div style="display:grid;gap:10px"><p class="muted" style="font-size:13px;margin:0">Each successful edit or delete costs 10 tokens.</p>${isOwn && !media && typeof message.text === 'string' ? '<button id="dv-edit-own-message" class="btn btn-outline btn-full">Edit message · 10 tokens</button>' : ''}<button id="dv-delete-for-me" class="btn btn-outline btn-full">Delete for me · 10 tokens</button>${isOwn ? '<button id="dv-delete-own-message" class="btn btn-danger btn-full">Delete for everyone · 10 tokens</button>' : ''}<button id="dv-cancel-own-message" class="btn btn-outline btn-full">Cancel</button></div>` });
+        requestAnimationFrame(() => {
+          sheet.element.querySelector('#dv-cancel-own-message')?.addEventListener('click',()=>sheet.close());
+          sheet.element.querySelector('#dv-edit-own-message')?.addEventListener('click',()=>{
+            sheet.close();
+            const editor = openSheet({ label:'Edit message', content:'<div style="display:grid;gap:10px"><textarea id="dv-edit-message-text" rows="4" maxlength="2000" style="width:100%;padding:12px;border-radius:10px;background:#0b1422;color:#fff;border:1px solid #405675;resize:vertical"></textarea><p class="muted" style="font-size:12px;margin:0">Saving this edit costs 10 tokens.</p><button id="dv-save-message-edit" class="btn btn-gold btn-full">Save edit · 10 tokens</button><button id="dv-cancel-message-edit" class="btn btn-outline btn-full">Cancel</button></div>' });
+            requestAnimationFrame(()=>{
+              const input=editor.element.querySelector('#dv-edit-message-text');
+              input.value=message.text||'';
+              editor.element.querySelector('#dv-cancel-message-edit')?.addEventListener('click',()=>editor.close());
+              editor.element.querySelector('#dv-save-message-edit')?.addEventListener('click',()=>{
+                const next=input.value.trim();
+                if(!next||next===message.text){showToast('Enter a changed message first.');return;}
+                editor.close();performMessageChange('edit',message,next);
+              });
+            });
+          });
+          sheet.element.querySelector('#dv-delete-for-me')?.addEventListener('click',()=>{
+            sheet.close();
+            performMessageChange('delete_for_me', message);
+          });
+          sheet.element.querySelector('#dv-delete-own-message')?.addEventListener('click',()=>{
+            sheet.close();
+            const confirmSheet = openSheet({ label:'Delete for everyone', content:'<div style="display:grid;gap:10px"><p class="muted" style="font-size:13px;margin:0">This removes the message for both people. This action costs 10 tokens.</p><button id="dv-confirm-delete-everyone" class="btn btn-danger btn-full">Delete for everyone · 10 tokens</button><button id="dv-cancel-delete-everyone" class="btn btn-outline btn-full">Cancel</button></div>' });
+            requestAnimationFrame(()=>{
+              confirmSheet.element.querySelector('#dv-cancel-delete-everyone')?.addEventListener('click',()=>confirmSheet.close());
+              confirmSheet.element.querySelector('#dv-confirm-delete-everyone')?.addEventListener('click',()=>{confirmSheet.close();performMessageChange('delete',message);});
+            });
+          });
+        });
+      };
+      async function performMessageChange(action, message, nextText) {
+        try {
+          const token = await myUser.getIdToken();
+          const response = await fetch('/api/wallet', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+token}, body:JSON.stringify({action:action==='delete_for_me'?'delete_chat_message_for_me':action+'_chat_message',toUID:theirUID,messageId:message.id,text:nextText,requestId:crypto.randomUUID().replace(/-/g,'')}) });
+          const data = await response.json().catch(()=>({}));
+          if (!response.ok) throw new Error(data.error || 'Could not update message.');
+          myProfile.walletBalance = data.balance;
+          showToast(action === 'edit' ? 'Message edited. 10 tokens used.' : 'Message deleted. 10 tokens used.');
+        } catch(error) { showToast(error.message || 'Could not update message.'); }
+      }
+      container.oncontextmenu = event => {
+        const own = event.target.closest('[data-own-message="true"]');
+        if (own) { event.preventDefault(); showOwnMessageActions(own.dataset.messageId); }
+      };
       container.onpointerdown = event => {
+        const own = event.target.closest('[data-own-message="true"]');
+        if (own && !event.target.closest('button,a,video')) {
+          heldMessageId = own.dataset.messageId;
+          clearMessageHold();
+          messageHoldTimer = setTimeout(()=>{const id=heldMessageId;clearMessageHold();if(id)showOwnMessageActions(id);},550);
+        }
         const bubble = event.target.closest('[data-reply-swipe="true"]');
         if (!bubble || event.target.closest('button,a,video')) { replySwipeStart = null; return; }
         replySwipeStart = { x:event.clientX, y:event.clientY, id:bubble.parentElement?.dataset.messageId, pointerId:event.pointerId };
       };
       container.onpointerup = event => {
+        clearMessageHold(); heldMessageId = null;
         if (!replySwipeStart || replySwipeStart.pointerId !== event.pointerId) return;
         const dx = event.clientX - replySwipeStart.x, dy = event.clientY - replySwipeStart.y;
         const messageId = replySwipeStart.id; replySwipeStart = null;
@@ -709,7 +777,7 @@
         preview.style.display = 'block';
         document.getElementById('msgInput').focus();
       };
-      container.onpointercancel = () => { replySwipeStart = null; };
+      container.onpointercancel = () => { clearMessageHold(); heldMessageId = null; replySwipeStart = null; };
     }
 
     window.openMemberProfile = function() {
