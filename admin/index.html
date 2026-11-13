@@ -1009,19 +1009,26 @@ Token: ${result.code}${warning}`, { title:'Invite Sent', icon:'' });
       const updates = {
         'subscription.plan': plan,
         'subscription.status': 'active',
+        'subscription.billing': 'admin',
+        'subscription.startDate': new Date().toISOString().slice(0, 10),
         'subscription.adminAssigned': true,
         'subscription.assignedAt': serverTimestamp(),
         'subscription.assignedBy': 'admin',
+        'subscription.previousPlan': null,
+        'subscription.expiredAt': null,
+        'subscription.expiredBillingDate': null,
+        'subscriptionExpirationEmailSentFor': null,
         plan,
         hasPaid: true,
         paid: true,
         stage: plan,
-        status: 'active_member'
+        status: 'active_member',
+        vaultBadge: plan === 'vault',
+        accessExpiry: null,
+        freeTrial: { status: 'inactive', expiresAt: null }
       };
-      if (expiry) {
-        updates['subscription.expiresAt'] = expiry;
-        updates.accessExpiry = expiry;
-      }
+      updates['subscription.nextBillingDate'] = expiry || null;
+      updates['subscription.expiresAt'] = expiry || null;
       await updateDoc(doc(db, 'users', uid), updates);
       const member = allUsers.find(u => u.id === uid) || {};
       const planLabel = String(plan || 'standard').charAt(0).toUpperCase() + String(plan || 'standard').slice(1);

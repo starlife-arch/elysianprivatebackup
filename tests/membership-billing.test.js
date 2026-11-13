@@ -392,3 +392,20 @@ test('chat actions sit below each message with compact controls, reaction choice
   assert.doesNotMatch(chat, /reply\.textContent='Reply'/);
   assert.doesNotMatch(chat, /You liked this/);
 });
+
+test('admin-assigned premium plans use the expiry field read by subscriptions', () => {
+  const admin = fs.readFileSync(path.join(__dirname, '../js/admin.js'), 'utf8');
+  const subscription = fs.readFileSync(path.join(__dirname, '../js/subscription.js'), 'utf8');
+  const dashboard = fs.readFileSync(path.join(__dirname, '../admin/index.html'), 'utf8');
+  assert.match(admin, /subscription\.nextBillingDate'\] = expiry \|\| null/);
+  assert.match(admin, /subscription\.expiresAt'\] = expiry \|\| null/);
+  assert.match(admin, /'subscription\.billing': 'admin'/);
+  assert.match(admin, /'subscription\.adminAssigned': true/);
+  assert.match(admin, /accessExpiry: null/);
+  assert.match(subscription, /if \(sub\.adminAssigned === true\)/);
+  assert.match(subscription, /if \(!rawAdminExpiry\) return false/);
+  assert.match(subscription, /adminAssigned: false/);
+  assert.match(subscription, /plan: 'standard'/);
+  assert.match(subscription, /stage: 'paid'/);
+  assert.match(dashboard, /updates\['subscription\.nextBillingDate'\] = expiry \|\| null/);
+});
