@@ -16,11 +16,15 @@ function originAllowed(event) {
 }
 
 function eligibleForMarket(profile = {}) {
-  if (profile.banned === true || profile.suspended === true || profile.accountSuspended === true) return false;
-  if (profile.status === "rejected" || profile.status === "suspended" || profile.status === "pending_admin_review") return false;
-  if (profile.role === "admin") return true;
-  return profile.adminApproved === true ||
-    ["active_member", "approved_pending_invite", "approved_pending_payment"].includes(profile.status);
+  // Creator Market is available to every authenticated account unless an
+  // explicit platform safety restriction blocks access. Dating membership,
+  // payment, trial, application, and profile lifecycle are separate concerns.
+  return !(
+    profile.banned === true ||
+    profile.suspended === true ||
+    profile.accountSuspended === true ||
+    profile.marketBanned === true
+  );
 }
 
 exports.handler = async event => {
