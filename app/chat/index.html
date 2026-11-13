@@ -472,12 +472,12 @@
         const note = blockedByMe ? 'You blocked this member. Unblock to message again.' : 'This member is unavailable for messaging.';
         container.innerHTML = `<div style="text-align:center;padding:0.75rem;color:var(--danger);font-size:12px;border:1px solid rgba(224,92,110,0.25);border-radius:12px;margin-bottom:0.5rem;">${note}</div>`;
       }
-      msgs.forEach(m => {
+      msgs.filter(m => !(Array.isArray(m.hiddenFor) && m.hiddenFor.includes(myUser.uid))).forEach(m => {
         const isOut = m.senderUID === myUser.uid;
         const likedBy = Array.isArray(m.likedBy) ? m.likedBy : [];
         const wrap = document.createElement('div');
         wrap.dataset.messageId = m.id;
-        if (isOut && m.type !== 'call' && m.type !== 'gift' && !m.deleted) wrap.dataset.ownMessage = 'true';
+        if (m.type !== 'call' && m.type !== 'gift' && !m.deleted) wrap.dataset.ownMessage = 'true';
         wrap.style.display = 'flex'; wrap.style.flexDirection = 'column';
         if (m.type === 'call') {
           const duration = Number(m.durationSeconds || 0);
@@ -704,9 +704,10 @@
       const clearMessageHold = () => { if (messageHoldTimer) clearTimeout(messageHoldTimer); messageHoldTimer = null; };
       const showOwnMessageActions = messageId => {
         const message = currentMessages.find(item => item.id === messageId);
-        if (!message || message.senderUID !== myUser.uid || message.deleted || message.deletedAt || ['call','gift'].includes(message.type)) return;
+        if (!message || message.deleted || message.deletedAt || ['call','gift'].includes(message.type)) return;
+        const isOwn = message.senderUID === myUser.uid;
         const media = !!(message.imageURL || message.videoURL);
-        const sheet = openSheet({ label:'Message options', content:`<div style="display:grid;gap:10px"><p class="muted" style="font-size:13px;margin:0">Each successful edit or delete costs 10 tokens.</p>${!media && typeof message.text === 'string' ? '<button id="dv-edit-own-message" class="btn btn-outline btn-full">Edit message · 10 tokens</button>' : ''}<button id="dv-delete-own-message" class="btn btn-danger btn-full">Delete message · 10 tokens</button><button id="dv-cancel-own-message" class="btn btn-outline btn-full">Cancel</button></div>` });
+        const sheet = openSheet({ label:'Message options', content:`<div style="display:grid;gap:10px"><p class="muted" style="font-size:13px;margin:0">Each successful edit or delete costs 10 tokens.</p>${isOwn && !media && typeof message.text === 'string' ? '<button id="dv-edit-own-message" class="btn btn-outline btn-full">Edit message · 10 tokens</button>' : ''}<button id="dv-delete-for-me" class="btn btn-outline btn-full">Delete for me · 10 tokens</button>${isOwn ? '<button id="dv-delete-own-message" class="btn btn-danger btn-full">Delete for everyone · 10 tokens</button>' : ''}<button id="dv-cancel-own-message" class="btn btn-outline btn-full">Cancel</button></div>` });
         requestAnimationFrame(() => {
           sheet.element.querySelector('#dv-cancel-own-message')?.addEventListener('click',()=>sheet.close());
           sheet.element.querySelector('#dv-edit-own-message')?.addEventListener('click',()=>{
@@ -723,16 +724,24 @@
               });
             });
           });
+          sheet.element.querySelector('#dv-delete-for-me')?.addEventListener('click',()=>{
+            sheet.close();
+            performMessageChange('delete_for_me', message);
+          });
           sheet.element.querySelector('#dv-delete-own-message')?.addEventListener('click',()=>{
             sheet.close();
-            performMessageChange('delete', message);
+            const confirmSheet = openSheet({ label:'Delete for everyone', content:'<div style="display:grid;gap:10px"><p class="muted" style="font-size:13px;margin:0">This removes the message for both people. This action costs 10 tokens.</p><button id="dv-confirm-delete-everyone" class="btn btn-danger btn-full">Delete for everyone · 10 tokens</button><button id="dv-cancel-delete-everyone" class="btn btn-outline btn-full">Cancel</button></div>' });
+            requestAnimationFrame(()=>{
+              confirmSheet.element.querySelector('#dv-cancel-delete-everyone')?.addEventListener('click',()=>confirmSheet.close());
+              confirmSheet.element.querySelector('#dv-confirm-delete-everyone')?.addEventListener('click',()=>{confirmSheet.close();performMessageChange('delete',message);});
+            });
           });
         });
       };
       async function performMessageChange(action, message, nextText) {
         try {
           const token = await myUser.getIdToken();
-          const response = await fetch('/api/wallet', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+token}, body:JSON.stringify({action:action+'_chat_message',toUID:theirUID,messageId:message.id,text:nextText,requestId:crypto.randomUUID().replace(/-/g,'')}) });
+          const response = await fetch('/api/wallet', { method:'POST', headers:{'Content-Type':'application/json',Authorization:'Bearer '+token}, body:JSON.stringify({action:action==='delete_for_me'?'delete_chat_message_for_me':action+'_chat_message',toUID:theirUID,messageId:message.id,text:nextText,requestId:crypto.randomUUID().replace(/-/g,'')}) });
           const data = await response.json().catch(()=>({}));
           if (!response.ok) throw new Error(data.error || 'Could not update message.');
           myProfile.walletBalance = data.balance;
