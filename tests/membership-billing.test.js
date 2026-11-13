@@ -430,7 +430,7 @@ test('chat message edit and delete are server charged at ten tokens', () => {
   assert.match(wallet, /Only text messages can be edited/);
   assert.match(wallet, /You can only change your own messages/);
   assert.match(chat, /setTimeout\(\(\)=>\{const id=heldMessageId/);
-  assert.match(chat, /edit_chat_message/);
-  assert.match(chat, /delete_chat_message/);
+  assert.match(chat, /action\+'_chat_message'/);
+  assert.match(chat, /action\+'_chat_message'/);
   assert.match(chat, /This message was deleted/);
 });
