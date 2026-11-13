@@ -538,7 +538,7 @@
         });
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:8px;align-items:center;margin:2px 0 0;align-self:'+(isOut?'flex-end':'flex-start')+';max-width:min(320px,78vw)';
-        if (m.type !== 'call' && m.type !== 'gift') {
+        if (m.type !== 'call' && m.type !== 'gift' && !m.deleted && !m.deletedAt) {
           const liked = likedBy.includes(myUser.uid);
           const like = document.createElement('button');
           like.type='button'; like.dataset.likeMessage=m.id;
