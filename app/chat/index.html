@@ -531,7 +531,7 @@
         const actions = document.createElement('div');
         actions.style.cssText = 'display:flex;gap:9px;align-items:center;margin:2px 0 0;align-self:'+(isOut?'flex-end':'flex-start')+';max-width:min(320px,78vw)';
         if (m.type !== 'call' && m.type !== 'gift') {
-          const liked = Array.isArray(m.likedBy) && m.likedBy.includes(myUser.uid);
+          const liked = likedBy.includes(myUser.uid);
           const like = document.createElement('button');
           like.type='button'; like.dataset.likeMessage=m.id;
           like.textContent=(liked?'\u2665 Liked':'\u2661 Like') + (Array.isArray(m.likedBy) && m.likedBy.length ? ' ' + m.likedBy.length : '');
