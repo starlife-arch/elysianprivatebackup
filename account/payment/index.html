@@ -21,6 +21,7 @@
         <button type="button" id="trialExtendChoice" class="btn btn-outline" style="flex:1;">Extend Trial · $1 / 7 days</button>
         <button type="button" id="trialEntryChoice" class="btn btn-outline" style="flex:1;">Pay entry fee</button>
       </div>
+      <button type="button" id="extendTrialWithTokens" class="btn btn-outline btn-full" style="display:none;margin:0 0 1rem;">Use 100 tokens · Add 7 days</button>
       <button type="button" id="switchAccountButton" class="btn btn-outline btn-full" style="margin:0 0 0.65rem;">Sign out / Switch account</button>
       <button type="button" id="creatorMarketButton" class="btn btn-outline btn-full" style="margin:0 0 1rem;">Open Creator Market</button>
       <div class="price-tag" id="paymentPrice">$9.99</div>
@@ -146,6 +147,32 @@
       document.getElementById('trialEntryChoice').classList.toggle('btn-outline', purpose !== 'entry');
     }
 
+    document.getElementById('extendTrialWithTokens')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      if (!currentUser || !isExpiredUnpaidTrial(profile)) { showErr('Only an expired, unpaid Trial can be extended.'); return; }
+      button.disabled = true;
+      button.textContent = 'Extending Trial...';
+      showErr('');
+      try {
+        const idToken = await currentUser.getIdToken();
+        const requestId = crypto.randomUUID().replace(/-/g, '');
+        const response = await fetch('/.netlify/functions/wallet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+          body: JSON.stringify({ action: 'extend_trial_tokens', requestId })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Could not extend your Trial.');
+        showSuccess('Your Trial has been extended by 7 days. 100 tokens were deducted.');
+        button.textContent = 'Trial extended · 7 days added';
+        setTimeout(() => { window.location.href = '/app/dashboard/'; }, 1200);
+      } catch (error) {
+        showErr(error.message || 'Could not extend your Trial.');
+        button.disabled = false;
+        button.textContent = 'Use 100 tokens · Add 7 days';
+      }
+    });
+
     function paymentTitle() {
       if (purpose === 'subscription') return `${planLabel(plan)} ${billing === 'annual' ? 'Annual' : 'Monthly'} Plan`;
       if (purpose === 'tokens') return `${tokenCount.toLocaleString()} Tokens`;
@@ -200,6 +227,8 @@
       const trialExpiry = profile.freeTrial?.expiresAt?.toDate ? profile.freeTrial.expiresAt.toDate() : new Date(profile.freeTrial?.expiresAt || 0);
       const activeTrial = profile.status === 'active_member' && profile.freeTrial?.status === 'active' && trialExpiry.getTime() > Date.now();
       if ((purpose === 'trial_extension' || trialExpiredCheckout) && !isExpiredUnpaidTrial(profile)) { showInvalidInvite(); return; }
+      const tokenExtendButton = document.getElementById('extendTrialWithTokens');
+      if (tokenExtendButton && trialExpiredCheckout && isExpiredUnpaidTrial(profile)) tokenExtendButton.style.display = 'block';
       if (purpose === 'trial_extension' && profile.status !== 'approved_pending_payment' && profile.status !== 'active_member') { showInvalidInvite(); return; }
       if (purpose === 'entry' && !isPesapalCallback && (!snap.exists() || (!(isRenewal && profile.status === 'active_member') && !(profile.adminApproved || ['approved_pending_invite','approved_pending_payment'].includes(profile.status) || activeTrial)))) {
         const { routeUser } = await import('../../js/auth.js');
