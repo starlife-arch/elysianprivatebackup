@@ -591,6 +591,27 @@
           document.getElementById('msgInput').focus();
           return;
         }
+        const reactionToggle = event.target.closest('button[data-open-reactions]');
+        if (reactionToggle) {
+          const picker = container.querySelector('[data-reaction-picker="'+reactionToggle.dataset.openReactions+'"]');
+          if (picker) picker.hidden = !picker.hidden;
+          return;
+        }
+        const reactionButton = event.target.closest('button[data-message-reaction]');
+        if (reactionButton) {
+          const messageId = reactionButton.dataset.messageReaction;
+          const symbol = reactionButton.dataset.reaction;
+          if (!messageId || !symbol) return;
+          reactionButton.disabled = true;
+          try {
+            const message = currentMessages.find(item => item.id === messageId);
+            const members = Array.isArray(message?.reactions?.[symbol]) ? message.reactions[symbol] : [];
+            const field = 'reactions.' + symbol;
+            const update = members.includes(myUser.uid) ? arrayRemove(myUser.uid) : arrayUnion(myUser.uid);
+            await updateDoc(doc(db, 'matches', [myUser.uid, theirUID].sort().join('_'), 'messages', messageId), { [field]: update });
+          } catch (error) { showToast(error.message || 'Could not update reaction.'); }
+          return;
+        }
         const likeButton = event.target.closest('button[data-like-message]');
         if (likeButton) {
           likeButton.disabled = true;
@@ -603,6 +624,26 @@
           finally { likeButton.disabled = false; }
         }
       };
+      let replySwipeStart = null;
+      container.onpointerdown = event => {
+        const bubble = event.target.closest('[data-reply-swipe="true"]');
+        if (!bubble || event.target.closest('button,a,video')) { replySwipeStart = null; return; }
+        replySwipeStart = { x:event.clientX, y:event.clientY, id:bubble.parentElement?.dataset.messageId, pointerId:event.pointerId };
+      };
+      container.onpointerup = event => {
+        if (!replySwipeStart || replySwipeStart.pointerId !== event.pointerId) return;
+        const dx = event.clientX - replySwipeStart.x, dy = event.clientY - replySwipeStart.y;
+        const messageId = replySwipeStart.id; replySwipeStart = null;
+        if (Math.abs(dx) < 58 || Math.abs(dx) < Math.abs(dy) * 1.35) return;
+        const message = currentMessages.find(item => item.id === messageId);
+        if (!message) return;
+        replyingTo = message;
+        const preview = document.getElementById('replyPreview');
+        document.getElementById('replyPreviewText').textContent = 'Replying to: ' + (message.text || (message.imageURL ? 'Photo' : message.videoURL ? 'Video' : 'Message'));
+        preview.style.display = 'block';
+        document.getElementById('msgInput').focus();
+      };
+      container.onpointercancel = () => { replySwipeStart = null; };
     }
 
     window.openMemberProfile = function() {
