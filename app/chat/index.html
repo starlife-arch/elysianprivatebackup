@@ -103,8 +103,11 @@
     <div class="chat-messages" id="messages"></div>
     <div id="replyPreview" style="display:none;margin:0 12px;padding:8px 12px;border-left:3px solid var(--gold);background:var(--surface);border-radius:8px;font-size:12px;color:var(--muted);"><span id="replyPreviewText"></span><button id="cancelReply" type="button" style="float:right;background:none;border:0;color:var(--muted);">Cancel</button></div>
     <div id="imagePriceNotice" style="display:none;padding:5px 14px;text-align:center;font-size:11px;color:var(--muted);background:var(--surface);">Photos cost 30 tokens each. <a href="/app/wallet/" style="color:var(--gold);">Buy tokens in Wallet</a>.</div>
+    <div id="videoPriceNotice" style="display:none;padding:7px 14px;text-align:center;font-size:12px;font-weight:700;color:var(--gold);background:rgba(201,168,76,.10);">Video messages: 40 tokens (Trial / Standard) · 20 tokens (Elite / Vault)</div>
     <div class="chat-input-bar">
       <button class="attach-btn" id="giftBtn" title="Send token gift" aria-label="Send token gift" style="background:none;border:none;color:var(--gold);cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:44px;height:44px;"><i data-icon="gift" data-size="22"></i></button>
+      <button class="attach-btn" id="videoBtn" title="Send video" aria-label="Send video" onclick="document.getElementById(&quot;videoInput&quot;).click()" style="background:none;border:0;color:var(--gold);cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:38px;height:44px;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg></button>
+      <input type="file" id="videoInput" accept="video/*" style="display:none;" onchange="sendVideo(this)"/>
       <button class="attach-btn" id="imageBtn" onclick="document.getElementById('imgInput').click()" style="background:none;border:none;color:var(--muted);cursor:pointer;flex-shrink:0;">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21,15 16,10 5,21"/></svg>
       </button>
@@ -213,7 +216,7 @@
     import { hasPlan, isVault, getSubscription, hasActiveMembership, isSubscriptionExpired } from "../../js/subscription.js";
     import { db } from "../../js/auth.js";
     import { sendMessage, listenMessages, fetchConversations } from "../../js/chat.js";
-    import { uploadToCloudinary } from "../../js/verification.js";
+    import { uploadToCloudinary, uploadVideoToCloudinary } from "../../js/verification.js";
     import { openSheet } from "../../js/sheet.js";
     import {
       doc, setDoc, getDoc, addDoc, getDocs, updateDoc, deleteDoc,
@@ -221,7 +224,7 @@
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
     let myUser, myProfile, theirUID = null, theirProfile = null, unsubMessages = null, activeTicketId = null, activeTicket = null;
-    let blockedByMe = false, blockedMe = false, sendingMessage = false, sendingImage = false, openChatRequest = 0;
+    let blockedByMe = false, blockedMe = false, sendingMessage = false, sendingImage = false, sendingVideo = false, openChatRequest = 0;
     let selectedReportReason = '';
     let replyingTo = null;
     let currentMessages = [];
