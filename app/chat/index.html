@@ -249,6 +249,17 @@
       }
     }
 
+    function videoTokenCost() {
+      try {
+        if (!myProfile || !hasActiveMembership(myProfile) || isSubscriptionExpired(myProfile)) return null;
+        const plan = getSubscription(myProfile).plan;
+        return ['elite', 'vault'].includes(plan) ? 20 : 40;
+      } catch (error) {
+        console.error('Could not determine video-message eligibility', error);
+        return null;
+      }
+    }
+
     function isStandardPlan() {
       return (myProfile?.stage === 'paid' || myProfile?.hasPaid || myProfile?.paid) && (myProfile?.plan || myProfile?.subscription?.plan) === 'standard';
     }
@@ -419,14 +430,19 @@
       const input = document.getElementById('msgInput');
       const sendBtn = document.getElementById('sendBtn');
       const uploadBtn = document.getElementById('imageBtn');
+      const videoBtn = document.getElementById('videoBtn');
       const giftBtn = document.getElementById('giftBtn');
       const text = document.getElementById('blockToggleText');
       if (text) text.textContent = blockedByMe ? 'Unblock User' : 'Block User';
       const blocked = blockedByMe || blockedMe;
       const photoCost = imageTokenCost();
       const canSendPhotos = photoCost !== null;
+      const videoCost = videoTokenCost();
+      const canSendVideos = videoCost !== null;
       const priceNotice = document.getElementById('imagePriceNotice');
       if (priceNotice) priceNotice.style.display = photoCost === 30 ? 'block' : 'none';
+      const videoNotice = document.getElementById('videoPriceNotice');
+      if (videoNotice) videoNotice.style.display = canSendVideos ? 'block' : 'none';
       if (input) {
         input.disabled = blocked;
         input.placeholder = blockedByMe ? 'You blocked this member. Unblock to message again.' : (blockedMe ? 'You cannot message this member.' : 'Type a message...');
@@ -434,6 +450,7 @@
       if (sendBtn) sendBtn.disabled = blocked;
       if (giftBtn) { giftBtn.disabled = blocked; giftBtn.title = blocked ? 'Gifting is unavailable in a blocked conversation' : 'Send token gift'; }
       if (uploadBtn) { uploadBtn.disabled = blocked || !canSendPhotos; uploadBtn.title = !canSendPhotos ? 'An active membership is required to send photos' : photoCost ? '30 tokens per photo — buy tokens in Wallet' : 'Free photo messages'; }
+      if (videoBtn) { videoBtn.disabled = blocked || !canSendVideos; videoBtn.title = !canSendVideos ? 'An active membership is required to send videos' : videoCost + ' tokens per video'; }
     }
 
     function renderMessages(msgs) {
