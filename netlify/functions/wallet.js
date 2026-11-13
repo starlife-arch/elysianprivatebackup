@@ -29,6 +29,52 @@ async function caller(event) {
 const ts = () => admin().firestore.FieldValue.serverTimestamp();
 const txn = uid => _db.collection('users').doc(uid).collection('walletTransactions').doc();
 
+async function extendTrialWithTokens(uid, body) {
+  const requestId = String(body.requestId || '');
+  if (!/^[A-Za-z0-9_-]{16,80}$/.test(requestId)) {
+    throw Object.assign(new Error('A valid request ID is required. Please retry.'), { status: 400 });
+  }
+  const userRef = _db.collection('users').doc(uid);
+  const ledgerRef = userRef.collection('walletTransactions').doc('trial_extension_' + requestId);
+  let result;
+  await _db.runTransaction(async tx => {
+    const [userSnap, prior] = await Promise.all([tx.get(userRef), tx.get(ledgerRef)]);
+    if (prior.exists) {
+      result = { ok: true, alreadyProcessed: true, balance: Number(prior.data().balanceAfter || 0), expiresAt: prior.data().trialExpiresAt?.toDate?.().toISOString() || null };
+      return;
+    }
+    if (!userSnap.exists) throw Object.assign(new Error('Account not found.'), { status: 404 });
+    const data = userSnap.data(), trial = data.freeTrial || {};
+    const expiry = trial.expiresAt?.toMillis ? trial.expiresAt.toMillis() : trial.expiresAt?.toDate ? trial.expiresAt.toDate().getTime() : new Date(trial.expiresAt || 0).getTime();
+    if (trial.status !== 'expired' || !expiry || expiry > Date.now() || data.paid === true || data.hasPaid === true || data.adminOverride === true || data.banned === true || data.role === 'admin' || data.accountSuspended === true) {
+      throw Object.assign(new Error('Only an expired, unpaid Trial can be extended.'), { status: 403 });
+    }
+    if (data.walletFrozen) throw Object.assign(new Error('Your wallet is on hold. Contact support.'), { status: 403 });
+    const balance = Number(data.walletBalance || 0);
+    if (!Number.isSafeInteger(balance) || balance < 100) throw Object.assign(new Error('You need 100 tokens to extend your Trial by 7 days.'), { status: 402 });
+    const now = Date.now();
+    const expiresAt = admin().firestore.Timestamp.fromMillis(now + 7 * 24 * 60 * 60 * 1000);
+    const balanceAfter = balance - 100;
+    tx.update(userRef, {
+      walletBalance: balanceAfter,
+      'freeTrial.status': 'active',
+      'freeTrial.expiresAt': expiresAt,
+      'freeTrial.durationDays': 7,
+      status: 'active_member',
+      trialExtensionCount: admin().firestore.FieldValue.increment(1),
+      lastTrialExtensionAt: ts(),
+      lastTrialExtensionMethod: 'wallet_tokens'
+    });
+    tx.create(ledgerRef, {
+      type: 'trial_extension_tokens', amount: -100, note: '7-day Trial extension',
+      status: 'completed', createdAt: ts(), balanceAfter, trialExpiresAt: expiresAt,
+      requestId
+    });
+    result = { ok: true, balance: balanceAfter, expiresAt: expiresAt.toDate().toISOString() };
+  });
+  return result;
+}
+
 async function gift(uid, body) {
   const { toUID, amount, note = '' } = body;
   const n = Math.floor(Number(amount));
@@ -165,7 +211,7 @@ exports.handler = async event => {
   try {
     if (event.httpMethod !== 'POST') return json(405, { error: 'POST required' });
     const user = await caller(event), body = parseBody(event);
-    const data = body.action === 'gift' ? await gift(user.uid, body)
+    const data = body.action === 'extend_trial_tokens' ? await extendTrialWithTokens(user.uid, body)\n      : body.action === 'gift' ? await gift(user.uid, body)
       : body.action === 'withdraw' ? await withdraw(user.uid, body)
       : body.action === 'boost' ? await boost(user.uid)
       : body.action === 'superlike_pack' ? await addon(user.uid, 'superlike_pack')
