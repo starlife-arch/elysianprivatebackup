@@ -395,6 +395,7 @@ export async function assignPlan(uid, plan, expiry = null) {
     'subscription.billing': 'admin',
     'subscription.startDate': new Date().toISOString().slice(0, 10),
     'subscription.adminAssigned': true,
+    'subscription.adminLifetime': !expiry,
     'subscription.assignedAt': serverTimestamp(),
     'subscription.assignedBy': 'admin',
     'subscription.previousPlan': null,
@@ -414,6 +415,7 @@ export async function assignPlan(uid, plan, expiry = null) {
   // compatibility mirror, but never leave an old expiry attached to a grant.
   updates['subscription.nextBillingDate'] = expiry || null;
   updates['subscription.expiresAt'] = expiry || null;
+  updates['subscription.adminLifetime'] = !expiry;
 
   await updateDoc(doc(db, "users", uid), updates);
   const snap = await getDoc(doc(db, "users", uid));
