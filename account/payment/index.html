@@ -155,7 +155,7 @@
       showErr('');
       try {
         const idToken = await currentUser.getIdToken();
-        const requestId = crypto.randomUUID().replace(/-/g, '');
+        const storageKey = 'dv_trial_extension_request_' + currentUser.uid;\n        let requestId = sessionStorage.getItem(storageKey);\n        if (!requestId) { requestId = crypto.randomUUID().replace(/-/g, ''); sessionStorage.setItem(storageKey, requestId); }
         const response = await fetch('/.netlify/functions/wallet', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
@@ -163,7 +163,7 @@
         });
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || 'Could not extend your Trial.');
-        showSuccess('Your Trial has been extended by 7 days. 100 tokens were deducted.');
+        sessionStorage.removeItem('dv_trial_extension_request_' + currentUser.uid);\n        showSuccess('Your Trial has been extended by 7 days. 100 tokens were deducted.');
         button.textContent = 'Trial extended · 7 days added';
         setTimeout(() => { window.location.href = '/app/dashboard/'; }, 1200);
       } catch (error) {
