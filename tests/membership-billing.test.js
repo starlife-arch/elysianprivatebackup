@@ -259,16 +259,16 @@ test('super likes consume purchased pack uses in the same transaction except act
   assert.doesNotMatch(dashboard, /await updateDoc\(doc\(db, 'users', myUser\.uid\), \{\s*'addons\.superlikePack\.remainingUses'/);
 });
 
-test('message-like snapshots preserve the visible chat anchor and show the reaction to the other participant', () => {
+test('message likes keep the simple Like/Liked control visible without extra reaction labels', () => {
   const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
-  assert.match(chat, /const scrollAnchor = anchorNode \? \{ id: anchorNode\.dataset\.messageId/);
-  assert.match(chat, /container\.scrollTop \+= nextAnchor\.getBoundingClientRect\(\)\.top - scrollAnchor\.top/);
-  assert.match(chat, /likedByMe && likedByOther/);
-  assert.match(chat, /You liked this/);
-  assert.match(chat, /theirProfile\?\.displayName/);
-  assert.match(chat, /const isOut = m\.senderUID === myUser\.uid;\s*const likedBy = Array\.isArray\(m\.likedBy\)/);
+  assert.match(chat, /const likedBy = Array\.isArray\(m\.likedBy\) \? m\.likedBy : \[\]/);
+  assert.match(chat, /const liked = likedBy\.includes\(myUser\.uid\)/);
+  assert.match(chat, /likedBy\.length/);
+  assert.match(chat, /rgba\(255,70,105,\.28\)/);
+  assert.match(chat, /aria-label', \(liked \? 'Unlike' : 'Like'\)/);
+  assert.doesNotMatch(chat, /You liked this/);
+  assert.doesNotMatch(chat, /theirProfile\?\.displayName/);
 });
-
 test('mobile bottom navigation uses shrinkable equal slots and a More menu for secondary actions', () => {
   const css = fs.readFileSync(path.join(__dirname, '../css/style.css'), 'utf8');
   const dashboard = fs.readFileSync(path.join(__dirname, '../app/dashboard/index.html'), 'utf8');
@@ -349,17 +349,16 @@ test('video messages are charged atomically at the correct tier price', () => {
   assert.match(sendVideo, /parsed\.hostname !== 'res\.cloudinary\.com'/);
 });
 
-test('chat video picker displays tier pricing and makes likes visible for every message type', () => {
+test('chat video picker keeps tier pricing and simple visible likes on every message type', () => {
   const chat = fs.readFileSync(path.join(__dirname, '../app/chat/index.html'), 'utf8');
   assert.match(chat, /id="videoInput" accept="video\/\*"/);
   assert.match(chat, /function videoTokenCost\(\)/);
   assert.match(chat, /return \['elite', 'vault'\]\.includes\(plan\) \? 20 : 40;/);
   assert.match(chat, /video\.controls = true/);
+  assert.match(chat, /m\.videoURL/);
+  assert.match(chat, /m\.imageURL/);
+  assert.match(chat, /const likedBy = Array\.isArray\(m\.likedBy\) \? m\.likedBy : \[\]/);
   assert.match(chat, /likedBy\.length/);
-  assert.match(chat, /m\.videoURL \? 'video' : m\.imageURL \? 'photo' : 'message'/);
-  assert.match(chat, /' liked this ' \+ likedContent/);
-  assert.match(chat, /if \(likedBy\.length\)/);
-  assert.match(chat, /rgba\(255,70,105,\.18\)/);
-  assert.match(chat, /likedBy\.length \? ' · ' \+ likedBy\.length/);
-  assert.match(chat, /aria-label', \(liked \? 'Unlike' : 'Like'\)/);
+  assert.doesNotMatch(chat, /liked this/);
+  assert.doesNotMatch(chat, /You liked this/);
 });
