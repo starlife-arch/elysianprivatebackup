@@ -264,7 +264,7 @@ test('message likes keep the simple Like/Liked control visible without extra rea
   assert.match(chat, /const likedBy = Array\.isArray\(m\.likedBy\) \? m\.likedBy : \[\]/);
   assert.match(chat, /const liked = likedBy\.includes\(myUser\.uid\)/);
   assert.match(chat, /likedBy\.length/);
-  assert.match(chat, /rgba\(255,70,105,\.28\)/);
+  assert.match(chat, /display:inline-flex;align-items:center/);
   assert.match(chat, /aria-label', \(liked \? 'Unlike' : 'Like'\)/);
   assert.doesNotMatch(chat, /You liked this/);
   assert.doesNotMatch(chat, /theirProfile\?\.displayName/);
