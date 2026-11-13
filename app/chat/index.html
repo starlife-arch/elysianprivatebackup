@@ -559,7 +559,7 @@
           const more=document.createElement('button'); more.type='button'; more.dataset.expandReactions=m.id; more.textContent='+'; more.title='More reactions'; more.setAttribute('aria-label','More reactions');
           more.style.cssText='width:29px;height:29px;border:1px solid #536986;border-radius:50%;background:#20314a;color:#fff;font-size:20px;line-height:1;cursor:pointer';
           quick.appendChild(more);
-          const full=document.createElement('div'); full.dataset.fullReactions=m.id; full.hidden=true;
+          const full=document.createElement('div'); full.dataset.fullReactions=m.id; full.dataset.messageId=m.id; full.hidden=true;
           full.style.cssText='display:none;grid-template-columns:repeat(7, minmax(28px,1fr));gap:4px;width:100%;padding-top:6px;border-top:1px solid #344a68;margin-top:3px';
           const emojiGroups = {
             Smileys: [['😀','grinning face'],['😃','smiling face'],['😄','smiling eyes'],['😁','beaming'],['😆','laughing'],['😅','sweat smile'],['🤣','rofl'],['😂','tears of joy'],['🙂','slight smile'],['🙃','upside down'],['😉','wink'],['😊','blush'],['😇','halo'],['🥰','hearts'],['😍','heart eyes'],['🤩','star eyes'],['😘','kiss'],['😗','kissing'],['☺️','smile'],['😚','closed eyes kiss'],['😙','smiling kiss'],['🥲','tear smile'],['😋','yum'],['😛','tongue'],['😜','wink tongue'],['🤪','zany'],['😝','squint tongue'],['🤑','money face'],['🤗','hug'],['🤭','hand over mouth'],['🫢','open eyes hand over mouth'],['🫣','peeking'],['🤫','shush'],['🤔','thinking'],['🫡','salute'],['🤐','zipper mouth'],['🤨','raised eyebrow'],['😐','neutral'],['😑','expressionless'],['😶','no mouth'],['🫥','dotted line face'],['😏','smirk'],['😒','unamused'],['🙄','rolling eyes'],['😬','grimace'],['😮‍💨','sigh'],['🤥','lying'],['😌','relieved'],['😔','pensive'],['😪','sleepy'],['🤤','drooling'],['😴','sleeping'],['😷','mask'],['🤒','thermometer'],['🤕','bandage'],['🤢','nauseated'],['🤮','vomit'],['🥵','hot'],['🥶','cold'],['🥴','woozy'],['😵','dizzy'],['🤯','exploding head'],['🥳','party'],['🥸','disguise'],['😎','sunglasses'],['🤓','nerd'],['🧐','monocle'],['😕','confused'],['🫤','diagonal mouth'],['😟','worried'],['🙁','frown'],['☹️','sad'],['😮','open mouth'],['😯','hushed'],['😲','astonished'],['😳','flushed'],['🥺','pleading'],['🥹','holding back tears'],['😦','frowning open'],['😧','anguished'],['😨','fearful'],['😰','anxious'],['😥','sad relieved'],['😢','cry'],['😭','sobbing'],['😱','scream'],['😖','confounded'],['😣','persevere'],['😞','disappointed'],['😓','downcast sweat'],['😩','weary'],['😫','tired'],['🥱','yawn'],['😤','triumph'],['😡','angry'],['😠','mad'],['🤬','cursing'],['😈','devil'],['👿','angry devil'],['💀','skull'],['☠️','skull crossbones'],['💩','poop'],['🤡','clown'],['👻','ghost'],['👽','alien'],['🤖','robot']],
@@ -577,7 +577,7 @@
           fullSearch.style.cssText='width:100%;box-sizing:border-box;background:#0b1627;color:#f4f7fc;border:1px solid #405675;border-radius:9px;padding:8px 10px;font-size:14px;outline:none';
           const categoryBar=document.createElement('div');
           categoryBar.style.cssText='display:flex;gap:5px;overflow-x:auto;padding:7px 0;scrollbar-width:thin';
-          const emojiGrid=document.createElement('div');
+          const emojiGrid=document.createElement('div'); emojiGrid.dataset.emojiGrid='true';
           emojiGrid.style.cssText='display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;max-height:220px;overflow-y:auto;overscroll-behavior:contain;padding:3px';
           full.style.cssText='display:none;grid-template-columns:1fr;gap:5px;width:min(340px,82vw);max-width:100%;padding-top:6px;border-top:1px solid #344a68;margin-top:3px';
           let activeEmojiCategory='Smileys';
@@ -598,6 +598,12 @@
             tab.style.cssText='flex:0 0 auto;border:1px solid #405675;border-radius:999px;padding:5px 9px;background:'+(category===activeEmojiCategory?'#23554f':'#17263b')+';color:#f4f7fc;font-size:11px;cursor:pointer';
             categoryBar.appendChild(tab);
           });
+          categoryBar.querySelectorAll('[data-emoji-category]').forEach(tab=>tab.addEventListener('click',()=>{
+            activeEmojiCategory=tab.dataset.emojiCategory;
+            categoryBar.querySelectorAll('[data-emoji-category]').forEach(item=>{const active=item===tab;item.style.background=active?'#23554f':'#17263b';item.style.borderColor=active?'#36d6b0':'#405675';});
+            drawEmojiGrid();
+          }));
+          fullSearch.addEventListener('input',drawEmojiGrid);
           drawEmojiGrid();
           full.append(fullSearch,categoryBar,emojiGrid);
           picker.append(quick,full);
@@ -650,28 +656,6 @@
           if (picker) { picker.hidden = !picker.hidden; picker.style.display = picker.hidden ? 'none' : 'flex'; }
           return;
         }
-        const emojiCategory = event.target.closest('button[data-emoji-category]');
-        if (emojiCategory) {
-          const picker = emojiCategory.closest('[data-reaction-picker]');
-          const full = picker?.querySelector('[data-full-reactions]');
-          if (full) {
-            const search = full.querySelector('input[type="search"]');
-            const categories = [...full.querySelectorAll('[data-emoji-category]')];
-            categories.forEach(tab => {
-              const active = tab === emojiCategory;
-              tab.style.background = active ? '#23554f' : '#17263b';
-              tab.style.borderColor = active ? '#36d6b0' : '#405675';
-            });
-            const grid = full.querySelector('[data-emoji-grid]');
-            const selectedCategory = emojiCategory.dataset.emojiCategory;
-            const query = search?.value.trim().toLowerCase() || '';
-            const groups = window.__marketChatEmojiGroups;
-            // The picker stores its own category and renders the matching set below.
-            full.dataset.activeCategory = selectedCategory;
-            full.dispatchEvent(new CustomEvent('emoji-category-change'));
-          }
-          return;
-        }
         const expandReactions = event.target.closest('button[data-expand-reactions]');
         if (expandReactions) {
           const picker = container.querySelector('[data-reaction-picker="'+expandReactions.dataset.expandReactions+'"]');
@@ -705,22 +689,6 @@
           } catch (error) { showToast(error.message || 'Could not update message like.'); }
           finally { likeButton.disabled = false; }
         }
-      };
-      container.oninput = event => {
-        const search = event.target.closest('input[aria-label="Search all emojis"]');
-        if (!search) return;
-        const full = search.closest('[data-full-reactions]');
-        const grid = full?.querySelector('[data-emoji-grid]');
-        const category = full?.dataset.activeCategory || 'Smileys';
-        if (!grid) return;
-        const query = search.value.trim().toLowerCase();
-        const allGroups = full._emojiGroups || {};
-        const source = category === 'All' ? Object.entries(allGroups).flatMap(([name,items])=>items.map(item=>[...item,name])) : (allGroups[category]||[]).map(item=>[...item,category]);
-        grid.replaceChildren();
-        source.filter(([symbol,label,group])=>(symbol+' '+label+' '+group).toLowerCase().includes(query)).forEach(([symbol,label])=>{
-          const choice=document.createElement('button');choice.type='button';choice.dataset.messageReaction=full.dataset.messageId;choice.dataset.reaction=symbol;choice.textContent=symbol;choice.title=label;choice.setAttribute('aria-label','React with '+label);choice.style.cssText='background:transparent;border:0;border-radius:7px;padding:5px 1px;font-size:21px;line-height:1.15;cursor:pointer';grid.appendChild(choice);
-        });
-        if(!grid.childNodes.length){const empty=document.createElement('div');empty.textContent='No emojis found';empty.style.cssText='grid-column:1/-1;color:#b8c9df;padding:10px;font-size:12px';grid.appendChild(empty);}
       };
       let replySwipeStart = null;
       container.onpointerdown = event => {
