@@ -514,12 +514,12 @@
           if (m.text) { const body = document.createElement('div'); body.textContent = m.text; bubble.appendChild(body); }
           const likedByMe = likedBy.includes(myUser.uid);
           const likedByOther = Boolean(theirUID && likedBy.includes(theirUID));
-          const likedContent = m.videoURL ? 'your video' : m.imageURL ? 'your photo' : 'your message';
+          const likedContent = m.videoURL ? 'video' : m.imageURL ? 'photo' : 'message';
           if (likedBy.length) {
             const reaction = document.createElement('div');
             reaction.className = 'dv-message-like-reaction';
             reaction.textContent = likedByMe && likedByOther ? '\\u2665 You both liked this'
-              : likedByMe ? '\\u2665 You liked this' : '\\u2665 ' + (theirProfile?.displayName || theirProfile?.name || 'They') + ' liked ' + likedContent;
+              : likedByMe ? '\\u2665 You liked this ' + likedContent : '\\u2665 ' + (theirProfile?.displayName || theirProfile?.name || 'They') + ' liked this ' + likedContent;
             reaction.style.cssText = 'display:inline-flex;align-self:flex-start;flex-wrap:wrap;gap:5px;margin-top:9px;padding:8px 12px;border-radius:999px;background:rgba(255,70,105,.18);border:1px solid rgba(255,90,120,.60);color:#ff6b8a;font-size:13px;font-weight:800;box-shadow:0 2px 14px rgba(255,70,105,.16);';
             bubble.appendChild(reaction);
           }
